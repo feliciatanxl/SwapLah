@@ -1,19 +1,66 @@
-# You can override the included template(s) by including variable overrides
-# SAST customization: https://docs.gitlab.com/user/application_security/sast/#available-cicd-variables
-# Secret Detection customization: https://docs.gitlab.com/user/application_security/secret_detection/pipeline/configure/
-# Dependency Scanning customization: https://docs.gitlab.com/user/application_security/dependency_scanning/dependency_scanning_sbom/#customizing-analyzer-behavior
-# Container Scanning customization: https://docs.gitlab.com/user/application_security/container_scanning/#customizing-analyzer-behavior
-# Note that environment variables can be set in several places
-# See https://docs.gitlab.com/ci/variables/#cicd-variable-precedence
+image: python:3.10-slim
+
 stages:
-- test
-- secret-detection
-sast:
-  stage: test
-include:
-- template: Security/SAST.gitlab-ci.yml
-- template: Security/Secret-Detection.gitlab-ci.yml
+  - lint
+  - test
+  - security
+
 variables:
-  SECRET_DETECTION_ENABLED: 'true'
-secret_detection:
-  stage: secret-detection
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  paths:
+    - .cache/pip
+
+before_script:
+  - python -m venv .venv
+  - source .venv/bin/activate
+  - pip install --upgrade pip
+  # This ensures the pipeline installs your dependencies before testing
+  - pip install -r requirements.txt 
+
+# ==========================================
+# STAGE 1: LINTING & CODE QUALITY
+# ==========================================
+linting_job:
+  stage: lint
+  script:
+    - pip install pylint radon
+    - echo "Running Pylint (Must score >= 7.0)..."
+    - pylint app/ --fail-under=7.0
+    - echo "Checking Cyclomatic Complexity (Must be <= 10)..."
+    - radon cc app/ -nc --total-average
+  allow_failure: false # This forces the pipeline to FAIL if code is messy
+
+# ==========================================
+# STAGE 2: AUTOMATED TESTING
+# ==========================================
+unit_testing_job:
+  stage: test
+  script:
+    - pip install pytest pytest-cov
+    - echo "Running Unit Tests (Must have >= 60% coverage)..."
+    - pytest tests/unit/ --cov=app/ --cov-fail-under=60
+
+api_testing_job:
+  stage: test
+  script:
+    - pip install pytest requests
+    - echo "Running API Endpoint Tests..."
+    - pytest tests/api/
+
+ui_testing_job:
+  stage: test
+  script:
+    - pip install pytest selenium
+    - echo "Running Selenium UI Tests..."
+    - pytest tests/ui/
+
+# ==========================================
+# STAGE 3: SECURITY SCANS
+# ==========================================
+# GitLab's built-in templates for SAST, Secrets, and Dependencies (SBOM)
+include:
+  - template: Security/SAST.gitlab-ci.yml
+  - template: Security/Secret-Detection.gitlab-ci.yml
+  - template: Security/Dependency-Scanning.gitlab-ci.yml
