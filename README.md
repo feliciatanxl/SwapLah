@@ -14,7 +14,7 @@ Ensure you have Python 3.8 or higher installed on your machine. You can check yo
 
 Clone the GitLab repository to your local machine and navigate into the project directory
 
-git clone cd swaplah
+` ` `git clone cd swaplah` ` `
 
 ### Step 2: Create the Virtual Environment
 
@@ -22,7 +22,7 @@ Create a new virtual environment named ".venv" inside the project folder. Run th
 
 For Windows, macOS, and Linux:
 
-python -m venv .venv 
+` ` `python -m venv .venv` ` `
 
 (Note: If "python" doesn't work on macOS/Linux, try using "python3 -m venv .venv")
 
@@ -32,15 +32,15 @@ You must activate the virtual environment every time you open a new terminal to 
 
 For Windows (Command Prompt):
 
-.venv\\Scripts\\activate.bat
+` ` `.venv\\Scripts\\activate.bat` ` `
 
 For Windows (PowerShell):
 
- .venv\\Scripts\\Activate.ps1
+` ` `.venv\\Scripts\\Activate.ps1` ` `
 
 For macOS and Linux:
 
-source .venv/bin/activate
+` ` `source .venv/bin/activate` ` `
 
 Success Check: You will know it is activated when you see "(.venv)" appear at the very beginning of your terminal prompt line.
 
@@ -48,7 +48,7 @@ Success Check: You will know it is activated when you see "(.venv)" appear at th
 
 With the virtual environment activated, install all the required Python packages listed in the requirements file
 
-pip install -r requirements.txt
+` ` `pip install -r requirements.txt` ` `
 
 ### Step 5: Environment Variables
 
@@ -62,14 +62,14 @@ This project requires secret keys and database configurations that should never 
 
 Start the local Flask development server
 
-flask run
+` ` `flask run` ` `
 
 (Or run it directly using Python, depending on your setup)
 
-python run.py
+` ` `python run.py` ` `
 
 ## Deactivating the Environment
 
 When you are done working and want to return to your normal system terminal, you can safely exit the virtual environment by running
 
-deactivate
+` ` `deactivate` ` `
