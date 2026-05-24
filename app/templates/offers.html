@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="offers-page">
+    <div class="offers-topbar">
+        <div>
+            <h1 class="offers-title">Offers <span class="offers-title-icon">💘</span></h1>
+            <p class="offers-subtitle">Manage all incoming and outgoing offers in one place.</p>
+        </div>
+        <span class="pending-pill">3 pending</span>
+    </div>
+
+    <ul class="nav nav-pills mb-4 gap-3 border-0" id="offersTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link offers-tab active" id="received-tab" data-bs-toggle="pill" data-bs-target="#received" type="button" role="tab" aria-selected="true" style="border-radius: 999px; padding: 10px 24px; font-weight: 600; display: flex; align-items: center; gap: 8px; color: #4b5563; background: #f3edf7; border: 1px solid #e5e7eb;">
+                <i class="bi bi-inbox fs-5"></i> Received (3)
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link offers-tab" id="sent-tab" data-bs-toggle="pill" data-bs-target="#sent" type="button" role="tab" aria-selected="false" style="border-radius: 999px; padding: 10px 24px; font-weight: 600; display: flex; align-items: center; gap: 8px; color: #4b5563; background: #f3edf7; border: 1px solid #e5e7eb;">
+                <i class="bi bi-send fs-5"></i> Sent (2)
+            </button>
+        </li>
+    </ul>
+
+    <!-- CSS Override to make Bootstrap tabs work nicely with custom active state -->
+    <style>
+        .nav-pills .nav-link.offers-tab.active {
+            background: #8b5cf6 !important;
+            color: white !important;
+            border-color: #8b5cf6 !important;
+            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+        }
+        .nav-pills .nav-link.offers-tab {
+            transition: all 0.2s ease;
+        }
+    </style>
+
+    <div class="tab-content" id="offersTabContent">
+        <!-- RECEIVED TAB -->
+        <div class="tab-pane fade show active" id="received" role="tabpanel" aria-labelledby="received-tab">
+            <div class="offer-list">
+                <div class="offer-card">
+                    <div class="offer-main">
+                        <img src="{{ url_for('static', filename='images/calc.jpg') }}" alt="Calculator" class="offer-image">
+                        <div class="offer-content">
+                            <div class="offer-meta">
+                                <span class="offer-type swap"><i class="bi bi-arrow-left-right"></i> Swap offer</span>
+                                <span class="offer-time">1h ago</span>
+                            </div>
+                            <h4 class="offer-item-title">Casio FX-991EX Scientific Calc</h4>
+                            <div class="offer-message">
+                                Offers to swap with: <strong>TI-84 Plus CE Graphing Calculator</strong>
+                            </div>
+                            <div class="offer-user">
+                                <span class="offer-avatar">D</span>
+                                <span>Daniel W. <i class="bi bi-star-fill text-warning"></i> 4.8</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="offer-actions">
+                        <button class="btn-accept"><i class="bi bi-check-lg"></i> Accept</button>
+                        <button class="btn-reject"><i class="bi bi-x-lg"></i> Reject</button>
+                    </div>
+                </div>
+
+                <div class="offer-card">
+                    <div class="offer-main">
+                        <img src="{{ url_for('static', filename='images/lamp.jpg') }}" alt="Lamp" class="offer-image">
+                        <div class="offer-content">
+                            <div class="offer-meta">
+                                <span class="offer-type price"><i class="bi bi-cash-coin"></i> Price offer</span>
+                                <span class="offer-time">3h ago</span>
+                            </div>
+                            <h4 class="offer-item-title">Minimalist LED Desk Lamp</h4>
+                            <div class="offer-message">
+                                Offer amount: <strong class="text-purple">\$12</strong> (listed at \$15)
+                            </div>
+                            <div class="offer-user">
+                                <span class="offer-avatar">M</span>
+                                <span>Mei Ling <i class="bi bi-star-fill text-warning"></i> 4.6</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="offer-actions">
+                        <button class="btn-accept"><i class="bi bi-check-lg"></i> Accept</button>
+                        <button class="btn-reject"><i class="bi bi-x-lg"></i> Reject</button>
+                    </div>
+                </div>
+
+                <div class="offer-card">
+                    <div class="offer-main">
+                        <img src="{{ url_for('static', filename='images/calc.jpg') }}" alt="Calculator" class="offer-image">
+                        <div class="offer-content">
+                            <div class="offer-meta">
+                                <span class="offer-type price"><i class="bi bi-cash-coin"></i> Price offer</span>
+                                <span class="offer-time">5h ago</span>
+                            </div>
+                            <h4 class="offer-item-title">Casio FX-991EX Scientific Calc</h4>
+                            <div class="offer-message">
+                                Offer amount: <strong class="text-purple">\$18</strong> (listed at Swap Only)
+                            </div>
+                            <div class="offer-user">
+                                <span class="offer-avatar">K</span>
+                                <span>Karthik V. <i class="bi bi-star-fill text-warning"></i> 5.0</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="offer-actions">
+                        <button class="btn-accept"><i class="bi bi-check-lg"></i> Accept</button>
+                        <button class="btn-reject"><i class="bi bi-x-lg"></i> Reject</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SENT TAB -->
+        <div class="tab-pane fade" id="sent" role="tabpanel" aria-labelledby="sent-tab">
+            <div class="d-flex flex-column gap-3 mb-4">
+                
+                <!-- Sent Item 1 -->
+                <div class="card p-4" style="border-radius: 20px; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.03);">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="d-flex gap-2 mb-2">
+                                <span class="badge" style="background: #fff4e5; color: #f97316; border-radius: 8px; padding: 6px 12px; font-weight: 600;"><i class="bi bi-fire"></i> Price</span>
+                                <span class="badge" style="background: #fef3c7; color: #b45309; border-radius: 8px; padding: 6px 12px; font-weight: 600;">Pending</span>
+                            </div>
+                            <h5 class="fw-bold mb-1 fs-6">Sony WH-1000XM4 Headphones</h5>
+                            <p class="text-muted mb-0 small">To Sarah K. <span class="mx-1">·</span> Offer: $150</p>
+                        </div>
+                        <button class="btn btn-light rounded-pill px-4 fw-bold text-dark" style="border: 1px solid #e5e7eb; font-size: 0.9rem;">View details</button>
+                    </div>
+                </div>
+
+                <!-- Sent Item 2 -->
+                <div class="card p-4" style="border-radius: 20px; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.03);">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="d-flex gap-2 mb-2">
+                                <span class="badge" style="background: #e0e7ff; color: #4f46e5; border-radius: 8px; padding: 6px 12px; font-weight: 600;"><i class="bi bi-arrow-left-right"></i> Swap</span>
+                                <span class="badge" style="background: #dcfce7; color: #16a34a; border-radius: 8px; padding: 6px 12px; font-weight: 600;">Accepted</span>
+                            </div>
+                            <h5 class="fw-bold mb-1 fs-6">MacBook Air M1 — Barely Used</h5>
+                            <p class="text-muted mb-0 small">To Jian Wei <span class="mx-1">·</span> Offer: iPad Air 4 + $200</p>
+                        </div>
+                        <button class="btn btn-light rounded-pill px-4 fw-bold text-dark" style="border: 1px solid #e5e7eb; font-size: 0.9rem;">View details</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tip Card -->
+    <div class="card p-4 border-0 mt-2" style="border-radius: 24px; background: linear-gradient(90deg, #f5f3ff, #fdf2f8, #fef3c7);">
+        <div class="d-flex align-items-center gap-3">
+            <div class="bg-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 48px; height: 48px; flex-shrink: 0;">
+                <i class="bi bi-arrow-left-right text-purple fs-4"></i>
+            </div>
+            <div>
+                <h6 class="fw-bold mb-1 text-dark fs-6">Tip: Counter-offers boost deal rates by 40% <i class="bi bi-graph-up-arrow text-primary"></i></h6>
+                <p class="text-muted mb-0 small">Negotiate respectfully — meet halfway and seal the deal.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock %}

@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="mb-4">
+    <a href="{{ url_for('index') }}" class="text-decoration-none text-muted d-inline-block fw-bold"><i class="bi bi-arrow-left"></i> Back to browse</a>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <!-- Main Image Card -->
+        <div class="position-relative mb-4">
+            <img src="{{ url_for('static', filename='images/item.jpg') }}" class="img-fluid w-100" style="border-radius: 28px; height: 500px; object-fit: cover;" alt="Item" onerror="this.src='https://images.unsplash.com/photo-1544947950-fa07a98d237f?q=80&w=1200&auto=format&fit=crop'">
+            <div class="position-absolute d-flex gap-2" style="top: 20px; right: 20px;">
+                <button class="btn btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;"><i class="bi bi-heart text-danger"></i></button>
+                <button class="btn btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;"><i class="bi bi-share"></i></button>
+            </div>
+            <div class="position-absolute" style="top: 20px; left: 20px;">
+                <span class="badge bg-danger rounded-pill px-3 py-2"><i class="bi bi-fire"></i> Hot</span>
+            </div>
+        </div>
+
+        <!-- Details Card -->
+        <div class="page-card p-4 p-md-5" style="border-radius: 28px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border: none;">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="badge bg-soft-purple text-purple rounded-pill px-3 py-2 mb-3">Textbooks</span>
+                <h2 class="fw-bold text-dark mb-0">$25</h2>
+            </div>
+            <h2 class="fw-bold mb-2">Calculus: Early Transcendentals 9E</h2>
+            <p class="text-muted mb-4"><i class="bi bi-geo-alt"></i> Block L <span class="mx-2">·</span> 2h ago <span class="mx-2">·</span> <span class="badge bg-light text-dark rounded-pill">Good</span></p>
+
+            <hr class="mb-4" style="opacity: 0.1;">
+
+            <h5 class="fw-bold mb-3">Description</h5>
+            <p class="text-muted" style="line-height: 1.6;">Used for IT2001 last sem. Minor highlighting in first 3 chapters, otherwise like new. No torn pages.</p>
+
+            <div class="row g-3 mt-4">
+                <div class="col-md-4">
+                    <div class="d-flex flex-column align-items-center justify-content-center bg-soft-purple p-3" style="border-radius: 16px;">
+                        <i class="bi bi-shield-check text-purple mb-2 fs-5"></i>
+                        <span class="text-purple small fw-bold">NYP verified</span>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="d-flex flex-column align-items-center justify-content-center bg-soft-green p-3" style="border-radius: 16px;">
+                        <i class="bi bi-check-circle text-green mb-2 fs-5"></i>
+                        <span class="text-green small fw-bold">Meet on campus</span>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="d-flex flex-column align-items-center justify-content-center bg-soft-pink p-3" style="border-radius: 16px;">
+                        <i class="bi bi-arrow-left-right text-pink mb-2 fs-5"></i>
+                        <span class="text-pink small fw-bold">Open to swaps</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <!-- Seller Card -->
+        <div class="page-card p-4 mb-4" style="border-radius: 28px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border: none;">
+            <h5 class="fw-bold mb-4">Seller</h5>
+            <div class="d-flex align-items-center gap-3 mb-4">
+                <div class="bg-soft-purple text-purple rounded-circle d-flex align-items-center justify-content-center fw-bold fs-4" style="width: 56px; height: 56px;">A</div>
+                <div>
+                    <h6 class="fw-bold mb-1">Aishah T.</h6>
+                    <div class="d-flex align-items-center gap-1 small">
+                        <i class="bi bi-star-fill text-warning"></i>
+                        <span class="fw-bold">4.9</span>
+                        <span class="text-muted">· 24 reviews</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-light p-3 mb-2 d-flex align-items-center gap-3" style="border-radius: 16px;">
+                <i class="bi bi-envelope text-purple"></i>
+                <span class="fw-bold text-dark small">aishah.t@nyp.edu.sg</span>
+            </div>
+            <div class="bg-light p-3 mb-4 d-flex align-items-center gap-3" style="border-radius: 16px;">
+                <i class="bi bi-telephone text-purple"></i>
+                <span class="fw-bold text-dark small">+65 9123 4567</span>
+            </div>
+
+            <div class="d-flex flex-column gap-2">
+                <button class="btn text-white rounded-pill py-3 fw-bold w-100" style="background: linear-gradient(90deg, #8b5cf6, #ec4899);" data-bs-toggle="modal" data-bs-target="#offerModal"><i class="bi bi-arrow-left-right"></i> Make Offer</button>
+                <button class="btn btn-light rounded-pill py-3 fw-bold w-100" style="border: 1px solid #e5e7eb;"><i class="bi bi-envelope"></i> Message seller</button>
+                <button class="btn text-danger fw-bold w-100 mt-2" style="background: transparent; border: none;"><i class="bi bi-flag"></i> Report this listing</button>
+            </div>
+        </div>
+
+        <!-- Safety Card -->
+        <div class="page-card p-4" style="border-radius: 28px; background: linear-gradient(135deg, #8b5cf6, #ec4899); color: white; border: none;">
+            <h6 class="fw-bold mb-3 fs-5">Stay safe out there 🛡️</h6>
+            <p class="mb-0 small" style="line-height: 1.6;">Meet at campus common areas (LRC, canteens). Never share OTPs or pay outside SwapLah.</p>
+        </div>
+    </div>
+</div>
+
+<!-- You might also like -->
+<div class="mt-5 pt-3">
+    <h4 class="fw-bold mb-4">You might also like</h4>
+    <div class="row g-4">
+        <!-- Item 1 -->
+        <div class="col-md-3">
+            <div class="card listing-card" style="border-radius: 24px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.04);">
+                <img src="{{ url_for('static', filename='images/macbook.jpg') }}" class="card-img-top" style="border-radius: 24px 24px 0 0; height: 220px; object-fit: cover;" alt="MacBook" onerror="this.src='https://images.unsplash.com/photo-1517336714731-489689fd1ca8?q=80&w=600&auto=format&fit=crop'">
+                <div class="card-body p-4">
+                    <h6 class="fw-bold text-truncate">MacBook Air M1 — Barely Used</h6>
+                    <p class="text-purple fw-bold mb-0">$680</p>
+                </div>
+            </div>
+        </div>
+        <!-- Item 2 -->
+        <div class="col-md-3">
+            <div class="card listing-card" style="border-radius: 24px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.04);">
+                <img src="{{ url_for('static', filename='images/calc.jpg') }}" class="card-img-top" style="border-radius: 24px 24px 0 0; height: 220px; object-fit: cover;" alt="Calc" onerror="this.src='https://images.unsplash.com/photo-1574607383476-f517f260d30b?q=80&w=600&auto=format&fit=crop'">
+                <div class="card-body p-4">
+                    <h6 class="fw-bold text-truncate">Casio FX-991EX Scientific Calc</h6>
+                    <p class="text-purple fw-bold mb-0">Swap Only</p>
+                </div>
+            </div>
+        </div>
+        <!-- Item 3 -->
+        <div class="col-md-3">
+            <div class="card listing-card" style="border-radius: 24px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.04);">
+                <img src="{{ url_for('static', filename='images/shoes.jpg') }}" class="card-img-top" style="border-radius: 24px 24px 0 0; height: 220px; object-fit: cover;" alt="Shoes" onerror="this.src='https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=600&auto=format&fit=crop'">
+                <div class="card-body p-4">
+                    <h6 class="fw-bold text-truncate">Nike Air Force 1 — Size US9</h6>
+                    <p class="text-purple fw-bold mb-0">$45</p>
+                </div>
+            </div>
+        </div>
+        <!-- Item 4 -->
+        <div class="col-md-3">
+            <div class="card listing-card" style="border-radius: 24px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.04);">
+                <img src="{{ url_for('static', filename='images/headphones.jpg') }}" class="card-img-top" style="border-radius: 24px 24px 0 0; height: 220px; object-fit: cover;" alt="Headphones" onerror="this.src='https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?q=80&w=600&auto=format&fit=crop'">
+                <div class="card-body p-4">
+                    <h6 class="fw-bold text-truncate">Sony WH-1000XM4 Headphones</h6>
+                    <p class="text-purple fw-bold mb-0">$180</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Make Offer Modal -->
+<div class="modal fade" id="offerModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 24px; border: none; padding: 10px;">
+            <div class="modal-header border-0 pb-0">
+                <h4 class="modal-title fw-bold">Make an Offer</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body pt-3">
+                <label class="form-label fw-bold mb-2">Your Offer Price</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-0 fw-bold" style="border-radius: 12px 0 0 12px;">$</span>
+                    <input type="text" class="form-control bg-light border-0 px-3 py-3" style="border-radius: 0 12px 12px 0;" placeholder="e.g. 20">
+                </div>
+                <div class="d-flex justify-content-end gap-3 mt-4">
+                    <button type="button" class="btn btn-light rounded-pill px-4 fw-bold" data-bs-dismiss="modal" style="border: 1px solid #e5e7eb;">Cancel</button>
+                    <button type="button" class="btn text-white rounded-pill px-4 fw-bold" style="background: linear-gradient(90deg, #8b5cf6, #ec4899);">Submit Offer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
