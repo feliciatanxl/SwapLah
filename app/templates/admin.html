@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="mb-5 d-flex align-items-center gap-3">
+    <div class="bg-dark text-white rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 56px; height: 56px;">
+        <i class="bi bi-shield-check fs-3"></i>
+    </div>
+    <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <h1 class="section-title mb-0 fw-bold" style="font-size: 2.2rem; letter-spacing: -0.5px;">Admin dashboard</h1>
+            <span class="badge" style="background: #fee2e2; color: #ef4444; border-radius: 999px; padding: 6px 12px; font-weight: 700; font-size: 0.75rem;">Staff only</span>
+        </div>
+        <p class="text-muted mb-0">Moderate reports & manage user accounts.</p>
+    </div>
+</div>
+
+<div class="row g-4 mb-5">
+    <!-- Card 1 -->
+    <div class="col-md-3">
+        <div class="card p-4 h-100 bg-white" style="border-radius: 20px; border: 1px solid #f3edf7; box-shadow: 0 4px 20px rgba(0,0,0,0.02);">
+            <small class="text-muted fw-bold">Total users</small>
+            <h2 class="fw-bold mt-2 mb-4" style="font-size: 2.4rem;">2,412</h2>
+            <small class="fw-bold" style="color: #10b981;"><i class="bi bi-arrow-up"></i> 8% this week</small>
+        </div>
+    </div>
+    <!-- Card 2 -->
+    <div class="col-md-3">
+        <div class="card p-4 h-100 bg-white" style="border-radius: 20px; border: 1px solid #f3edf7; box-shadow: 0 4px 20px rgba(0,0,0,0.02);">
+            <small class="text-muted fw-bold">Active listings</small>
+            <h2 class="fw-bold mt-2 mb-4" style="font-size: 2.4rem;">811</h2>
+            <small class="fw-bold" style="color: #10b981;"><i class="bi bi-arrow-up"></i> 12% this week</small>
+        </div>
+    </div>
+    <!-- Card 3 -->
+    <div class="col-md-3">
+        <div class="card p-4 h-100" style="border-radius: 20px; border: 1px solid #fde68a; box-shadow: 0 4px 20px rgba(0,0,0,0.02); background: #fffbeb;">
+            <small class="fw-bold" style="color: #d97706;">Pending reports</small>
+            <h2 class="fw-bold mt-2 mb-4 text-dark" style="font-size: 2.4rem;">3</h2>
+            <small class="fw-bold" style="color: #d97706;"><i class="bi bi-exclamation-triangle"></i> Needs review</small>
+        </div>
+    </div>
+    <!-- Card 4 -->
+    <div class="col-md-3">
+        <div class="card p-4 h-100" style="border-radius: 20px; border: 1px solid #fecdd3; box-shadow: 0 4px 20px rgba(0,0,0,0.02); background: #fff1f2;">
+            <small class="fw-bold" style="color: #e11d48;">Suspended users</small>
+            <h2 class="fw-bold mt-2 mb-4 text-dark" style="font-size: 2.4rem;">1</h2>
+            <small class="fw-bold" style="color: #e11d48;">View flagged accounts</small>
+        </div>
+    </div>
+</div>
+
+<div class="d-flex gap-3 mb-4">
+    <button class="btn text-white rounded-pill px-4 py-2 fw-bold d-flex align-items-center gap-2" style="background: #1f2937;"><i class="bi bi-flag"></i> Reports (3)</button>
+    <button class="btn bg-white rounded-pill px-4 py-2 fw-bold d-flex align-items-center gap-2" style="border: 1px solid #e5e7eb; color: #4b5563;"><i class="bi bi-people"></i> Users (4)</button>
+</div>
+
+<div class="card p-2 p-md-4 bg-white" style="border-radius: 24px; border: none; box-shadow: 0 4px 24px rgba(0,0,0,0.04);">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+        <div class="input-group" style="max-width: 350px;">
+            <span class="input-group-text bg-light border-0 text-muted" style="border-radius: 16px 0 0 16px; padding-left: 16px;"><i class="bi bi-search"></i></span>
+            <input type="text" class="form-control bg-light border-0 py-3" placeholder="Search reports..." style="border-radius: 0 16px 16px 0; box-shadow: none;">
+        </div>
+        <span class="fw-bold px-3 py-2" style="color: #d97706; background: #fffbeb; border-radius: 12px;"><i class="bi bi-exclamation-triangle"></i> 3 pending review</span>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table align-middle table-borderless table-hover mb-0">
+            <thead style="border-bottom: 2px solid #f3f4f6;">
+                <tr>
+                    <th class="py-3 text-dark fw-bold fs-6">Listing</th>
+                    <th class="py-3 text-dark fw-bold fs-6">Reporter</th>
+                    <th class="py-3 text-dark fw-bold fs-6">Reason</th>
+                    <th class="py-3 text-dark fw-bold fs-6">Date</th>
+                    <th class="py-3 text-dark fw-bold fs-6">Status</th>
+                    <th class="py-3 text-dark fw-bold fs-6 text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr style="border-bottom: 1px solid #f3f4f6;">
+                    <td class="py-4 fw-bold text-dark">Fake Apple AirPods Pro</td>
+                    <td class="py-4 text-muted">user_2103</td>
+                    <td class="py-4 text-dark">Suspected counterfeit</td>
+                    <td class="py-4 text-muted">23 May 2026</td>
+                    <td class="py-4"><span class="badge" style="background: #fef3c7; color: #d97706; padding: 6px 12px; border-radius: 8px;">Pending</span></td>
+                    <td class="py-4 text-end">
+                        <button class="btn btn-light btn-sm rounded-pill px-4 py-2 fw-bold me-2" style="border: 1px solid #e5e7eb; color: #4b5563;">Dismiss</button>
+                        <button class="btn btn-danger btn-sm rounded-pill px-4 py-2 fw-bold" style="background: #f43f5e; border-color: #f43f5e;"><i class="bi bi-trash"></i> Delete</button>
+                    </td>
+                </tr>
+                <tr style="border-bottom: 1px solid #f3f4f6;">
+                    <td class="py-4 fw-bold text-dark">Calculus Solutions Manual</td>
+                    <td class="py-4 text-muted">user_1188</td>
+                    <td class="py-4 text-dark">Copyright violation</td>
+                    <td class="py-4 text-muted">22 May 2026</td>
+                    <td class="py-4"><span class="badge" style="background: #fef3c7; color: #d97706; padding: 6px 12px; border-radius: 8px;">Pending</span></td>
+                    <td class="py-4 text-end">
+                        <button class="btn btn-light btn-sm rounded-pill px-4 py-2 fw-bold me-2" style="border: 1px solid #e5e7eb; color: #4b5563;">Dismiss</button>
+                        <button class="btn btn-danger btn-sm rounded-pill px-4 py-2 fw-bold" style="background: #f43f5e; border-color: #f43f5e;"><i class="bi bi-trash"></i> Delete</button>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="py-4 fw-bold text-dark">Random spam post lol</td>
+                    <td class="py-4 text-muted">user_4421</td>
+                    <td class="py-4 text-dark">Spam / not a real item</td>
+                    <td class="py-4 text-muted">21 May 2026</td>
+                    <td class="py-4"><span class="badge" style="background: #fef3c7; color: #d97706; padding: 6px 12px; border-radius: 8px;">Pending</span></td>
+                    <td class="py-4 text-end">
+                        <button class="btn btn-light btn-sm rounded-pill px-4 py-2 fw-bold me-2" style="border: 1px solid #e5e7eb; color: #4b5563;">Dismiss</button>
+                        <button class="btn btn-danger btn-sm rounded-pill px-4 py-2 fw-bold" style="background: #f43f5e; border-color: #f43f5e;"><i class="bi bi-trash"></i> Delete</button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

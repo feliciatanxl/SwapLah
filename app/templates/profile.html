@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-card overflow-hidden" style="border-radius: 28px; background: white; padding: 24px; box-shadow: 0 8px 30px rgba(0,0,0,0.03);">
+    <div class="profile-header" style="height: 180px; border-radius: 20px; background: linear-gradient(90deg, #8b5cf6, #ec4899); margin-bottom: 20px;"></div>
+    
+    <div class="d-flex justify-content-between align-items-start flex-wrap px-2">
+        <div class="d-flex align-items-end gap-4" style="margin-top: -60px;">
+            <img src="{{ url_for('static', filename='images/profile.jpg') }}" class="rounded-circle border border-4 border-white" style="width: 120px; height: 120px; object-fit: cover;" alt="Profile" onerror="this.src='https://ui-avatars.com/api/?name=Jordan+Mok&background=f5f3ff&color=8b5cf6&size=120'">
+            <div class="mb-2">
+                <h2 class="fw-bold mb-1 d-flex align-items-center gap-2">Jordan Mok <span class="status-badge bg-soft-green text-green m-0"><i class="bi bi-check-circle-fill"></i> Verified</span></h2>
+                <p class="text-muted mb-0">@jordan.m <span class="mx-2">·</span> School of IT <span class="mx-2">·</span> <i class="bi bi-calendar3"></i> Joined Aug 2024</p>
+            </div>
+        </div>
+        <a href="{{ url_for('edit_profile') }}" class="btn text-white rounded-pill px-4 py-2 fw-bold" style="background: linear-gradient(90deg, #8b5cf6, #ec4899); margin-top: 10px;"><i class="bi bi-pencil"></i> Edit profile</a>
+    </div>
+
+    <div class="row g-3 mt-4 px-2">
+        <div class="col-md-3">
+            <div class="stats-card bg-soft-yellow p-4 h-100">
+                <small class="stats-label text-yellow"><i class="bi bi-star-fill"></i> Avg rating</small>
+                <h2 class="fw-bold mt-2 text-dark mb-0">4.9<span class="text-muted fs-5">/5</span></h2>
+                <p class="text-muted mb-0 mt-1" style="font-size: 0.9rem;">24 reviews</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card bg-soft-purple p-4 h-100">
+                <small class="stats-label text-purple"><i class="bi bi-graph-up-arrow"></i> Total sales</small>
+                <h2 class="fw-bold mt-2 text-dark mb-0">37</h2>
+                <p class="text-muted mb-0 mt-1" style="font-size: 0.9rem;">Lifetime deals</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card bg-soft-pink p-4 h-100">
+                <small class="stats-label text-pink"><i class="bi bi-award"></i> Trust badge</small>
+                <h3 class="fw-bold mt-2 text-dark mb-0" style="font-size: 1.6rem;">Top Seller 🏆</h3>
+                <p class="text-muted mb-0 mt-1" style="font-size: 0.9rem;">Earned May 2026</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card bg-soft-green p-4 h-100">
+                <small class="stats-label text-green">Response rate</small>
+                <h2 class="fw-bold mt-2 text-dark mb-0">98%</h2>
+                <p class="text-muted mb-0 mt-1" style="font-size: 0.9rem;">Replies in &lt; 1h</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<ul class="nav nav-pills gap-2 my-4" id="profileTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link profile-tab active" id="listings-tab" data-bs-toggle="pill" data-bs-target="#listings" type="button" role="tab">Active listings (2)</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link profile-tab" id="reviews-tab" data-bs-toggle="pill" data-bs-target="#reviews" type="button" role="tab">Reviews (24)</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link profile-tab" id="sold-tab" data-bs-toggle="pill" data-bs-target="#sold" type="button" role="tab">Sold</button>
+    </li>
+</ul>
+
+<div class="tab-content" id="profileTabsContent">
+    <!-- Active Listings Tab -->
+    <div class="tab-pane fade show active" id="listings" role="tabpanel" tabindex="0">
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="card listing-card" style="border-radius: 24px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.04);">
+                    <img src="{{ url_for('static', filename='images/calc.jpg') }}" class="card-img-top" style="border-radius: 24px 24px 0 0; height: 220px; object-fit: cover;" alt="Calc">
+                    <div class="card-body p-4">
+                        <h5 class="fw-bold">Casio FX-991EX Scientific Calc</h5>
+                        <p class="text-purple fw-bold mb-0">Swap Only</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card listing-card" style="border-radius: 24px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.04);">
+                    <img src="{{ url_for('static', filename='images/lamp.jpg') }}" class="card-img-top" style="border-radius: 24px 24px 0 0; height: 220px; object-fit: cover;" alt="Lamp">
+                    <div class="card-body p-4">
+                        <h5 class="fw-bold">Minimalist LED Desk Lamp</h5>
+                        <p class="text-purple fw-bold mb-0">$15</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reviews Tab -->
+    <div class="tab-pane fade" id="reviews" role="tabpanel" tabindex="0">
+        <div class="d-flex flex-column gap-3">
+            <div class="bg-white p-4" style="border-radius: 24px; border: 1px solid #f3edf7;">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div class="d-flex gap-3 align-items-center">
+                        <div class="offer-avatar bg-soft-purple text-purple">W</div>
+                        <div>
+                            <h6 class="fw-bold mb-0">Wei Ming</h6>
+                            <div class="text-warning fs-6">
+                                <i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="text-muted fs-6">2 days ago</span>
+                </div>
+                <p class="mb-0 mt-2 text-dark">Super chill seller! Met up at LRC, item was exactly as described.</p>
+            </div>
+        
+            <div class="bg-white p-4" style="border-radius: 24px; border: 1px solid #f3edf7;">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div class="d-flex gap-3 align-items-center">
+                        <div class="offer-avatar bg-soft-purple text-purple">A</div>
+                        <div>
+                            <h6 class="fw-bold mb-0">Aisyah R.</h6>
+                            <div class="text-warning fs-6">
+                                <i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="text-muted fs-6">1 wk ago</span>
+                </div>
+                <p class="mb-0 mt-2 text-dark">Responded fast and even threw in a free pencil case. 10/10!</p>
+            </div>
+        
+            <div class="bg-white p-4" style="border-radius: 24px; border: 1px solid #f3edf7;">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div class="d-flex gap-3 align-items-center">
+                        <div class="offer-avatar bg-soft-purple text-purple">D</div>
+                        <div>
+                            <h6 class="fw-bold mb-0">Daniel W.</h6>
+                            <div class="text-warning fs-6">
+                                <i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="text-muted fs-6">2 wks ago</span>
+                </div>
+                <p class="mb-0 mt-2 text-dark">Good condition textbook, fair price. Would buy again.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sold Tab -->
+    <div class="tab-pane fade" id="sold" role="tabpanel" tabindex="0">
+        <p class="text-muted mt-3">No sold items yet.</p>
+    </div>
+</div>
+
+{% endblock %}

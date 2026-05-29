@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="offers-topbar">
+    <div>
+        <h1 class="offers-title">Transaction history 📜</h1>
+        <p class="offers-subtitle">All your completed deals on SwapLah.</p>
+    </div>
+    <ul class="nav nav-pills bg-white align-items-center mb-0 align-self-center" id="historyTab" role="tablist" style="border-radius: 999px; padding: 4px; border: 1px solid #e5e7eb;">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active px-4 py-2" id="all-tab" data-bs-toggle="pill" data-bs-target="#all" type="button" role="tab" aria-selected="true" style="border-radius: 999px; font-weight: 600; color: #1f2937;">All</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link px-4 py-2" id="bought-tab" data-bs-toggle="pill" data-bs-target="#bought" type="button" role="tab" aria-selected="false" style="border-radius: 999px; font-weight: 600; color: #1f2937;">Bought</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link px-4 py-2" id="sold-tab" data-bs-toggle="pill" data-bs-target="#sold" type="button" role="tab" aria-selected="false" style="border-radius: 999px; font-weight: 600; color: #1f2937;">Sold</button>
+        </li>
+    </ul>
+
+    <style>
+        #historyTab .nav-link.active {
+            background: #8b5cf6 !important;
+            color: white !important;
+            box-shadow: 0 4px 10px rgba(139, 92, 246, 0.2);
+        }
+        #historyTab .nav-link {
+            background: transparent;
+            transition: all 0.2s ease;
+        }
+        #historyTab .nav-link:hover:not(.active) {
+            background: #f3f4f6;
+        }
+    </style>
+</div>
+
+<div class="row g-3 mb-5">
+    <div class="col-md-4">
+        <div class="stats-card bg-soft-purple">
+            <small class="stats-label text-purple">Total earned</small>
+            <h2 class="stats-value mt-2 mb-0">$245</h2>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stats-card bg-soft-pink">
+            <small class="stats-label text-pink">Total spent</small>
+            <h2 class="stats-value mt-2 mb-0">$112</h2>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stats-card bg-soft-yellow">
+            <small class="stats-label text-yellow">Total deals</small>
+            <h2 class="stats-value mt-2 mb-0">3</h2>
+        </div>
+    </div>
+</div>
+
+{% macro sold_item() %}
+    <!-- Sold Item -->
+    <div class="offer-card align-items-center">
+        <div class="offer-main align-items-center mb-0">
+            <div class="transaction-icon bg-soft-green text-green flex-shrink-0">
+                <i class="bi bi-arrow-up-right"></i>
+            </div>
+            <div class="offer-content">
+                <h4 class="offer-item-title mb-1 d-flex align-items-center gap-2">
+                    Intro to Algorithms 3E
+                    <span class="status-badge bg-soft-green text-green"><i class="bi bi-check-circle"></i> Completed</span>
+                </h4>
+                <div class="offer-user">
+                    <span class="offer-avatar text-secondary bg-light">W</span> 
+                    Sold to Wei Ming <span class="mx-1">📅</span> 12 May 2026
+                </div>
+            </div>
+        </div>
+        <div class="offer-actions d-flex flex-row align-items-center gap-3 w-auto justify-content-end">
+            <h4 class="text-purple mb-0 fw-bold">$20</h4>
+            <button class="btn-review" data-bs-toggle="modal" data-bs-target="#reviewModal"><i class="bi bi-chat-left-text"></i> Leave a review</button>
+        </div>
+    </div>
+{% endmacro %}
+
+{% macro bought_item_1() %}
+    <!-- Bought Item 1 -->
+    <div class="offer-card align-items-center">
+        <div class="offer-main align-items-center mb-0">
+            <div class="transaction-icon bg-soft-purple text-purple flex-shrink-0">
+                <i class="bi bi-arrow-down-left"></i>
+            </div>
+            <div class="offer-content">
+                <h4 class="offer-item-title mb-1 d-flex align-items-center gap-2">
+                    Logitech MX Master 3
+                    <span class="status-badge bg-soft-green text-green"><i class="bi bi-check-circle"></i> Completed</span>
+                </h4>
+                <div class="offer-user">
+                    <span class="offer-avatar text-secondary bg-light">A</span> 
+                    Bought from Aisyah R. <span class="mx-1">📅</span> 08 May 2026
+                </div>
+            </div>
+        </div>
+        <div class="offer-actions d-flex flex-row align-items-center gap-3 w-auto justify-content-end">
+            <h4 class="text-purple mb-0 fw-bold">$55</h4>
+            <span class="badge-reviewed">⭐ Reviewed</span>
+        </div>
+    </div>
+{% endmacro %}
+
+{% macro bought_item_2() %}
+    <!-- Bought Item 2 -->
+    <div class="offer-card align-items-center">
+        <div class="offer-main align-items-center mb-0">
+            <div class="transaction-icon bg-soft-purple text-purple flex-shrink-0">
+                <i class="bi bi-arrow-down-left"></i>
+            </div>
+            <div class="offer-content">
+                <h4 class="offer-item-title mb-1 d-flex align-items-center gap-2">
+                    Physics Lab Goggles
+                    <span class="status-badge bg-soft-green text-green"><i class="bi bi-check-circle"></i> Completed</span>
+                </h4>
+                <div class="offer-user">
+                    <span class="offer-avatar text-secondary bg-light">H</span> 
+                    Bought from Hafiz M. <span class="mx-1">📅</span> 02 May 2026
+                </div>
+            </div>
+        </div>
+        <div class="offer-actions d-flex flex-row align-items-center gap-3 w-auto justify-content-end">
+            <h4 class="text-purple mb-0 fw-bold">Free</h4>
+            <span class="badge-reviewed">⭐ Reviewed</span>
+        </div>
+    </div>
+{% endmacro %}
+
+<div class="tab-content" id="historyTabContent">
+    <!-- ALL TAB -->
+    <div class="tab-pane fade show active" id="all" role="tabpanel" tabindex="0">
+        <div class="offer-list">
+            {{ sold_item() }}
+            {{ bought_item_1() }}
+            {{ bought_item_2() }}
+        </div>
+    </div>
+    
+    <!-- BOUGHT TAB -->
+    <div class="tab-pane fade" id="bought" role="tabpanel" tabindex="0">
+        <div class="offer-list">
+            {{ bought_item_1() }}
+            {{ bought_item_2() }}
+        </div>
+    </div>
+
+    <!-- SOLD TAB -->
+    <div class="tab-pane fade" id="sold" role="tabpanel" tabindex="0">
+        <div class="offer-list">
+            {{ sold_item() }}
+        </div>
+    </div>
+</div>
+
+<!-- Review Modal -->
+<div class="modal fade" id="reviewModal" tabindex="-1" aria-labelledby="reviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 24px; border: none; padding: 10px;">
+            <div class="modal-header border-0 pb-0">
+                <h4 class="modal-title fw-bold" id="reviewModalLabel">How was your deal?</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body pt-3">
+                <div class="mb-4">
+                    <label class="form-label fw-bold mb-2">Your rating</label>
+                    <div class="d-flex gap-2 text-muted fs-3">
+                        <i class="bi bi-star"></i>
+                        <i class="bi bi-star"></i>
+                        <i class="bi bi-star"></i>
+                        <i class="bi bi-star"></i>
+                        <i class="bi bi-star"></i>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label fw-bold mb-2">Your review</label>
+                    <textarea class="form-control bg-light border-0" rows="3" style="border-radius: 16px; padding: 16px;" placeholder="Was the item as described? Friendly seller?"></textarea>
+                </div>
+                <div class="d-flex justify-content-end gap-3 mt-4">
+                    <button type="button" class="btn btn-light rounded-pill px-4 fw-bold" data-bs-dismiss="modal" style="border: 1px solid #e5e7eb;">Cancel</button>
+                    <button type="button" class="btn text-white rounded-pill px-4 fw-bold" style="background: linear-gradient(90deg, #8b5cf6, #ec4899);">Post review</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
