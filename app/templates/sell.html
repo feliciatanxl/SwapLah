@@ -1,102 +1,96 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="row justify-content-center mt-3">
-    <div class="col-lg-10">
-        <div class="page-card p-4 p-md-5 bg-white" style="border-radius: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border: none;">
-            <div class="d-flex align-items-center gap-3 mb-2">
-                <a href="{{ url_for('index') }}" class="btn btn-light rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 44px; height: 44px; border: 1px solid #e5e7eb;"><i class="bi bi-arrow-left"></i></a>
-                <h2 class="section-title fw-bold mb-0" style="font-size: 2.2rem; letter-spacing: -0.5px;">List an item <span class="fs-3">📦</span></h2>
-            </div>
-            <p class="text-muted mb-5" style="margin-left: 60px;">Takes ~2 minutes. Better photos = faster sales!</p>
-
-            <form>
-                <div class="row g-5">
-                    <!-- Left Column: Photos -->
-                    <div class="col-md-5">
-                        <label class="form-label fw-bold">Photos</label>
-                        
-                        <!-- Main upload area -->
-                        <div class="d-flex flex-column align-items-center justify-content-center bg-soft-purple" style="height: 280px; border: 2px dashed #c4b5fd; border-radius: 20px; cursor: pointer; transition: 0.2s;">
-                            <div class="bg-white text-purple d-flex align-items-center justify-content-center mb-3 shadow-sm" style="width: 48px; height: 48px; border-radius: 12px; font-size: 1.5rem;">
-                                <i class="bi bi-upload"></i>
-                            </div>
-                            <h6 class="text-purple fw-bold mb-1">Tap to upload</h6>
-                            <small class="text-muted">JPG / PNG · Up to 5 photos</small>
-                        </div>
-
-                        <!-- Thumbnails -->
-                        <div class="d-flex gap-2 mt-3 justify-content-between">
-                            <div class="bg-light d-flex align-items-center justify-content-center text-muted" style="width: 23%; height: 60px; border-radius: 12px;"><i class="bi bi-image"></i></div>
-                            <div class="bg-light d-flex align-items-center justify-content-center text-muted" style="width: 23%; height: 60px; border-radius: 12px;"><i class="bi bi-image"></i></div>
-                            <div class="bg-light d-flex align-items-center justify-content-center text-muted" style="width: 23%; height: 60px; border-radius: 12px;"><i class="bi bi-image"></i></div>
-                            <div class="bg-light d-flex align-items-center justify-content-center text-muted" style="width: 23%; height: 60px; border-radius: 12px;"><i class="bi bi-image"></i></div>
-                        </div>
-                    </div>
-
-                    <!-- Right Column: Details -->
-                    <div class="col-md-7">
-                        <div class="mb-4">
-                            <label class="form-label fw-bold">Title *</label>
-                            <input type="text" class="form-control bg-light border-0 px-3 py-2" style="border-radius: 12px;" placeholder="e.g. Calculus 9E Textbook">
-                        </div>
-
-                        <div class="mb-4">
-                            <label class="form-label fw-bold">Description</label>
-                            <textarea class="form-control bg-light border-0 px-3 py-2" rows="3" style="border-radius: 12px;" placeholder="Condition, defects, included accessories..."></textarea>
-                        </div>
-
-                        <div class="row g-3 mb-4">
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold">Category *</label>
-                                <select class="form-select bg-light border-0 px-3 py-2 text-muted" style="border-radius: 12px;">
-                                    <option selected>Pick one...</option>
-                                    <option>Textbooks</option>
-                                    <option>Electronics</option>
-                                    <option>Lab Equipment</option>
-                                    <option>Clothing</option>
-                                </select>
-                            </div>
-
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold">Condition *</label>
-                                <select class="form-select bg-light border-0 px-3 py-2 text-muted" style="border-radius: 12px;">
-                                    <option selected>Pick one...</option>
-                                    <option>New</option>
-                                    <option>Like New</option>
-                                    <option>Good</option>
-                                    <option>Fair</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="mb-4">
-                            <label class="form-label fw-bold mb-2">Price type</label>
-                            <div class="d-flex gap-2 p-1 bg-light" style="border-radius: 999px;">
-                                <button type="button" class="btn btn-sm w-100 rounded-pill text-white fw-bold" style="background: #8b5cf6;">💰 Sell</button>
-                                <button type="button" class="btn btn-sm w-100 rounded-pill fw-bold" style="background: transparent;">🔁 Swap</button>
-                                <button type="button" class="btn btn-sm w-100 rounded-pill fw-bold" style="background: transparent;">🎁 Free</button>
-                            </div>
-                        </div>
-
-                        <div class="mb-4">
-                            <input type="text" class="form-control bg-light border-0 px-3 py-2" style="border-radius: 12px;" placeholder="$ e.g. 25">
-                        </div>
-
-                        <div class="mb-4">
-                            <label class="form-label fw-bold">Pickup location</label>
-                            <input type="text" class="form-control bg-light border-0 px-3 py-2" style="border-radius: 12px;" placeholder="e.g. Block L, Hostel, MRT">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="d-flex justify-content-end gap-3 mt-5">
-                    <button type="button" class="btn btn-light rounded-pill px-4 fw-bold" style="border: 1px solid #e5e7eb;">Save draft</button>
-                    <button type="submit" class="btn text-white rounded-pill px-4 fw-bold" style="background: linear-gradient(90deg, #8b5cf6, #ec4899);">Post listing</button>
-                </div>
-            </form>
+<section class="page-shell">
+    <div class="page-heading">
+        <div>
+            <a href="{{ url_for('index') }}" class="back-link"><i class="bi bi-arrow-left"></i> Back to listings</a>
+            <h1 class="section-title mt-2">Create Listing</h1>
+            <p class="section-subtitle">Add one clear photo URL and the details buyers need before they make an offer.</p>
         </div>
+        <span class="status-badge bg-soft-green text-green"><i class="bi bi-shield-check"></i> NYP marketplace</span>
     </div>
-</div>
+
+    <div class="alert alert-info static-alert" role="alert">
+        Placeholder: show form errors or success messages here after Flask validation is connected.
+    </div>
+
+    <form class="page-card form-card" method="post" action="#">
+        <div class="row g-4">
+            <div class="col-lg-5">
+                <label for="image_url" class="form-label">Image URL *</label>
+                <input id="image_url" name="image_url" type="url" class="form-control" placeholder="https://example.com/item-photo.jpg">
+                <div class="image-preview mt-3">
+                    <img src="https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=900&auto=format&fit=crop" alt="Sample listing preview">
+                    <span class="condition-tag">Preview</span>
+                </div>
+                <p class="helper-text mt-2">For now, paste one image URL. File uploads can be wired later if needed.</p>
+            </div>
+
+            <div class="col-lg-7">
+                <div class="mb-3">
+                    <label for="title" class="form-label">Title *</label>
+                    <input id="title" name="title" type="text" class="form-control" placeholder="e.g. Calculus 9E Textbook">
+                </div>
+
+                <div class="mb-3">
+                    <label for="description" class="form-label">Description *</label>
+                    <textarea id="description" name="description" class="form-control" rows="4" placeholder="Condition, defects, included accessories, preferred meetup timing..."></textarea>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label">Price Type</label>
+                        <div class="price-type-group" role="group" aria-label="Price type">
+                            <input type="radio" class="btn-check" name="price_type" id="price_type_set" value="set_price" checked>
+                            <label class="btn" for="price_type_set"><i class="bi bi-cash-coin"></i> Set Price</label>
+
+                            <input type="radio" class="btn-check" name="price_type" id="price_type_free" value="free">
+                            <label class="btn" for="price_type_free"><i class="bi bi-gift"></i> Free</label>
+
+                            <input type="radio" class="btn-check" name="price_type" id="price_type_swap" value="swap_only">
+                            <label class="btn" for="price_type_swap"><i class="bi bi-arrow-left-right"></i> Swap Only</label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="price" class="form-label">Price *</label>
+                        <input id="price" name="price" type="text" class="form-control" placeholder="$25, Free, or Swap Only">
+                    </div>
+                    <div class="col-md-6">
+                        <label for="pickup_location" class="form-label">Pickup Location</label>
+                        <input id="pickup_location" name="pickup_location" type="text" class="form-control" placeholder="Block L, LRC, Canteen">
+                    </div>
+                    <div class="col-md-6">
+                        <label for="category" class="form-label">Category *</label>
+                        <select id="category" name="category" class="form-select">
+                            <option value="">Choose category</option>
+                            <option>Textbooks</option>
+                            <option>Electronics</option>
+                            <option>Lab Equipment</option>
+                            <option>Stationery</option>
+                            <option>Clothing</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="condition" class="form-label">Condition *</label>
+                        <select id="condition" name="condition" class="form-select">
+                            <option value="">Choose condition</option>
+                            <option>New</option>
+                            <option>Like New</option>
+                            <option>Good</option>
+                            <option>Fair</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline-dark">Save Draft</button>
+                    <button type="submit" class="btn btn-accent">Post Listing</button>
+                </div>
+            </div>
+        </div>
+    </form>
+</section>
 
 {% endblock %}

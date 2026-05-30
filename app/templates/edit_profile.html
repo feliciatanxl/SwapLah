@@ -1,72 +1,58 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="mb-4">
-    <a href="{{ url_for('profile') }}" class="text-decoration-none text-muted d-inline-block fw-bold"><i class="bi bi-arrow-left"></i> Back to profile</a>
-</div>
-
-<div class="row justify-content-center">
-    <div class="col-lg-8">
-        <div class="page-card p-4 p-md-5" style="border-radius: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border: none;">
-            <h2 class="section-title fw-bold">Edit profile</h2>
-            <p class="text-muted mb-5">Update your details. Email and Student ID are locked for verification.</p>
-
-            <form>
-                <div class="d-flex align-items-center gap-4 mb-5">
-                    <div class="position-relative">
-                        <img src="{{ url_for('static', filename='images/profile.jpg') }}" class="rounded-circle" style="width: 80px; height: 80px; object-fit: cover;" alt="Profile" onerror="this.src='https://ui-avatars.com/api/?name=Jordan+Mok&background=f5f3ff&color=8b5cf6&size=80'">
-                        <div class="position-absolute d-flex align-items-center justify-content-center bg-purple text-white" style="width: 24px; height: 24px; border-radius: 50%; bottom: 0; right: 0; font-size: 0.7rem; border: 2px solid white; background: #8b5cf6;">
-                            <i class="bi bi-camera-fill"></i>
-                        </div>
-                    </div>
-                    <div>
-                        <h6 class="fw-bold mb-1">Profile photo</h6>
-                        <p class="text-muted small mb-2">PNG or JPG, max 2MB</p>
-                        <button type="button" class="btn btn-sm btn-light rounded-pill px-3 fw-bold" style="border: 1px solid #e5e7eb;">Upload new</button>
-                    </div>
-                </div>
-
-                <div class="row g-4">
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">Display name</label>
-                        <input type="text" class="form-control bg-light border-0 px-3 py-2" style="border-radius: 12px;" value="Jordan Mok">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">Phone (for swap meetups)</label>
-                        <input type="text" class="form-control bg-light border-0 px-3 py-2" style="border-radius: 12px;" value="+65 8765 4321">
-                    </div>
-
-                    <div class="col-md-6">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <label class="form-label fw-bold mb-0">NYP Email</label>
-                            <span class="badge bg-light text-dark px-2 py-1"><i class="bi bi-lock-fill"></i> Locked</span>
-                        </div>
-                        <input type="email" class="form-control bg-light border-0 px-3 py-2 text-muted" style="border-radius: 12px; opacity: 0.7;" value="jordan.m@nyp.edu.sg" readonly>
-                        <small class="text-muted d-block mt-2">Tied to your NYP account — cannot be changed.</small>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <label class="form-label fw-bold mb-0">Student ID</label>
-                            <span class="badge bg-light text-dark px-2 py-1"><i class="bi bi-lock-fill"></i> Locked</span>
-                        </div>
-                        <input type="text" class="form-control bg-light border-0 px-3 py-2 text-muted" style="border-radius: 12px; opacity: 0.7;" value="S10234567" readonly>
-                        <small class="text-muted d-block mt-2">Verified via NYP — contact admin to change.</small>
-                    </div>
-
-                    <div class="col-12 mt-4">
-                        <label class="form-label fw-bold">Bio</label>
-                        <textarea class="form-control bg-light border-0 px-3 py-2" rows="3" style="border-radius: 12px;">IT student | Selling stuff I no longer need 🛍️ | Quick replies</textarea>
-                        <small class="text-muted d-block mt-2">63 / 160 characters</small>
-                    </div>
-                </div>
-
-                <div class="d-flex justify-content-end gap-3 mt-5">
-                    <a href="{{ url_for('profile') }}" class="btn btn-light rounded-pill px-4 fw-bold" style="border: 1px solid #e5e7eb;">Cancel</a>
-                    <button class="btn text-white rounded-pill px-4 fw-bold" style="background: linear-gradient(90deg, #8b5cf6, #ec4899);">Save changes</button>
-                </div>
-            </form>
+<section class="page-shell narrow-shell">
+    <a href="{{ url_for('profile') }}" class="back-link"><i class="bi bi-arrow-left"></i> Back to profile</a>
+    <div class="page-heading mt-2">
+        <div>
+            <h1 class="section-title">Edit Profile</h1>
+            <p class="section-subtitle">Update account details. Email and Student ID are locked for verification.</p>
         </div>
     </div>
-</div>
+
+    <div class="alert alert-danger static-alert" role="alert">
+        Placeholder: show validation errors, session expiry, or suspended account notices here.
+    </div>
+
+    <form class="page-card form-card" method="post" action="#">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label for="first_name" class="form-label">First Name</label>
+                <input id="first_name" name="first_name" type="text" class="form-control" value="Jordan">
+            </div>
+            <div class="col-md-6">
+                <label for="last_name" class="form-label">Last Name</label>
+                <input id="last_name" name="last_name" type="text" class="form-control" value="Mok">
+            </div>
+            <div class="col-md-6">
+                <label for="display_name" class="form-label">Display Name</label>
+                <input id="display_name" name="display_name" type="text" class="form-control" value="Jordan Mok">
+            </div>
+            <div class="col-md-6">
+                <label for="contact_number" class="form-label">Contact Number</label>
+                <input id="contact_number" name="contact_number" type="tel" class="form-control" value="+65 8765 4321">
+            </div>
+            <div class="col-md-6">
+                <label for="email" class="form-label">NYP Email</label>
+                <input id="email" name="email" type="email" class="form-control readonly-control" value="jordan.mok@mymail.nyp.edu.sg" readonly disabled>
+                <p class="helper-text">Locked after registration.</p>
+            </div>
+            <div class="col-md-6">
+                <label for="student_id" class="form-label">Student ID</label>
+                <input id="student_id" name="student_id" type="text" class="form-control readonly-control" value="S10234567" readonly disabled>
+                <p class="helper-text">Locked after verification.</p>
+            </div>
+            <div class="col-12">
+                <label for="bio" class="form-label">Bio</label>
+                <textarea id="bio" name="bio" class="form-control" rows="4">IT student selling textbooks and gadgets I no longer need. Quick replies.</textarea>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a href="{{ url_for('profile') }}" class="btn btn-outline-dark">Cancel</a>
+            <button type="submit" class="btn btn-accent">Save Changes</button>
+        </div>
+    </form>
+</section>
 
 {% endblock %}

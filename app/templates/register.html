@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="auth-shell auth-split-shell auth-register-shell">
+    <aside class="auth-visual auth-visual-centered">
+        <div class="auth-icon"><i class="bi bi-arrow-left-right"></i></div>
+        <h1>Join SwapLah today</h1>
+        <p>Create your free account and start trading with the NYP campus community.</p>
+        <ul class="auth-bullets">
+            <li><i class="bi bi-check-circle"></i> Free to register and use</li>
+            <li><i class="bi bi-check-circle"></i> Verified student community</li>
+            <li><i class="bi bi-check-circle"></i> Secure trades, no scams</li>
+            <li><i class="bi bi-check-circle"></i> Ratings for peace of mind</li>
+        </ul>
+    </aside>
+
+    <div class="auth-form-panel auth-form-wide">
+        <div class="brand-logo mb-4">
+            <span class="brand-mark"><i class="bi bi-arrow-left-right"></i></span>
+            <span>SwapLah</span>
+        </div>
+        <h1 class="section-title">Create your account</h1>
+        <p class="section-subtitle">Register with an NYP email ending in @mymail.nyp.edu.sg.</p>
+
+        <div class="alert alert-warning static-alert" role="alert">
+            Important: Student ID and NYP Email cannot be changed after registration.
+        </div>
+        <div class="alert alert-info static-alert" role="alert">
+            Placeholder: success, duplicate account, or password validation message.
+        </div>
+
+        <form method="post" action="#">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="student_id" class="form-label">Student ID</label>
+                    <input id="student_id" name="student_id" type="text" class="form-control" placeholder="S10234567">
+                </div>
+                <div class="col-md-6">
+                    <label for="email" class="form-label">NYP Email Address</label>
+                    <input id="email" name="email" type="email" class="form-control" placeholder="s10234567@mymail.nyp.edu.sg">
+                    <p class="helper-text">Use your NYP email ending with @mymail.nyp.edu.sg</p>
+                </div>
+                <div class="col-md-6">
+                    <label for="first_name" class="form-label">First Name</label>
+                    <input id="first_name" name="first_name" type="text" class="form-control" placeholder="Kai">
+                </div>
+                <div class="col-md-6">
+                    <label for="last_name" class="form-label">Last Name</label>
+                    <input id="last_name" name="last_name" type="text" class="form-control" placeholder="Lim">
+                </div>
+                <div class="col-md-6">
+                    <label for="display_name" class="form-label">Display Name</label>
+                    <input id="display_name" name="display_name" type="text" class="form-control" placeholder="KaiLim97">
+                </div>
+                <div class="col-md-6">
+                    <label for="contact_number" class="form-label">Contact Number</label>
+                    <input id="contact_number" name="contact_number" type="tel" class="form-control" placeholder="91234567">
+                </div>
+                <div class="col-md-6">
+                    <label for="password" class="form-label">Password</label>
+                    <input id="password" name="password" type="password" class="form-control" placeholder="At least 8 characters">
+                </div>
+                <div class="col-md-6">
+                    <label for="confirm_password" class="form-label">Confirm Password</label>
+                    <input id="confirm_password" name="confirm_password" type="password" class="form-control" placeholder="Repeat your password">
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-accent w-100 mt-4">Create Account</button>
+        </form>
+
+        <p class="text-muted text-center mt-4 mb-0">Already have an account? <a href="/login" class="section-link d-inline">Log in here</a></p>
+    </div>
+</section>
+
+{% endblock %}

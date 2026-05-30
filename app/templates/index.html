@@ -1,304 +1,290 @@
 {% extends "base.html" %}
 {% block content %}
 
-<section class="hero-banner mb-5">
-    <div class="hero-badge">NYP students only</div>
-    <h1 class="hero-title">
-        Buy, sell & swap with your
-        <span>campus crew.</span>
-    </h1>
-    <p class="hero-text">
-        Textbooks too pricey? Last sem's lab coat just collecting dust?
-        Trade it on SwapLah — the trusted marketplace built for poly students.
-    </p>
+{% set listings = [
+    {
+        "id": 1,
+        "title": "Calculus: Early Transcendentals 9E",
+        "image": "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=700&auto=format&fit=crop",
+        "badge": "Hot",
+        "badge_class": "badge-hot",
+        "location": "Block L",
+        "price": "$25",
+        "condition": "Good",
+        "seller": "Aisah T.",
+        "rating": "4.9",
+        "time": "2h ago"
+    },
+    {
+        "id": 2,
+        "title": "MacBook Air M1 - Barely Used",
+        "image": "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?q=80&w=700&auto=format&fit=crop",
+        "badge": "Verified",
+        "badge_class": "badge-verified",
+        "location": "Block A",
+        "price": "$680",
+        "condition": "Like New",
+        "seller": "Jian Wei",
+        "rating": "5.0",
+        "time": "5h ago"
+    },
+    {
+        "id": 3,
+        "title": "Casio FX-991EX Scientific Calculator",
+        "image": "https://images.unsplash.com/photo-1574607383077-47ddc2dc51c4?q=80&w=700&auto=format&fit=crop",
+        "badge": "Swap",
+        "badge_class": "badge-swap",
+        "location": "Block B",
+        "price": "Swap Only",
+        "condition": "Good",
+        "seller": "Priya R.",
+        "rating": "4.7",
+        "time": "1d ago"
+    },
+    {
+        "id": 4,
+        "title": "Nike Air Force 1 - Size US9",
+        "image": "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=700&auto=format&fit=crop",
+        "badge": "",
+        "badge_class": "",
+        "location": "Block C",
+        "price": "$45",
+        "condition": "Good",
+        "seller": "Marcus L.",
+        "rating": "4.6",
+        "time": "3h ago"
+    },
+    {
+        "id": 5,
+        "title": "Sony WH-1000XM4 Headphones",
+        "image": "https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?q=80&w=700&auto=format&fit=crop",
+        "badge": "Hot",
+        "badge_class": "badge-hot",
+        "location": "Block D",
+        "price": "$180",
+        "condition": "Like New",
+        "seller": "Sarah K.",
+        "rating": "4.8",
+        "time": "6h ago"
+    },
+    {
+        "id": 6,
+        "title": "Lab Coat + Safety Goggles Set",
+        "image": "https://images.unsplash.com/photo-1581093458791-9d15482442f6?q=80&w=700&auto=format&fit=crop",
+        "badge": "Free",
+        "badge_class": "badge-free",
+        "location": "Block E",
+        "price": "Free",
+        "condition": "Good",
+        "seller": "Hafiz M.",
+        "rating": "5.0",
+        "time": "1d ago"
+    }
+] %}
 
-    <div class="d-flex flex-wrap gap-3 mb-4">
-        <a href="{{ url_for('index') }}" class="btn hero-btn-primary">Start browsing</a>
-        <a href="{{ url_for('sell') }}" class="btn hero-btn-secondary">+ List your item</a>
+<section class="hero-section">
+    <div class="hero-inner">
+        <div class="hero-content">
+            <div class="trust-badge"><i class="bi bi-shield-check text-success"></i> NYP Verified Students Only</div>
+            <h1 class="hero-title">
+                Buy, Sell & Swap Safely<br>
+                <span>Within Your Campus</span>
+            </h1>
+            <p class="hero-text">
+                NYP's trusted marketplace for pre-owned textbooks, electronics, lab equipment, and more.
+                Trade securely with fellow students.
+            </p>
+
+            <form class="hero-search">
+                <div class="position-relative flex-grow-1">
+                    <i class="bi bi-search"></i>
+                    <input type="search" class="form-control" placeholder="Search for textbooks, laptops...">
+                </div>
+                <button class="btn btn-accent px-4" type="submit"><i class="bi bi-search"></i></button>
+            </form>
+
+            <div class="d-flex flex-wrap gap-3">
+                <a href="#latest-listings" class="btn btn-accent px-4 py-3">Browse Listings <i class="bi bi-arrow-right ms-1"></i></a>
+                <a href="{{ url_for('sell') }}" class="btn btn-outline-light-soft px-4 py-3"><i class="bi bi-stars me-1"></i> List an Item</a>
+            </div>
+        </div>
     </div>
+    <div class="hero-curve"></div>
+</section>
 
-    <div class="hero-stats">
-        <span>2,400+ active students</span>
-        <span>81 deals this week</span>
+<section class="section-band pt-0">
+    <div class="container-xl">
+        <div class="section-header">
+            <h2 class="section-title">Shop by Category</h2>
+            <a href="#latest-listings" class="section-link">View all <i class="bi bi-chevron-right"></i></a>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-6 col-sm-4 col-lg">
+                <div class="category-card category-card-active">
+                    <div class="category-icon"><i class="bi bi-grid"></i></div>
+                    <div><h6>All</h6><p>811 items</p></div>
+                </div>
+            </div>
+            <div class="col-6 col-sm-4 col-lg">
+                <div class="category-card">
+                    <div class="category-icon"><i class="bi bi-book"></i></div>
+                    <div><h6>Textbooks</h6><p>234 items</p></div>
+                </div>
+            </div>
+            <div class="col-6 col-sm-4 col-lg">
+                <div class="category-card">
+                    <div class="category-icon"><i class="bi bi-laptop"></i></div>
+                    <div><h6>Electronics</h6><p>187 items</p></div>
+                </div>
+            </div>
+            <div class="col-6 col-sm-4 col-lg">
+                <div class="category-card">
+                    <div class="category-icon"><i class="bi bi-prescription2"></i></div>
+                    <div><h6>Lab Equipment</h6><p>92 items</p></div>
+                </div>
+            </div>
+            <div class="col-6 col-sm-4 col-lg">
+                <div class="category-card">
+                    <div class="category-icon"><i class="bi bi-pencil"></i></div>
+                    <div><h6>Stationery</h6><p>78 items</p></div>
+                </div>
+            </div>
+            <div class="col-6 col-sm-4 col-lg">
+                <div class="category-card">
+                    <div class="category-icon"><i class="bi bi-gift"></i></div>
+                    <div><h6>Free Items</h6><p>64 items</p></div>
+                </div>
+            </div>
+            <div class="col-6 col-sm-4 col-lg">
+                <div class="category-card">
+                    <div class="category-icon"><i class="bi bi-arrow-left-right"></i></div>
+                    <div><h6>Swap Only</h6><p>41 items</p></div>
+                </div>
+            </div>
+        </div>
     </div>
 </section>
 
-<section class="mb-5">
-    <div class="section-header">
-        <h2 class="section-title">Browse by category</h2>
-        <a href="#" class="section-link">See all</a>
+<section class="section-band section-muted" id="latest-listings">
+    <div class="container-xl">
+        <div class="section-header">
+            <div>
+                <h2 class="section-title">Latest Listings</h2>
+                <p class="section-subtitle">Fresh items from your campus community</p>
+            </div>
+        </div>
+
+        <form class="market-filter-bar mb-4" method="get" action="#">
+            <input id="search" name="search" class="form-control filter-search" placeholder="Search title or description">
+            <select id="category" name="category" class="form-select">
+                <option value="">All categories</option>
+                <option>Textbooks</option>
+                <option>Electronics</option>
+                <option>Lab Equipment</option>
+            </select>
+            <select id="condition" name="condition" class="form-select">
+                <option value="">All conditions</option>
+                <option>New</option>
+                <option>Like New</option>
+                <option>Good</option>
+                <option>Fair</option>
+            </select>
+            <button class="btn btn-accent" type="submit">Apply</button>
+            <button class="btn btn-outline-dark" type="button">Clear filters</button>
+            <div class="filter-pills active-filter-row">
+                <span class="filter-pill active">All</span>
+                <span class="filter-pill">Textbooks <i class="bi bi-x"></i></span>
+                <span class="filter-pill">Like New <i class="bi bi-x"></i></span>
+                <span class="filter-pill">Good</span>
+            </div>
+        </form>
+
+        <div class="row g-4">
+            {% for item in listings %}
+            <div class="col-12 col-sm-6 col-lg-4">
+                <div class="listing-card">
+                    <div class="listing-image-wrap">
+                        <img src="{{ item.image }}" alt="{{ item.title }}">
+                        {% if item.badge %}
+                        <span class="listing-badge {{ item.badge_class }}">{{ item.badge }}</span>
+                        {% endif %}
+                        <span class="wishlist-btn"><i class="bi bi-heart"></i></span>
+                        <span class="location-badge"><i class="bi bi-geo-alt"></i> {{ item.location }}</span>
+                    </div>
+                    <div class="listing-body">
+                        <h5><a href="{{ url_for('listing_detail', listing_id=item.id) }}">{{ item.title }}</a></h5>
+                        <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+                            <span class="condition-tag">{{ item.condition }}</span>
+                            <span class="condition-tag">Textbooks</span>
+                        </div>
+                        <div class="price-row mb-2">
+                            <span class="price">{{ item.price }}</span>
+                        </div>
+                        <div class="seller-row">
+                            <span><span class="avatar-mini me-1">{{ item.seller[0] }}</span>{{ item.seller }}</span>
+                            <span><i class="bi bi-star-fill text-warning"></i> {{ item.rating }}</span>
+                        </div>
+                        <div class="time-row"><i class="bi bi-clock"></i> {{ item.time }}</div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <nav class="pagination-wrap" aria-label="Listings pagination">
+            <ul class="pagination justify-content-center mb-2">
+                <li class="page-item disabled"><a class="page-link" href="#">Previous</a></li>
+                <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                <li class="page-item"><a class="page-link" href="#">2</a></li>
+                <li class="page-item"><a class="page-link" href="#">3</a></li>
+                <li class="page-item"><a class="page-link" href="#">Next</a></li>
+            </ul>
+            <p class="pagination-text">Showing 1-6 of 81 active listings</p>
+        </nav>
     </div>
+</section>
 
-    <div class="row g-3">
-        <div class="col-6 col-md-4 col-lg">
-            <div class="category-card category-card-active">
-                <div class="category-icon text-white"><i class="bi bi-tag-fill"></i></div>
-                <h6>All</h6>
-                <p>811 items</p>
-            </div>
+<section class="section-band section-secondary">
+    <div class="container-xl">
+        <div class="text-center mb-4">
+            <h2 class="section-title">Why Students Trust SwapLah</h2>
+            <p class="section-subtitle mx-auto" style="max-width: 560px;">Built specifically for NYP students. Safety and trust at every step.</p>
         </div>
-
-        <div class="col-6 col-md-4 col-lg">
-            <div class="category-card">
-                <div class="category-icon text-warning"><i class="bi bi-book"></i></div>
-                <h6>Textbooks</h6>
-                <p>234 items</p>
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="trust-card">
+                    <div class="trust-icon mb-3"><i class="bi bi-envelope-check"></i></div>
+                    <h5 class="fw-bold">NYP Email Verification</h5>
+                    <p class="text-muted mb-0">Only verified NYP email addresses can register. Just your fellow students.</p>
+                </div>
             </div>
-        </div>
-
-        <div class="col-6 col-md-4 col-lg">
-            <div class="category-card">
-                <div class="category-icon text-info"><i class="bi bi-laptop"></i></div>
-                <h6>Electronics</h6>
-                <p>187 items</p>
+            <div class="col-md-4">
+                <div class="trust-card">
+                    <div class="trust-icon mb-3 text-success bg-soft-green"><i class="bi bi-shield-check"></i></div>
+                    <h5 class="fw-bold">Secure Student Community</h5>
+                    <p class="text-muted mb-0">Trade confidently with student profiles, ratings, and campus meetup norms.</p>
+                </div>
             </div>
-        </div>
-
-        <div class="col-6 col-md-4 col-lg">
-            <div class="category-card">
-                <div class="category-icon text-success"><i class="bi bi-droplet"></i></div>
-                <h6>Lab Equip</h6>
-                <p>92 items</p>
-            </div>
-        </div>
-
-        <div class="col-6 col-md-4 col-lg">
-            <div class="category-card">
-                <div class="category-icon text-danger"><i class="bi bi-shop"></i></div>
-                <h6>Clothing</h6>
-                <p>156 items</p>
-            </div>
-        </div>
-
-        <div class="col-6 col-md-4 col-lg">
-            <div class="category-card">
-                <div class="category-icon text-purple"><i class="bi bi-pencil"></i></div>
-                <h6>Stationery</h6>
-                <p>78 items</p>
-            </div>
-        </div>
-
-        <div class="col-6 col-md-4 col-lg">
-            <div class="category-card">
-                <div class="category-icon text-warning"><i class="bi bi-stars"></i></div>
-                <h6>Others</h6>
-                <p>64 items</p>
+            <div class="col-md-4">
+                <div class="trust-card">
+                    <div class="trust-icon mb-3 text-danger bg-soft-pink"><i class="bi bi-flag"></i></div>
+                    <h5 class="fw-bold">Report & Moderation</h5>
+                    <p class="text-muted mb-0">Suspicious listings can be reported quickly for admin review.</p>
+                </div>
             </div>
         </div>
     </div>
 </section>
 
-<section>
-    <div class="section-header align-items-center flex-wrap">
-        <div class="d-flex align-items-center gap-3 flex-wrap">
-            <h2 class="section-title mb-0">Fresh drops</h2>
-            <span class="updated-badge">Updated just now</span>
+<section class="section-band cta-band">
+    <div class="container-xl">
+        <h2 class="section-title text-white mb-2">Ready to declutter or find a deal?</h2>
+        <p class="mb-4">Join hundreds of NYP students already buying, selling, and swapping on SwapLah.</p>
+        <div class="d-flex flex-wrap justify-content-center gap-3">
+            <a href="{{ url_for('sell') }}" class="btn btn-accent px-4 py-3">Get Started Free</a>
+            <a href="#latest-listings" class="btn btn-outline-light-soft px-4 py-3">Browse Listings</a>
         </div>
-
-        <div class="filter-pills">
-            <button class="filter-pill active">All</button>
-            <button class="filter-pill">New</button>
-            <button class="filter-pill">Like New</button>
-            <button class="filter-pill">Good</button>
-            <button class="filter-pill">Fair</button>
-            <button class="filter-pill filter-more">More filters</button>
-        </div>
-    </div>
-
-    <div class="row g-4">
-        <div class="col-12 col-md-6 col-lg-3">
-            <div class="listing-card">
-                <div class="listing-image-wrap">
-                    <img src="{{ url_for('static', filename='images/book.jpg') }}" alt="Book">
-                    <span class="listing-badge badge-hot">Hot</span>
-                    <span class="wishlist-btn">♡</span>
-                    <span class="location-badge">Block L</span>
-                </div>
-                <div class="listing-body">
-                    <h5><a href="{{ url_for('listing_detail', listing_id=1) }}">Calculus: Early Transcendentals 9E</a></h5>
-                    <div class="price-row">
-                        <span class="price">\$25</span>
-                        <span class="condition-tag">Good</span>
-                    </div>
-                    <div class="seller-row">
-                        <span>Aisah T.</span>
-                        <span>⭐ 4.9</span>
-                    </div>
-                    <div class="time-row">2h ago</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-12 col-md-6 col-lg-3">
-            <div class="listing-card">
-                <div class="listing-image-wrap">
-                    <img src="{{ url_for('static', filename='images/laptop.jpg') }}" alt="Laptop">
-                    <span class="listing-badge badge-verified">Verified</span>
-                    <span class="wishlist-btn">♡</span>
-                    <span class="location-badge">Block A</span>
-                </div>
-                <div class="listing-body">
-                    <h5><a href="{{ url_for('listing_detail', listing_id=2) }}">MacBook Air M1 — Barely Used</a></h5>
-                    <div class="price-row">
-                        <span class="price">\$680</span>
-                        <span class="condition-tag">Like New</span>
-                    </div>
-                    <div class="seller-row">
-                        <span>Jian Wei</span>
-                        <span>⭐ 5</span>
-                    </div>
-                    <div class="time-row">5h ago</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-12 col-md-6 col-lg-3">
-            <div class="listing-card">
-                <div class="listing-image-wrap">
-                    <img src="{{ url_for('static', filename='images/calc.jpg') }}" alt="Calculator">
-                    <span class="listing-badge badge-swap">Swap</span>
-                    <span class="wishlist-btn">♡</span>
-                    <span class="location-badge">Block B</span>
-                </div>
-                <div class="listing-body">
-                    <h5><a href="{{ url_for('listing_detail', listing_id=3) }}">Casio FX-991EX Scientific Calc</a></h5>
-                    <div class="price-row">
-                        <span class="price text-purple">Swap Only</span>
-                        <span class="condition-tag">Good</span>
-                    </div>
-                    <div class="seller-row">
-                        <span>Priya R.</span>
-                        <span>⭐ 4.7</span>
-                    </div>
-                    <div class="time-row">1d ago</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-12 col-md-6 col-lg-3">
-            <div class="listing-card">
-                <div class="listing-image-wrap">
-                    <img src="{{ url_for('static', filename='images/shoes.jpg') }}" alt="Shoes">
-                    <span class="wishlist-btn">♡</span>
-                    <span class="location-badge">Block C</span>
-                </div>
-                <div class="listing-body">
-                    <h5><a href="{{ url_for('listing_detail', listing_id=4) }}">Nike Air Force 1 — Size US9</a></h5>
-                    <div class="price-row">
-                        <span class="price">\$45</span>
-                        <span class="condition-tag">Good</span>
-                    </div>
-                    <div class="seller-row">
-                        <span>Marcus L.</span>
-                        <span>⭐ 4.6</span>
-                    </div>
-                    <div class="time-row">3h ago</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-12 col-md-6 col-lg-3">
-            <div class="listing-card">
-                <div class="listing-image-wrap">
-                    <img src="{{ url_for('static', filename='images/headphones.jpg') }}" alt="Headphones">
-                    <span class="listing-badge badge-hot">Hot</span>
-                    <span class="wishlist-btn">♡</span>
-                    <span class="location-badge">Block D</span>
-                </div>
-                <div class="listing-body">
-                    <h5><a href="{{ url_for('listing_detail', listing_id=5) }}">Sony WH-1000XM4 Headphones</a></h5>
-                    <div class="price-row">
-                        <span class="price">\$180</span>
-                        <span class="condition-tag">Like New</span>
-                    </div>
-                    <div class="seller-row">
-                        <span>Sarah K.</span>
-                        <span>⭐ 4.8</span>
-                    </div>
-                    <div class="time-row">6h ago</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-12 col-md-6 col-lg-3">
-            <div class="listing-card">
-                <div class="listing-image-wrap">
-                    <img src="{{ url_for('static', filename='images/books-stack.jpg') }}" alt="Lab coat">
-                    <span class="listing-badge badge-free">Free</span>
-                    <span class="wishlist-btn">♡</span>
-                    <span class="location-badge">Block E</span>
-                </div>
-                <div class="listing-body">
-                    <h5><a href="{{ url_for('listing_detail', listing_id=6) }}">Lab Coat + Safety Goggles Set</a></h5>
-                    <div class="price-row">
-                        <span class="price text-success">Free</span>
-                        <span class="condition-tag">Good</span>
-                    </div>
-                    <div class="seller-row">
-                        <span>Hafiz M.</span>
-                        <span>⭐ 5</span>
-                    </div>
-                    <div class="time-row">1d ago</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-12 col-md-6 col-lg-3">
-            <div class="listing-card">
-                <div class="listing-image-wrap">
-                    <img src="{{ url_for('static', filename='images/jacket.jpg') }}" alt="Jacket">
-                    <span class="wishlist-btn">♡</span>
-                    <span class="location-badge">Block F</span>
-                </div>
-                <div class="listing-body">
-                    <h5><a href="{{ url_for('listing_detail', listing_id=7) }}">Vintage Denim Jacket — Unisex</a></h5>
-                    <div class="price-row">
-                        <span class="price">\$30</span>
-                        <span class="condition-tag">Good</span>
-                    </div>
-                    <div class="seller-row">
-                        <span>Zoe T.</span>
-                        <span>⭐ 4.5</span>
-                    </div>
-                    <div class="time-row">8h ago</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-12 col-md-6 col-lg-3">
-            <div class="listing-card">
-                <div class="listing-image-wrap">
-                    <img src="{{ url_for('static', filename='images/lamp.jpg') }}" alt="Lamp">
-                    <span class="wishlist-btn">♡</span>
-                    <span class="location-badge">Hostel</span>
-                </div>
-                <div class="listing-body">
-                    <h5><a href="{{ url_for('listing_detail', listing_id=8) }}">Minimalist LED Desk Lamp</a></h5>
-                    <div class="price-row">
-                        <span class="price">\$15</span>
-                        <span class="condition-tag">Like New</span>
-                    </div>
-                    <div class="seller-row">
-                        <span>Ryan C.</span>
-                        <span>⭐ 4.9</span>
-                    </div>
-                    <div class="time-row">12h ago</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="pagination-wrap">
-        <div class="custom-pagination">
-            <span class="page-arrow">‹</span>
-            <span class="page-number active">1</span>
-            <span class="page-number">2</span>
-            <span class="page-number">3</span>
-            <span class="page-number">…</span>
-            <span class="page-number">12</span>
-            <span class="page-arrow">›</span>
-        </div>
-        <p class="pagination-text">Showing 1–10 of 81 items</p>
     </div>
 </section>
 
