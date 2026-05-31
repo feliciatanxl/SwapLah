@@ -360,6 +360,65 @@ textarea:focus {
     font-size: 0.92rem;
 }
 
+.flash-message-list {
+    display: grid;
+    gap: 0.55rem;
+    width: 100%;
+    max-width: 720px;
+    margin: 0.85rem 0 1rem;
+}
+
+.flash-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    margin: 0;
+    padding: 0.75rem 0.9rem;
+    border-radius: 12px;
+    border: 1px solid transparent;
+    font-size: 0.9rem;
+    line-height: 1.45;
+    font-weight: 600;
+}
+
+.flash-alert i {
+    margin-top: 0.05rem;
+    font-size: 1rem;
+    flex: 0 0 auto;
+}
+
+.flash-alert-danger {
+    background: #fff1f2;
+    border-color: rgba(212, 24, 61, 0.18);
+    color: #9f1239;
+}
+
+.flash-alert-success {
+    background: #ecfdf5;
+    border-color: rgba(16, 185, 129, 0.22);
+    color: #047857;
+}
+
+.register-lock-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.45rem;
+    margin: 0.7rem 0 0.85rem;
+    color: var(--subtle);
+    font-size: 0.86rem;
+    line-height: 1.45;
+}
+
+.register-lock-note i {
+    color: var(--accent);
+    margin-top: 0.1rem;
+    flex: 0 0 auto;
+}
+
+.register-lock-note-final {
+    margin: 1rem 0 0;
+}
+
 .form-card,
 .page-card {
     padding: 1.5rem;

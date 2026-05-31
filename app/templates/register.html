@@ -22,14 +22,22 @@
         <h1 class="section-title">Create your account</h1>
         <p class="section-subtitle">Register with an NYP email ending in @mymail.nyp.edu.sg.</p>
 
-        <div class="alert alert-warning static-alert" role="alert">
-            Important: Student ID and NYP Email cannot be changed after registration.
-        </div>
-        <div class="alert alert-info static-alert" role="alert">
-            Placeholder: success, duplicate account, or password validation message.
-        </div>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-message-list" aria-live="polite">
+                {% for category, message in messages %}
+                    {% set alert_class = 'success' if category == 'success' else 'danger' %}
+                    {% set alert_icon = 'bi-check-circle-fill' if category == 'success' else 'bi-exclamation-circle-fill' %}
+                    <div class="alert flash-alert flash-alert-{{ alert_class }}" role="alert">
+                        <i class="bi {{ alert_icon }}"></i>
+                        <span>{{ message }}</span>
+                    </div>
+                {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
 
-        <form method="post" action="#">
+        <form method="post" action="{{ url_for('register') }}">
             <div class="row g-3">
                 <div class="col-md-6">
                     <label for="student_id" class="form-label">Student ID</label>
@@ -66,7 +74,12 @@
                 </div>
             </div>
 
-            <button type="submit" class="btn btn-accent w-100 mt-4">Create Account</button>
+            <p class="register-lock-note register-lock-note-final">
+                <i class="bi bi-info-circle-fill"></i>
+                <span>Student ID and NYP Email cannot be changed after registration.</span>
+            </p>
+
+            <button type="submit" class="btn btn-accent w-100 mt-3">Create Account</button>
         </form>
 
         <p class="text-muted text-center mt-4 mb-0">Already have an account? <a href="/login" class="section-link d-inline">Log in here</a></p>
