@@ -1,7 +1,6 @@
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
-from app.db import get_db_connection, init_db
-
+from app.db import get_db_connection, get_user_by_email, init_db
 def create_app():
     app = Flask(__name__)
     app.config['SECRET_KEY'] = 'your-secret-key' 
@@ -55,12 +54,7 @@ def create_app():
             flash('Please enter your email and password.', 'danger')
             return render_template('login.html')
 
-        conn = get_db_connection()
-        user = conn.execute(
-            'SELECT * FROM users WHERE email = ?',
-            (email,)
-        ).fetchone()
-        conn.close()
+        user = get_user_by_email(email)
 
         if user is None or not check_password_hash(user['password_hash'], password):
             flash('Invalid email or password.', 'danger')

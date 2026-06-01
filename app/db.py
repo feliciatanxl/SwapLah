@@ -33,3 +33,14 @@ def init_db():
     )
     conn.commit()
     conn.close()
+
+
+def get_user_by_email(email):
+    """Retrieve one user by email using a parameterized query."""
+    conn = get_db_connection()
+    user = conn.execute(
+        "SELECT * FROM users WHERE email = :email",
+        {"email": email},
+    ).fetchone()
+    conn.close()
+    return user
