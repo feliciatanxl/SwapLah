@@ -1,7 +1,6 @@
-from flask import Flask, flash, redirect, render_template, request, url_for
-from werkzeug.security import generate_password_hash
-from app.db import get_db_connection, init_db
-
+from flask import Flask, flash, redirect, render_template, request, session, url_for
+from werkzeug.security import check_password_hash, generate_password_hash
+from app.db import get_db_connection, get_user_by_email, init_db
 def create_app():
     app = Flask(__name__)
     app.config['SECRET_KEY'] = 'your-secret-key' 
@@ -25,6 +24,10 @@ def create_app():
 
     @app.route('/profile')
     def profile():
+        if 'user_id' not in session:
+            flash('Please log in to access your profile.', 'danger')
+            return redirect(url_for('login'))
+
         return render_template('profile.html')
 
     @app.route('/profile/edit')
@@ -39,9 +42,35 @@ def create_app():
     def admin():
         return render_template('admin.html')
     
-    @app.route('/login')
+    @app.route('/login', methods=['GET', 'POST'])
     def login():
-        return render_template('login.html')
+        if request.method == 'GET':
+            return render_template('login.html')
+
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '')
+
+        if not email or not password:
+            flash('Please enter your email and password.', 'danger')
+            return render_template('login.html')
+
+        user = get_user_by_email(email)
+
+        if user is None or not check_password_hash(user['password_hash'], password):
+            flash('Invalid email or password.', 'danger')
+            return render_template('login.html')
+
+        if user['status'] == 'Suspended':
+            flash('Your account has been suspended. Please contact an administrator.', 'danger')
+            return render_template('login.html')
+
+        session['user_id'] = user['id']
+        session['email'] = user['email']
+        session['display_name'] = user['display_name']
+        session['role'] = user['role']
+
+        flash('Logged in successfully.', 'success')
+        return redirect(url_for('profile'))
 
     @app.route('/register', methods=['GET', 'POST'])
     def register():
@@ -103,5 +132,11 @@ def create_app():
     @app.route('/forgot-password')
     def forgot_password():
         return render_template('forgot_password.html')
+    
+    @app.route('/logout')
+    def logout():
+        session.clear()
+        flash('You have been logged out.', 'success')
+        return redirect(url_for('login'))
 
     return app
