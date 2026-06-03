@@ -54,82 +54,13 @@ def init_db():
     conn.commit()
     conn.close()
 
-   
 
-
-def create_listing(seller_id, title, description, price, category, condition, image_url):
+def get_user_by_email(email):
+    """Retrieve one user by email using a parameterized query."""
     conn = get_db_connection()
-
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    cursor = conn.execute("""
-        INSERT INTO listings (
-            seller_id,
-            title,
-            description,
-            price,
-            category,
-            item_condition,
-            image_url,
-            listing_date,
-            last_modified_timestamp
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        seller_id,
-        title,
-        description,
-        price,
-        category,
-        condition,
-        image_url,
-        now,
-        now
-    ))
-
-    conn.commit()
-
-    listing_id = cursor.lastrowid
-
-    cursor = conn.execute("""
-        SELECT *
-        FROM listings
-        WHERE id = ?
-    """, (listing_id,))
-
-    row = cursor.fetchone()
-
-    listing = dict(row)
-
+    user = conn.execute(
+        "SELECT * FROM users WHERE email = :email",
+        {"email": email},
+    ).fetchone()
     conn.close()
-
-    return listing
-
-def get_all_listings():
-    conn = get_db_connection()
-
-    rows = conn.execute(
-        """
-        SELECT
-            listings.id,
-            listings.title,
-            listings.description,
-            listings.price,
-            listings.category,
-            listings.item_condition AS condition,
-            listings.image_url AS image,
-            listings.listing_date,
-            users.display_name AS seller
-        FROM listings
-        LEFT JOIN users ON listings.seller_id = users.id
-        ORDER BY listings.listing_date DESC
-        """
-    ).fetchall()
-
-    conn.close()
-
-    return [dict(row) for row in rows]
-
-
-## API ROUTE for returning the listing, use 
-##"condition" : listing["item_condition"]
+    return user

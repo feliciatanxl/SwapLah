@@ -22,11 +22,22 @@
         <h1 class="section-title">Welcome back</h1>
         <p class="section-subtitle">Sign in to your NYP student account.</p>
 
-        <div class="alert alert-danger static-alert" role="alert">
-            Placeholder: invalid password, session expired, or suspended account.
-        </div>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-message-list" aria-live="polite">
+                {% for category, message in messages %}
+                    {% set alert_class = 'success' if category == 'success' else 'danger' %}
+                    {% set alert_icon = 'bi-check-circle-fill' if category == 'success' else 'bi-exclamation-circle-fill' %}
+                    <div class="alert flash-alert flash-alert-{{ alert_class }}" role="alert">
+                        <i class="bi {{ alert_icon }}"></i>
+                        <span>{{ message }}</span>
+                    </div>
+                {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
 
-        <form method="post" action="#">
+        <form method="post" action="{{ url_for('login') }}">
             <label for="login_email" class="form-label">NYP Email Address</label>
             <input id="login_email" name="email" type="email" class="form-control mb-3" placeholder="s10234567@mymail.nyp.edu.sg">
 
