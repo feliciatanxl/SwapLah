@@ -1,16 +1,9 @@
 from flask import Blueprint, request, jsonify, session
 from app.db import create_listing
-
+import re
+from decimal import Decimal, InvalidOperation
 listings_bp = Blueprint("listings", __name__)
 
-##TEMPORARY ROUTES
-@listings_bp.route("/dev-login")
-def dev_login():
-    session["user_id"] = 1
-    return jsonify({
-        "message": "Temporary test login successful",
-        "user_id": session["user_id"]
-    })
 
 @listings_bp.route("/api/listings", methods=["POST"])
 def api_create_listing():
@@ -78,17 +71,20 @@ def api_create_listing():
         }
     }), 201
 
-
 def is_valid_price(price):
     price_lower = price.lower()
 
     if price_lower == "free" or price_lower == "swap only":
         return True
 
+    # Only allow whole numbers or max 2 decimal places
+    if not re.fullmatch(r"\d+(\.\d{1,2})?", price):
+        return False
+
     try:
-        numeric_price = float(price)
+        numeric_price = Decimal(price)
         return numeric_price >= 0
-    except ValueError:
+    except InvalidOperation:
         return False
 
 
@@ -101,4 +97,4 @@ def normalise_price(price):
     if price_lower == "swap only":
         return "Swap Only"
 
-    return price
+    return str(Decimal(price).quantize(Decimal("0.01")))

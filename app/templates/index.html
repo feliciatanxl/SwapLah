@@ -149,11 +149,30 @@
             {% for item in listings %}
             <div class="col-12 col-sm-6 col-lg-4">
                 <div class="listing-card">
-                    <div class="listing-image-wrap">
-                        <img src="{{ item.image }}" alt="{{ item.title }}">
+                    <div class="listing-image-wrap listing-card-slider" data-slider="true">
+                        {% for image in item.images %}
+                        <img src="{{ image }}" alt="{{ item.title }}"
+                            class="listing-slider-image {% if loop.first %}active{% endif %}">
+                        {% endfor %}
+
+                        {% if item.images|length > 1 %}
+                        <button type="button" class="listing-slider-arrow listing-slider-left">
+                            <i class="bi bi-chevron-left"></i>
+                        </button>
+
+                        <button type="button" class="listing-slider-arrow listing-slider-right">
+                            <i class="bi bi-chevron-right"></i>
+                        </button>
+
+                        <span class="listing-image-counter">
+                            <span class="current-image-number">1</span> / {{ item.images|length }}
+                        </span>
+                        {% endif %}
+
                         {% if item.badge %}
                         <span class="listing-badge {{ item.badge_class }}">{{ item.badge }}</span>
                         {% endif %}
+
                         <span class="wishlist-btn"><i class="bi bi-heart"></i></span>
                         <span class="location-badge"><i class="bi bi-geo-alt"></i> NYP Campus</span>
                     </div>
@@ -238,5 +257,55 @@
         </div>
     </div>
 </section>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const sliders = document.querySelectorAll(".listing-card-slider");
+
+    sliders.forEach(function (slider) {
+        const images = slider.querySelectorAll(".listing-slider-image");
+        const prevBtn = slider.querySelector(".listing-slider-left");
+        const nextBtn = slider.querySelector(".listing-slider-right");
+        const counter = slider.querySelector(".current-image-number");
+
+        let currentIndex = 0;
+
+        function showImage(index) {
+            images.forEach(function (image) {
+                image.classList.remove("active");
+            });
+
+            images[index].classList.add("active");
+
+            if (counter) {
+                counter.textContent = index + 1;
+            }
+        }
+
+        if (prevBtn) {
+            prevBtn.addEventListener("click", function () {
+                currentIndex--;
+
+                if (currentIndex < 0) {
+                    currentIndex = images.length - 1;
+                }
+
+                showImage(currentIndex);
+            });
+        }
+
+        if (nextBtn) {
+            nextBtn.addEventListener("click", function () {
+                currentIndex++;
+
+                if (currentIndex >= images.length) {
+                    currentIndex = 0;
+                }
+
+                showImage(currentIndex);
+            });
+        }
+    });
+});
+</script>
 
 {% endblock %}

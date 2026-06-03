@@ -1,6 +1,7 @@
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
-from app.db import get_db_connection, get_user_by_email, init_db
+from app.db import get_db_connection, get_user_by_email, init_db,get_all_listings
+from app.routes.listing import listings_bp
 def create_app():
     app = Flask(__name__)
     app.config['SECRET_KEY'] = 'your-secret-key' 

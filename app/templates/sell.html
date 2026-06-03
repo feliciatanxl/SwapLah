@@ -6,64 +6,103 @@
         <div>
             <a href="{{ url_for('index') }}" class="back-link"><i class="bi bi-arrow-left"></i> Back to listings</a>
             <h1 class="section-title mt-2">Create Listing</h1>
-            <p class="section-subtitle">Add one clear photo URL and the details buyers need before they make an offer.</p>
+            <p class="section-subtitle">Add one clear photo URL and the details buyers need before they make an offer.
+            </p>
         </div>
         <span class="status-badge bg-soft-green text-green"><i class="bi bi-shield-check"></i> NYP marketplace</span>
     </div>
 
     <div id="listing-message" class="alert alert-info static-alert d-none" role="alert"></div>
-        Placeholder: show form errors or success messages here after Flask validation is connected.
-    </div>
 
-   <form id="create-listing-form" class="page-card form-card"></form>
+    <form id="create-listing-form" class="page-card form-card">
         <div class="row g-4">
             <div class="col-lg-5">
-                <label for="image_url" class="form-label">Image URL *</label>
-                <input id="image_url" name="image_url" type="url" class="form-control" placeholder="https://example.com/item-photo.jpg">
+                <label for="image_file" class="form-label">Upload Images *</label>
+                <input id="image_file" name="image_file" type="file" accept="image/*" class="form-control" multiple>
+                <input id="image_url" name="image_url" type="hidden">
+
                 <div class="image-preview mt-3">
-                    <img src="https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=900&auto=format&fit=crop" alt="Sample listing preview">
-                    <span class="condition-tag">Preview</span>
+                    <div id="image-placeholder" class="image-placeholder text-muted">
+                        <div class="text-center">
+                            <i class="bi bi-images" style="font-size: 48px;"></i>
+                            <p class="mb-0 mt-2">No images selected</p>
+                        </div>
+                    </div>
+
+                    <div id="image-slider" class="image-slider d-none">
+                        <img id="slider-image" src="" alt="Selected listing image">
+
+                        <button type="button" id="prev-image-btn" class="slider-arrow slider-arrow-left">
+                            <i class="bi bi-chevron-left"></i>
+                        </button>
+
+                        <button type="button" id="next-image-btn" class="slider-arrow slider-arrow-right">
+                            <i class="bi bi-chevron-right"></i>
+                        </button>
+
+                        <span id="image-counter" class="image-counter">1 / 1</span>
+
+                        <button type="button" id="remove-current-image-btn" class="remove-current-image-btn">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
                 </div>
-                <p class="helper-text mt-2">For now, paste one image URL. File uploads can be wired later if needed.</p>
+
+                <button type="button" id="clear-images-btn" class="btn btn-outline-danger btn-sm mt-3 d-none">
+                    <i class="bi bi-trash"></i> Remove All Images
+                </button>
+
+
+                <p class="helper-text mt-2">Upload one or more clear images of your item.</p>
+
+
             </div>
 
             <div class="col-lg-7">
                 <div class="mb-3">
-                    <label for="title" class="form-label">Title *</label>
-                    <input id="title" name="title" type="text" class="form-control" placeholder="e.g. Calculus 9E Textbook">
+                    <label for="title" class="form-label">Title </label>
+                    <input id="title" name="title" type="text" class="form-control"
+                        placeholder="e.g. Calculus 9E Textbook" required>
                 </div>
 
                 <div class="mb-3">
-                    <label for="description" class="form-label">Description *</label>
-                    <textarea id="description" name="description" class="form-control" rows="4" placeholder="Condition, defects, included accessories, preferred meetup timing..."></textarea>
+                    <label for="description" class="form-label">Description </label>
+                    <textarea id="description" name="description" class="form-control" rows="4"
+                        placeholder="Condition, defects, included accessories, preferred meetup timing..."
+                        required></textarea>
                 </div>
 
                 <div class="row g-3">
                     <div class="col-12">
                         <label class="form-label">Price Type</label>
                         <div class="price-type-group" role="group" aria-label="Price type">
-                            <input type="radio" class="btn-check" name="price_type" id="price_type_set" value="set_price" checked>
+                            <input type="radio" class="btn-check" name="price_type" id="price_type_set"
+                                value="set_price" checked>
                             <label class="btn" for="price_type_set"><i class="bi bi-cash-coin"></i> Set Price</label>
 
                             <input type="radio" class="btn-check" name="price_type" id="price_type_free" value="free">
                             <label class="btn" for="price_type_free"><i class="bi bi-gift"></i> Free</label>
 
-                            <input type="radio" class="btn-check" name="price_type" id="price_type_swap" value="swap_only">
-                            <label class="btn" for="price_type_swap"><i class="bi bi-arrow-left-right"></i> Swap Only</label>
+                            <input type="radio" class="btn-check" name="price_type" id="price_type_swap"
+                                value="swap_only">
+                            <label class="btn" for="price_type_swap"><i class="bi bi-arrow-left-right"></i> Swap
+                                Only</label>
                         </div>
                     </div>
 
                     <div class="col-md-6">
-                        <label for="price" class="form-label">Price *</label>
-                        <input id="price" name="price" type="text" class="form-control" placeholder="$25, Free, or Swap Only">
+                        <label for="price" class="form-label">Price </label>
+                        <input id="price" name="price" type="number" class="form-control"
+                            placeholder="Enter price, e.g. 25" min="0" step="0.01" required>
                     </div>
                     <div class="col-md-6">
                         <label for="pickup_location" class="form-label">Pickup Location</label>
-                        <input id="pickup_location" name="pickup_location" type="text" class="form-control" placeholder="Block L, LRC, Canteen">
+                        <input id="pickup_location" name="pickup_location" type="text" class="form-control"
+                            placeholder="Block L, LRC, Canteen" required>
                     </div>
                     <div class="col-md-6">
-                        <label for="category" class="form-label">Category *</label>
-                        <select id="category" name="category" class="form-select">
+                        <label for="category" class="form-label">Category </label>
+                        <select id="category" name="category" class="form-select" required>
                             <option value="">Choose category</option>
                             <option>Textbooks</option>
                             <option>Electronics</option>
@@ -73,8 +112,8 @@
                         </select>
                     </div>
                     <div class="col-md-6">
-                        <label for="condition" class="form-label">Condition *</label>
-                        <select id="condition" name="condition" class="form-select">
+                        <label for="condition" class="form-label">Condition</label>
+                        <select id="condition" name="condition" class="form-select" required>
                             <option value="">Choose condition</option>
                             <option>New</option>
                             <option>Like New</option>
@@ -85,7 +124,8 @@
                 </div>
 
                 <div class="form-actions">
-                    <button type="button" class="btn btn-outline-dark">Save Draft</button>
+
+                    <button type="button" id="save-draft-btn" class="btn btn-outline-dark">Save Draft</button>
                     <button type="submit" class="btn btn-accent">Post Listing</button>
                 </div>
             </div>
@@ -94,65 +134,294 @@
 </section>
 
 <script>
-document.addEventListener("DOMContentLoaded", function () {
-    const form = document.getElementById("create-listing-form");
-    const messageBox = document.getElementById("listing-message");
 
-    form.addEventListener("submit", async function (event) {
-        event.preventDefault();
+    document.addEventListener("DOMContentLoaded", function () {
+        const form = document.getElementById("create-listing-form");
+        const messageBox = document.getElementById("listing-message");
+        const priceInput = document.getElementById("price");
+        const priceTypeRadios = document.querySelectorAll("input[name='price_type']");
+        const saveDraftBtn = document.getElementById("save-draft-btn");
+        const DRAFT_KEY = "swaplah_create_listing_draft";
 
-        const priceType = document.querySelector("input[name='price_type']:checked").value;
+        function syncPriceInput() {
+            const selectedPriceType = document.querySelector("input[name='price_type']:checked").value;
 
-        let price = document.getElementById("price").value.trim();
-
-        if (priceType === "free") {
-            price = "Free";
-        } else if (priceType === "swap_only") {
-            price = "Swap Only";
+            if (selectedPriceType === "set_price") {
+                priceInput.disabled = false;
+                priceInput.required = true;
+                priceInput.value = "";
+                priceInput.placeholder = "Enter price, e.g. 25";
+            } else if (selectedPriceType === "free") {
+                priceInput.value = "Free";
+                priceInput.disabled = true;
+                priceInput.required = false;
+            } else if (selectedPriceType === "swap_only") {
+                priceInput.value = "Swap Only";
+                priceInput.disabled = true;
+                priceInput.required = false;
+            }
         }
 
-        const listingData = {
-            title: document.getElementById("title").value.trim(),
-            description: document.getElementById("description").value.trim(),
-            price: price,
-            category: document.getElementById("category").value,
-            condition: document.getElementById("condition").value,
-            imageUrl: document.getElementById("image_url").value.trim()
-        };
+        priceTypeRadios.forEach(function (radio) {
+            radio.addEventListener("change", syncPriceInput);
+        });
 
-        try {
-            const response = await fetch("/api/listings", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(listingData)
+        syncPriceInput();
+
+        const imageFileInput = document.getElementById("image_file");
+        const imageUrlInput = document.getElementById("image_url");
+        const imagePlaceholder = document.getElementById("image-placeholder");
+        const imageSlider = document.getElementById("image-slider");
+        const sliderImage = document.getElementById("slider-image");
+        const prevImageBtn = document.getElementById("prev-image-btn");
+        const nextImageBtn = document.getElementById("next-image-btn");
+        const imageCounter = document.getElementById("image-counter");
+        const removeCurrentImageBtn = document.getElementById("remove-current-image-btn");
+        const clearImagesBtn = document.getElementById("clear-images-btn");
+
+        let selectedImages = [];
+        let currentImageIndex = 0;
+
+        function updateImagePreview() {
+            if (selectedImages.length === 0) {
+                imageUrlInput.value = "";
+                sliderImage.src = "";
+                imagePlaceholder.classList.remove("d-none");
+                imageSlider.classList.add("d-none");
+                clearImagesBtn.classList.add("d-none");
+                return;
+            }
+
+            if (currentImageIndex < 0) {
+                currentImageIndex = 0;
+            }
+
+            if (currentImageIndex >= selectedImages.length) {
+                currentImageIndex = selectedImages.length - 1;
+            }
+
+            imageUrlInput.value = JSON.stringify(selectedImages);
+            sliderImage.src = selectedImages[currentImageIndex];
+            imageCounter.textContent = `${currentImageIndex + 1} / ${selectedImages.length}`;
+
+            imagePlaceholder.classList.add("d-none");
+            imageSlider.classList.remove("d-none");
+            clearImagesBtn.classList.remove("d-none");
+
+            prevImageBtn.disabled = selectedImages.length <= 1;
+            nextImageBtn.disabled = selectedImages.length <= 1;
+        }
+
+        imageFileInput.addEventListener("change", function () {
+            const files = Array.from(imageFileInput.files);
+
+            files.forEach(function (file) {
+                if (!file.type.startsWith("image/")) {
+                    return;
+                }
+
+                const reader = new FileReader();
+
+                reader.onload = function (event) {
+                    selectedImages.push(event.target.result);
+                    currentImageIndex = selectedImages.length - 1;
+                    updateImagePreview();
+                };
+
+                reader.readAsDataURL(file);
             });
 
-            const result = await response.json();
+            imageFileInput.value = "";
+        });
 
+        prevImageBtn.addEventListener("click", function () {
+            currentImageIndex--;
+
+            if (currentImageIndex < 0) {
+                currentImageIndex = selectedImages.length - 1;
+            }
+
+            updateImagePreview();
+        });
+
+        nextImageBtn.addEventListener("click", function () {
+            currentImageIndex++;
+
+            if (currentImageIndex >= selectedImages.length) {
+                currentImageIndex = 0;
+            }
+
+            updateImagePreview();
+        });
+
+        removeCurrentImageBtn.addEventListener("click", function () {
+            selectedImages.splice(currentImageIndex, 1);
+
+            if (currentImageIndex >= selectedImages.length) {
+                currentImageIndex = selectedImages.length - 1;
+            }
+
+            updateImagePreview();
+        });
+
+        clearImagesBtn.addEventListener("click", function () {
+            selectedImages = [];
+            currentImageIndex = 0;
+            updateImagePreview();
+        });
+
+        function showMessage(type, text) {
             messageBox.classList.remove("d-none", "alert-info", "alert-success", "alert-danger");
 
-            if (response.ok) {
+            if (type === "success") {
                 messageBox.classList.add("alert-success");
-                messageBox.textContent = "Listing created successfully!";
-
-                form.reset();
-
-                setTimeout(function () {
-                    window.location.href = "/";
-                }, 1000);
-            } else {
+            } else if (type === "danger") {
                 messageBox.classList.add("alert-danger");
-                messageBox.textContent = result.error || "Unable to create listing.";
+            } else {
+                messageBox.classList.add("alert-info");
             }
-        } catch (error) {
-            messageBox.classList.remove("d-none", "alert-info", "alert-success");
-            messageBox.classList.add("alert-danger");
-            messageBox.textContent = "Something went wrong. Please try again.";
+
+            messageBox.textContent = text;
         }
+
+        function getSelectedPriceType() {
+            return document.querySelector("input[name='price_type']:checked").value;
+        }
+
+        function setSelectedPriceType(priceType) {
+            const radio = document.querySelector(`input[name='price_type'][value='${priceType}']`);
+
+            if (radio) {
+                radio.checked = true;
+            }
+        }
+
+        function saveDraft() {
+            const draft = {
+                title: document.getElementById("title").value.trim(),
+                description: document.getElementById("description").value.trim(),
+                priceType: getSelectedPriceType(),
+                price: document.getElementById("price").value.trim(),
+                pickupLocation: document.getElementById("pickup_location").value.trim(),
+                category: document.getElementById("category").value,
+                condition: document.getElementById("condition").value,
+                images: selectedImages
+            };
+
+            try {
+                localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+                showMessage("success", "Draft saved successfully.");
+            } catch (error) {
+                draft.images = [];
+                localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+                showMessage("danger", "Draft saved, but images were too large to save.");
+            }
+        }
+
+        function loadDraft() {
+            const savedDraft = localStorage.getItem(DRAFT_KEY);
+
+            if (!savedDraft) {
+                return;
+            }
+
+            const draft = JSON.parse(savedDraft);
+
+            document.getElementById("title").value = draft.title || "";
+            document.getElementById("description").value = draft.description || "";
+            document.getElementById("pickup_location").value = draft.pickupLocation || "";
+            document.getElementById("category").value = draft.category || "";
+            document.getElementById("condition").value = draft.condition || "";
+
+            setSelectedPriceType(draft.priceType || "set_price");
+
+            if (typeof syncPriceInput === "function") {
+                syncPriceInput();
+            }
+
+            if ((draft.priceType || "set_price") === "set_price") {
+                document.getElementById("price").value = draft.price || "";
+            }
+
+            selectedImages = draft.images || [];
+            currentImageIndex = 0;
+            updateImagePreview();
+
+            showMessage("info", "Draft loaded.");
+        }
+
+        form.addEventListener("submit", async function (event) {
+            event.preventDefault();
+
+            const priceType = document.querySelector("input[name='price_type']:checked").value;
+
+            let price = document.getElementById("price").value.trim();
+
+            if (priceType === "free") {
+                price = "Free";
+            } else if (priceType === "swap_only") {
+                price = "Swap Only";
+            }
+
+            if (selectedImages.length === 0) {
+                messageBox.classList.remove("d-none", "alert-info", "alert-success");
+                messageBox.classList.add("alert-danger");
+                messageBox.textContent = "Please upload at least one image.";
+                return;
+            }
+
+            const listingData = {
+                title: document.getElementById("title").value.trim(),
+                description: document.getElementById("description").value.trim(),
+                price: price,
+                category: document.getElementById("category").value,
+                condition: document.getElementById("condition").value,
+                imageUrl: imageUrlInput.value
+            };
+
+            try {
+                const response = await fetch("/api/listings", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(listingData)
+                });
+
+                const result = await response.json();
+
+                messageBox.classList.remove("d-none", "alert-info", "alert-success", "alert-danger");
+
+                if (response.ok) {
+                    messageBox.classList.add("alert-success");
+                    messageBox.textContent = "Listing created successfully!";
+                    localStorage.removeItem(DRAFT_KEY);
+
+                    form.reset();
+                    selectedImages = [];
+                    currentImageIndex = 0;
+                    updateImagePreview();
+
+                    setTimeout(function () {
+                        window.location.href = "/";
+                    }, 1000);
+                } else {
+                    messageBox.classList.add("alert-danger");
+                    messageBox.textContent = result.error || "Unable to create listing.";
+                }
+            } catch (error) {
+                messageBox.classList.remove("d-none", "alert-info", "alert-success");
+                messageBox.classList.add("alert-danger");
+                messageBox.textContent = "Something went wrong. Please try again.";
+            }
+        });
+
+        saveDraftBtn.addEventListener("click", function () {
+            saveDraft();
+        });
+
+        loadDraft();
     });
-});
 </script>
 
 {% endblock %}
