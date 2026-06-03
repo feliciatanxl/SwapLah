@@ -1,6 +1,8 @@
-from flask import Flask, flash, redirect, render_template, request, url_for
+from flask import Flask, flash, redirect, render_template, request, url_for,Blueprint, jsonify,session
 from werkzeug.security import generate_password_hash
-from app.db import get_db_connection, init_db
+from app.db import get_db_connection, init_db,get_all_listings
+from app.routes.listing import listings_bp
+
 
 def create_app():
     app = Flask(__name__)
@@ -9,8 +11,8 @@ def create_app():
 
     @app.route('/')
     def index():
-        return render_template('index.html')
-
+        listings = get_all_listings()
+        return render_template('index.html', listings=listings)
     @app.route('/listing/<int:listing_id>')
     def listing_detail(listing_id):
         return render_template('listing_detail.html', listing_id=listing_id)
@@ -104,4 +106,7 @@ def create_app():
     def forgot_password():
         return render_template('forgot_password.html')
 
+    ## Blueprints
+    app.register_blueprint(listings_bp)
+    
     return app

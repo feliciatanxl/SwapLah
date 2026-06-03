@@ -11,11 +11,11 @@
         <span class="status-badge bg-soft-green text-green"><i class="bi bi-shield-check"></i> NYP marketplace</span>
     </div>
 
-    <div class="alert alert-info static-alert" role="alert">
+    <div id="listing-message" class="alert alert-info static-alert d-none" role="alert"></div>
         Placeholder: show form errors or success messages here after Flask validation is connected.
     </div>
 
-    <form class="page-card form-card" method="post" action="#">
+   <form id="create-listing-form" class="page-card form-card"></form>
         <div class="row g-4">
             <div class="col-lg-5">
                 <label for="image_url" class="form-label">Image URL *</label>
@@ -92,5 +92,67 @@
         </div>
     </form>
 </section>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const form = document.getElementById("create-listing-form");
+    const messageBox = document.getElementById("listing-message");
+
+    form.addEventListener("submit", async function (event) {
+        event.preventDefault();
+
+        const priceType = document.querySelector("input[name='price_type']:checked").value;
+
+        let price = document.getElementById("price").value.trim();
+
+        if (priceType === "free") {
+            price = "Free";
+        } else if (priceType === "swap_only") {
+            price = "Swap Only";
+        }
+
+        const listingData = {
+            title: document.getElementById("title").value.trim(),
+            description: document.getElementById("description").value.trim(),
+            price: price,
+            category: document.getElementById("category").value,
+            condition: document.getElementById("condition").value,
+            imageUrl: document.getElementById("image_url").value.trim()
+        };
+
+        try {
+            const response = await fetch("/api/listings", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(listingData)
+            });
+
+            const result = await response.json();
+
+            messageBox.classList.remove("d-none", "alert-info", "alert-success", "alert-danger");
+
+            if (response.ok) {
+                messageBox.classList.add("alert-success");
+                messageBox.textContent = "Listing created successfully!";
+
+                form.reset();
+
+                setTimeout(function () {
+                    window.location.href = "/";
+                }, 1000);
+            } else {
+                messageBox.classList.add("alert-danger");
+                messageBox.textContent = result.error || "Unable to create listing.";
+            }
+        } catch (error) {
+            messageBox.classList.remove("d-none", "alert-info", "alert-success");
+            messageBox.classList.add("alert-danger");
+            messageBox.textContent = "Something went wrong. Please try again.";
+        }
+    });
+});
+</script>
 
 {% endblock %}
