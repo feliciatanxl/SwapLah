@@ -191,3 +191,6 @@ def test_create_listing_invalid_request_body(client):
     data = response.get_json()
 
     assert "error" in data
+
+
+    
