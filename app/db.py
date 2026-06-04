@@ -1,5 +1,7 @@
 import sqlite3
+import json
 from pathlib import Path
+from datetime import datetime
 
 DATABASE = Path(__file__).resolve().parent.parent / "swaplah.db"
 
@@ -31,6 +33,25 @@ def init_db():
         )
         """
     )
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS listings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            seller_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT NOT NULL,
+            price TEXT NOT NULL,
+            category TEXT NOT NULL,
+            item_condition TEXT NOT NULL,
+            image_url TEXT NOT NULL,
+            listing_date TEXT NOT NULL,
+            last_modified_timestamp TEXT NOT NULL,
+            FOREIGN KEY (seller_id) REFERENCES users (id)
+                 
+                 
+        )
+    """)
+
+    
     conn.commit()
     conn.close()
 
@@ -44,3 +65,98 @@ def get_user_by_email(email):
     ).fetchone()
     conn.close()
     return user
+
+
+def create_listing(seller_id, title, description, price, category, condition, image_url):
+    conn = get_db_connection()
+
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    cursor = conn.execute(
+        """
+        INSERT INTO listings (
+            seller_id,
+            title,
+            description,
+            price,
+            category,
+            item_condition,
+            image_url,
+            listing_date,
+            last_modified_timestamp
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            seller_id,
+            title,
+            description,
+            price,
+            category,
+            condition,
+            image_url,
+            now,
+            now
+        )
+    )
+
+    conn.commit()
+
+    listing_id = cursor.lastrowid
+
+    listing = conn.execute(
+        """
+        SELECT *
+        FROM listings
+        WHERE id = ?
+        """,
+        (listing_id,)
+    ).fetchone()
+
+    conn.close()
+
+    return dict(listing)
+
+
+def get_all_listings():
+    conn = get_db_connection()
+
+    rows = conn.execute(
+        """
+        SELECT
+            listings.id,
+            listings.title,
+            listings.description,
+            listings.price,
+            listings.category,
+            listings.item_condition AS condition,
+            listings.image_url AS image,
+            listings.listing_date,
+            users.display_name AS seller
+        FROM listings
+        LEFT JOIN users ON listings.seller_id = users.id
+        ORDER BY listings.listing_date DESC
+        """
+    ).fetchall()
+
+    conn.close()
+
+    listings = []
+
+    for row in rows:
+        listing = dict(row)
+
+        try:
+            images = json.loads(listing["image"])
+
+            if isinstance(images, list) and len(images) > 0:
+                listing["images"] = images
+                listing["image"] = images[0]
+            else:
+                listing["images"] = [listing["image"]]
+        except Exception:
+            listing["images"] = [listing["image"]]
+
+        listings.append(listing)
+
+    return listings
