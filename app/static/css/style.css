@@ -1702,3 +1702,74 @@ textarea {
     font-weight: 600;
     z-index: 3;
 }
+
+
+/* view-listing-details ; making the card clickable */
+.listing-clickable {
+    cursor: pointer;
+}
+.listing-image-wrap {
+    height: 230px;
+    overflow: hidden;
+}
+
+.listing-slider-image {
+    display: none;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.listing-slider-image.active {
+    display: block;
+}
+
+.detail-image-slider {
+    position: relative;
+    height: 480px;
+    overflow: hidden;
+}
+
+.detail-slider-image {
+    display: none;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.detail-slider-image.active {
+    display: block;
+}
+
+.detail-slider-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    border: none;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.detail-slider-left {
+    left: 16px;
+}
+
+.detail-slider-right {
+    right: 16px;
+}
+
+.detail-image-counter {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-weight: 600;
+}

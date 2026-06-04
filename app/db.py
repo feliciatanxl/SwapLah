@@ -160,3 +160,52 @@ def get_all_listings():
         listings.append(listing)
 
     return listings
+
+
+## feature/view-listing-details
+def get_listing_by_id(listing_id):
+    conn = get_db_connection()
+
+    listing = conn.execute(
+        """
+        SELECT
+            listings.id,
+            listings.title,
+            listings.description,
+            listings.price,
+            listings.category,
+            listings.item_condition AS condition,
+            listings.image_url,
+            listings.listing_date,
+            listings.last_modified_timestamp,
+            users.display_name AS seller_display_name,
+            users.email AS seller_email,
+            users.contact_number AS seller_contact_number
+        FROM listings
+        LEFT JOIN users ON listings.seller_id = users.id
+        WHERE listings.id = ?
+        """,
+        (listing_id,)
+    ).fetchone()
+
+    conn.close()
+
+    if listing is None:
+        return None
+
+    listing = dict(listing)
+
+    try:
+        images = json.loads(listing["image_url"])
+
+        if isinstance(images, list) and len(images) > 0:
+            listing["images"] = images
+            listing["image"] = images[0]
+        else:
+            listing["images"] = [listing["image_url"]]
+            listing["image"] = listing["image_url"]
+    except Exception:
+        listing["images"] = [listing["image_url"]]
+        listing["image"] = listing["image_url"]
+
+    return listing

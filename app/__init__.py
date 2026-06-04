@@ -1,6 +1,6 @@
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
-from app.db import get_db_connection, get_user_by_email, init_db,get_all_listings
+from app.db import get_db_connection, get_user_by_email, init_db,get_all_listings,get_listing_by_id
 from app.routes.listing import listings_bp
 def create_app():
     app = Flask(__name__)
@@ -13,7 +13,20 @@ def create_app():
         return render_template('index.html', listings=listings)
     @app.route('/listing/<int:listing_id>')
     def listing_detail(listing_id):
-        return render_template('listing_detail.html', listing_id=listing_id)
+        listing = get_listing_by_id(listing_id)
+
+        if listing is None:
+            return render_template(
+                'listing_detail.html',
+                listing=None,
+                error_message='This listing does not exist or is no longer available.'
+            ), 404
+
+        return render_template(
+            'listing_detail.html',
+            listing=listing,
+            error_message=None
+        )
 
     @app.route('/offers')
     def offers():
