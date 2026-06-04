@@ -1,9 +1,8 @@
 from flask import Blueprint, request, jsonify, session
-from app.db import create_listing
+from app.db import create_listing,get_listing_by_id
 import re
 from decimal import Decimal, InvalidOperation
 listings_bp = Blueprint("listings", __name__)
-
 
 @listings_bp.route("/api/listings", methods=["POST"])
 def api_create_listing():
@@ -98,3 +97,34 @@ def normalise_price(price):
         return "Swap Only"
 
     return str(Decimal(price).quantize(Decimal("0.01")))
+
+
+## feature/view-listing-details
+@listings_bp.route("/api/listings/<int:listing_id>", methods=["GET"])
+def api_get_listing_detail(listing_id):
+    listing = get_listing_by_id(listing_id)
+
+    if listing is None:
+        return jsonify({
+            "error": "Listing not found or unavailable."
+        }), 404
+
+    return jsonify({
+        "listing": {
+            "id": listing["id"],
+            "title": listing["title"],
+            "description": listing["description"],
+            "price": listing["price"],
+            "category": listing["category"],
+            "condition": listing["condition"],
+            "imageUrl": listing["image_url"],
+            "images": listing.get("images", []),
+            "listingDate": listing["listing_date"],
+            "lastModifiedTimestamp": listing["last_modified_timestamp"],
+            "seller": {
+                "displayName": listing["seller_display_name"],
+                "email": listing["seller_email"],
+                "contactNumber": listing["seller_contact_number"]
+            }
+        }
+    }), 200

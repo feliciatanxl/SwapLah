@@ -148,7 +148,9 @@
         <div class="row g-4">
             {% for item in listings %}
             <div class="col-12 col-sm-6 col-lg-4">
-                <div class="listing-card">
+                <div class="listing-card listing-clickable"
+                    data-detail-url="{{ url_for('listing_detail', listing_id=item.id) }}">
+
                     <div class="listing-image-wrap listing-card-slider" data-slider="true">
                         {% for image in item.images %}
                         <img src="{{ image }}" alt="{{ item.title }}"
@@ -176,15 +178,21 @@
                         <span class="wishlist-btn"><i class="bi bi-heart"></i></span>
                         <span class="location-badge"><i class="bi bi-geo-alt"></i> NYP Campus</span>
                     </div>
+
                     <div class="listing-body">
-                        <h5><a href="{{ url_for('listing_detail', listing_id=item.id) }}">{{ item.title }}</a></h5>
+                        <h5>
+                            <a href="{{ url_for('listing_detail', listing_id=item.id) }}">{{ item.title }}</a>
+                        </h5>
+
                         <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
                             <span class="condition-tag">{{ item.category }}</span>
-                            <span class="condition-tag">Textbooks</span>
+                            <span class="condition-tag">{{ item.condition }}</span>
                         </div>
+
                         <div class="price-row mb-2">
                             <span class="price">{{ item.price }}</span>
                         </div>
+
                         <div class="seller-row">
                             <span>
                                 <span class="avatar-mini me-1">{{ item.seller[0] if item.seller else "S" }}</span>
@@ -192,12 +200,16 @@
                             </span>
                             <span><i class="bi bi-star-fill text-warning"></i> New</span>
                         </div>
-                        <div class="time-row"><i class="bi bi-clock"></i> {{ item.listing_date }}</div>
+
+                        <div class="time-row">
+                            <i class="bi bi-clock"></i> {{ item.listing_date }}
+                        </div>
                     </div>
                 </div>
             </div>
             {% endfor %}
         </div>
+
 
         <nav class="pagination-wrap" aria-label="Listings pagination">
             <ul class="pagination justify-content-center mb-2">
@@ -258,54 +270,68 @@
     </div>
 </section>
 <script>
-document.addEventListener("DOMContentLoaded", function () {
-    const sliders = document.querySelectorAll(".listing-card-slider");
+    document.addEventListener("DOMContentLoaded", function () {
+        const sliders = document.querySelectorAll(".listing-card-slider");
 
-    sliders.forEach(function (slider) {
-        const images = slider.querySelectorAll(".listing-slider-image");
-        const prevBtn = slider.querySelector(".listing-slider-left");
-        const nextBtn = slider.querySelector(".listing-slider-right");
-        const counter = slider.querySelector(".current-image-number");
+        sliders.forEach(function (slider) {
+            const images = slider.querySelectorAll(".listing-slider-image");
+            const prevBtn = slider.querySelector(".listing-slider-left");
+            const nextBtn = slider.querySelector(".listing-slider-right");
+            const counter = slider.querySelector(".current-image-number");
 
-        let currentIndex = 0;
+            let currentIndex = 0;
 
-        function showImage(index) {
-            images.forEach(function (image) {
-                image.classList.remove("active");
-            });
+            function showImage(index) {
+                images.forEach(function (image) {
+                    image.classList.remove("active");
+                });
 
-            images[index].classList.add("active");
+                images[index].classList.add("active");
 
-            if (counter) {
-                counter.textContent = index + 1;
+                if (counter) {
+                    counter.textContent = index + 1;
+                }
             }
-        }
 
-        if (prevBtn) {
-            prevBtn.addEventListener("click", function () {
-                currentIndex--;
+            if (prevBtn) {
+                prevBtn.addEventListener("click", function (event) {
+                    event.stopPropagation();
+                    currentIndex--;
 
-                if (currentIndex < 0) {
-                    currentIndex = images.length - 1;
+                    if (currentIndex < 0) {
+                        currentIndex = images.length - 1;
+                    }
+
+                    showImage(currentIndex);
+                });
+            }
+
+            if (nextBtn) {
+                nextBtn.addEventListener("click", function (event) {
+                    event.stopPropagation();
+                    currentIndex++;
+
+                    if (currentIndex >= images.length) {
+                        currentIndex = 0;
+                    }
+
+                    showImage(currentIndex);
+                });
+            }
+        });
+        const listingCards = document.querySelectorAll(".listing-clickable");
+
+        listingCards.forEach(function (card) {
+            card.addEventListener("click", function (event) {
+                if (event.target.closest("button, a, .wishlist-btn")) {
+                    return;
                 }
 
-                showImage(currentIndex);
+                window.location.href = card.dataset.detailUrl;
             });
-        }
+        });
 
-        if (nextBtn) {
-            nextBtn.addEventListener("click", function () {
-                currentIndex++;
-
-                if (currentIndex >= images.length) {
-                    currentIndex = 0;
-                }
-
-                showImage(currentIndex);
-            });
-        }
     });
-});
 </script>
 
 {% endblock %}

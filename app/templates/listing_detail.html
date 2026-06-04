@@ -2,32 +2,59 @@
 {% block content %}
 
 <section class="page-shell">
+    {% if listing is not defined or listing is none %}
+    <div class="alert alert-danger" role="alert">
+        {{ error_message or "This listing does not exist or is no longer available." }}
+    </div>
+    {% else %}
     <a href="{{ url_for('index') }}" class="back-link"><i class="bi bi-arrow-left"></i> Back to listings</a>
 
     <div class="row g-4 mt-1">
         <div class="col-lg-7">
-            <div class="detail-media">
-                <img src="https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1200&auto=format&fit=crop" alt="Calculus textbook">
-                <span class="listing-badge badge-verified">Active</span>
+            <div class="detail-media detail-image-slider">
+                {% for image in listing.images %}
+                <img src="{{ image }}" alt="{{ listing.title }}"
+                    class="detail-slider-image {% if loop.first %}active{% endif %}">
+                {% endfor %}
+
+                {% if listing.images|length > 1 %}
+                <button type="button" class="detail-slider-arrow detail-slider-left">
+                    <i class="bi bi-chevron-left"></i>
+                </button>
+
+                <button type="button" class="detail-slider-arrow detail-slider-right">
+                    <i class="bi bi-chevron-right"></i>
+                </button>
+
+                <span class="detail-image-counter">
+                    <span class="detail-current-image-number">1</span> / {{ listing.images|length }}
+                </span>
+                {% endif %}
+
+                <span class="listing-badge badge-verified">Available</span>
             </div>
 
             <div class="page-card mt-4">
                 <div class="d-flex justify-content-between gap-3 flex-wrap">
                     <div>
-                        <span class="condition-tag">Textbooks</span>
-                        <h1 class="detail-title mt-3">Calculus: Early Transcendentals 9E</h1>
+                        <span class="condition-tag">{{ listing.category }}</span>
+                        <h1 class="detail-title mt-3">{{ listing.title }}</h1>
                     </div>
-                    <h2 class="detail-price">$25</h2>
+                    <h2 class="detail-price">{{ listing.price }}</h2>
                 </div>
-                <p class="text-muted"><i class="bi bi-geo-alt"></i> Block L · Listed 2 hours ago · <span class="condition-tag">Good</span></p>
+                <p class="text-muted">
+                    <i class="bi bi-geo-alt"></i> NYP Campus · Listed {{ listing.listing_date }} ·
+                    <span class="condition-tag">{{ listing.condition }}</span>
+                </p>
                 <hr>
                 <h5 class="fw-bold">Description</h5>
-                <p class="text-muted mb-0">Used for IT2001 last semester. Minor highlighting in the first three chapters, no missing pages, and still clean enough for revision.</p>
+                <p class="text-muted mb-0">{{ listing.description }}</p>
 
                 <div class="owner-actions mt-4">
                     <button class="btn btn-outline-dark"><i class="bi bi-pencil"></i> Edit Listing</button>
                     <button class="btn btn-outline-dark"><i class="bi bi-inbox"></i> View Offers</button>
-                    <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteListingModal"><i class="bi bi-archive"></i> Delete Listing</button>
+                    <button class="btn btn-outline-danger" data-bs-toggle="modal"
+                        data-bs-target="#deleteListingModal"><i class="bi bi-archive"></i> Delete Listing</button>
                 </div>
             </div>
         </div>
@@ -36,15 +63,17 @@
             <aside class="page-card sticky-card">
                 <h5 class="fw-bold mb-3">Seller Contact</h5>
                 <div class="seller-profile">
-                    <span class="avatar-mini">A</span>
+                    <span class="avatar-mini">{{ listing.seller_display_name[0] if listing.seller_display_name else "S"
+                        }}</span>
                     <div>
-                        <h6 class="mb-0 fw-bold">Aishah Tan</h6>
-                        <small class="text-muted"><i class="bi bi-star-fill text-warning"></i> 4.9 average rating · 24 reviews</small>
+                        <h6 class="mb-0 fw-bold">{{ listing.seller_display_name or "Student Seller" }}</h6>
+                        <small class="text-muted"><i class="bi bi-star-fill text-warning"></i> 4.9 average rating · 24
+                            reviews</small>
                     </div>
                 </div>
                 <div class="info-list mt-3">
-                    <div><i class="bi bi-envelope"></i> aishah.tan@mymail.nyp.edu.sg</div>
-                    <div><i class="bi bi-telephone"></i> +65 9123 4567</div>
+                    <div><i class="bi bi-envelope"></i> {{ listing.seller_email }}</div>
+                    <div><i class="bi bi-telephone"></i> {{ listing.seller_contact_number }}</div>
                     <div><i class="bi bi-shield-check"></i> Verified NYP student</div>
                 </div>
 
@@ -55,9 +84,11 @@
                     <label for="cash_offer_amount" class="form-label">Cash offer</label>
                     <div class="input-group mb-3">
                         <span class="input-group-text">$</span>
-                        <input id="cash_offer_amount" name="cash_offer_amount" type="number" class="form-control" placeholder="20">
+                        <input id="cash_offer_amount" name="cash_offer_amount" type="number" class="form-control"
+                            placeholder="20">
                     </div>
-                    <button type="submit" class="btn btn-accent w-100 mb-3"><i class="bi bi-cash-coin"></i> Submit Cash Offer</button>
+                    <button type="submit" class="btn btn-accent w-100 mb-3"><i class="bi bi-cash-coin"></i> Submit Cash
+                        Offer</button>
 
                     <hr>
 
@@ -70,11 +101,14 @@
                     </select>
 
                     <label for="offer_message" class="form-label">Message</label>
-                    <textarea id="offer_message" name="offer_message" rows="3" class="form-control mb-3" placeholder="Can meet at LRC tomorrow?"></textarea>
-                    <button type="submit" class="btn btn-outline-dark w-100"><i class="bi bi-arrow-left-right"></i> Submit Swap Offer</button>
+                    <textarea id="offer_message" name="offer_message" rows="3" class="form-control mb-3"
+                        placeholder="Can meet at LRC tomorrow?"></textarea>
+                    <button type="submit" class="btn btn-outline-dark w-100"><i class="bi bi-arrow-left-right"></i>
+                        Submit Swap Offer</button>
                 </form>
 
-                <button class="btn btn-outline-danger w-100 mt-3" data-bs-toggle="modal" data-bs-target="#reportModal"><i class="bi bi-flag"></i> Report Listing</button>
+                <button class="btn btn-outline-danger w-100 mt-3" data-bs-toggle="modal"
+                    data-bs-target="#reportModal"><i class="bi bi-flag"></i> Report Listing</button>
             </aside>
         </div>
     </div>
@@ -87,7 +121,8 @@
                 <h5 class="modal-title">Delete listing?</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">This placeholder represents a future soft-delete action. The listing should be hidden from active browse results but kept in the database.</div>
+            <div class="modal-body">This placeholder represents a future soft-delete action. The listing should be
+                hidden from active browse results but kept in the database.</div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-dark" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-danger">Soft-delete Listing</button>
@@ -112,7 +147,8 @@
                     <option>Unsafe or inappropriate</option>
                 </select>
                 <label for="report_description" class="form-label">Description</label>
-                <textarea id="report_description" name="report_description" class="form-control" rows="4" placeholder="Add details for admin review"></textarea>
+                <textarea id="report_description" name="report_description" class="form-control" rows="4"
+                    placeholder="Add details for admin review"></textarea>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-dark" data-bs-dismiss="modal">Cancel</button>
@@ -121,5 +157,52 @@
         </form>
     </div>
 </div>
+{% endif %}
 
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const images = document.querySelectorAll(".detail-slider-image");
+    const prevBtn = document.querySelector(".detail-slider-left");
+    const nextBtn = document.querySelector(".detail-slider-right");
+    const counter = document.querySelector(".detail-current-image-number");
+
+    let currentIndex = 0;
+
+    function showImage(index) {
+        images.forEach(function (image) {
+            image.classList.remove("active");
+        });
+
+        images[index].classList.add("active");
+
+        if (counter) {
+            counter.textContent = index + 1;
+        }
+    }
+
+    if (prevBtn) {
+        prevBtn.addEventListener("click", function () {
+            currentIndex--;
+
+            if (currentIndex < 0) {
+                currentIndex = images.length - 1;
+            }
+
+            showImage(currentIndex);
+        });
+    }
+
+    if (nextBtn) {
+        nextBtn.addEventListener("click", function () {
+            currentIndex++;
+
+            if (currentIndex >= images.length) {
+                currentIndex = 0;
+            }
+
+            showImage(currentIndex);
+        });
+    }
+});
+</script>
 {% endblock %}
