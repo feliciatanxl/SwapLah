@@ -1,6 +1,13 @@
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
-from app.db import get_db_connection, get_user_by_email, init_db,get_all_listings,get_listing_by_id
+from app.db import (
+    get_all_listings,
+    get_db_connection,
+    get_listing_by_id,
+    get_user_by_email,
+    get_user_by_id,
+    init_db,
+)
 from app.routes.listing import listings_bp
 def create_app():
     app = Flask(__name__)
@@ -42,7 +49,14 @@ def create_app():
             flash('Please log in to access your profile.', 'danger')
             return redirect(url_for('login'))
 
-        return render_template('profile.html')
+        user = get_user_by_id(session['user_id'])
+
+        if user is None:
+            session.clear()
+            flash('Your session has expired. Please log in again.', 'danger')
+            return redirect(url_for('login'))
+
+        return render_template('profile.html', user=user)
 
     @app.route('/profile/edit')
     def edit_profile():

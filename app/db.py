@@ -209,3 +209,17 @@ def get_listing_by_id(listing_id):
         listing["image"] = listing["image_url"]
 
     return listing
+
+def get_user_by_id(user_id):
+    """Retrieve one user by ID using a parameterized query."""
+    conn = get_db_connection()
+    user = conn.execute(
+        "SELECT id, student_id, first_name, last_name, display_name, email, contact_number, role, status, created_at FROM users WHERE id = :user_id",
+        {"user_id": user_id},
+    ).fetchone()
+    conn.close()
+
+    if user is None:
+        return None
+
+    return dict(user)
