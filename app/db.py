@@ -223,3 +223,49 @@ def get_user_by_id(user_id):
         return None
 
     return dict(user)
+
+def update_user_account(user_id, first_name, last_name, display_name, contact_number, password_hash=None):
+    """Update editable account details only. Email and Student ID remain locked."""
+    conn = get_db_connection()
+
+    if password_hash:
+        conn.execute(
+            """
+            UPDATE users
+            SET first_name = :first_name,
+                last_name = :last_name,
+                display_name = :display_name,
+                contact_number = :contact_number,
+                password_hash = :password_hash
+            WHERE id = :user_id
+            """,
+            {
+                "first_name": first_name,
+                "last_name": last_name,
+                "display_name": display_name,
+                "contact_number": contact_number,
+                "password_hash": password_hash,
+                "user_id": user_id,
+            },
+        )
+    else:
+        conn.execute(
+            """
+            UPDATE users
+            SET first_name = :first_name,
+                last_name = :last_name,
+                display_name = :display_name,
+                contact_number = :contact_number
+            WHERE id = :user_id
+            """,
+            {
+                "first_name": first_name,
+                "last_name": last_name,
+                "display_name": display_name,
+                "contact_number": contact_number,
+                "user_id": user_id,
+            },
+        )
+
+    conn.commit()
+    conn.close()

@@ -7,6 +7,7 @@ from app.db import (
     get_user_by_email,
     get_user_by_id,
     init_db,
+    update_user_account,
 )
 from app.routes.listing import listings_bp
 def create_app():
@@ -58,9 +59,70 @@ def create_app():
 
         return render_template('profile.html', user=user)
 
-    @app.route('/profile/edit')
+    @app.route('/profile/edit', methods=['GET', 'POST'])
     def edit_profile():
-        return render_template('edit_profile.html')
+        if 'user_id' not in session:
+            flash('Please log in to update your profile.', 'danger')
+            return redirect(url_for('login'))
+
+        user = get_user_by_id(session['user_id'])
+
+        if user is None:
+            session.clear()
+            flash('Your session has expired. Please log in again.', 'danger')
+            return redirect(url_for('login'))
+
+        if request.method == 'GET':
+            return render_template('edit_profile.html', user=user)
+
+        first_name = request.form.get('first_name', '').strip()
+        last_name = request.form.get('last_name', '').strip()
+        display_name = request.form.get('display_name', '').strip()
+        contact_number = request.form.get('contact_number', '').strip()
+        password = request.form.get('password', '')
+        confirm_password = request.form.get('confirm_password', '')
+
+        user.update({
+            'first_name': first_name,
+            'last_name': last_name,
+            'display_name': display_name,
+            'contact_number': contact_number,
+        })
+
+        if not first_name or not last_name or not display_name or not contact_number:
+            flash('Please fill in all required profile fields.', 'danger')
+            return render_template('edit_profile.html', user=user)
+
+        if not contact_number.isdigit() or len(contact_number) < 8 or len(contact_number) > 15:
+            flash('Please enter a valid contact number using digits only.', 'danger')
+            return render_template('edit_profile.html', user=user)
+
+        password_hash = None
+
+        if password or confirm_password:
+            if password != confirm_password:
+                flash('Passwords do not match.', 'danger')
+                return render_template('edit_profile.html', user=user)
+
+            if len(password) < 8:
+                flash('Password must be at least 8 characters long.', 'danger')
+                return render_template('edit_profile.html', user=user)
+
+            password_hash = generate_password_hash(password)
+
+        update_user_account(
+            session['user_id'],
+            first_name,
+            last_name,
+            display_name,
+            contact_number,
+            password_hash,
+        )
+
+        session['display_name'] = display_name
+
+        flash('Profile updated successfully.', 'success')
+        return redirect(url_for('profile'))
 
     @app.route('/sell')
     def sell():

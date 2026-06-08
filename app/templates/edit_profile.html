@@ -2,49 +2,131 @@
 {% block content %}
 
 <section class="page-shell narrow-shell">
-    <a href="{{ url_for('profile') }}" class="back-link"><i class="bi bi-arrow-left"></i> Back to profile</a>
+    <a href="{{ url_for('profile') }}" class="back-link">
+        <i class="bi bi-arrow-left"></i> Back to profile
+    </a>
+
     <div class="page-heading mt-2">
         <div>
             <h1 class="section-title">Edit Profile</h1>
-            <p class="section-subtitle">Update account details. Email and Student ID are locked for verification.</p>
+            <p class="section-subtitle">
+                Update your profile details. Email and Student ID are locked for verification.
+            </p>
         </div>
     </div>
 
-    <div class="alert alert-danger static-alert" role="alert">
-        Placeholder: show validation errors, session expiry, or suspended account notices here.
-    </div>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-message-list" aria-live="polite">
+            {% for category, message in messages %}
+                {% set alert_class = 'success' if category == 'success' else 'danger' %}
+                {% set alert_icon = 'bi-check-circle-fill' if category == 'success' else 'bi-exclamation-circle-fill' %}
+                <div class="alert flash-alert flash-alert-{{ alert_class }}" role="alert">
+                    <i class="bi {{ alert_icon }}"></i>
+                    <span>{{ message }}</span>
+                </div>
+            {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
 
-    <form class="page-card form-card" method="post" action="#">
+    <form class="page-card form-card" method="post" action="{{ url_for('edit_profile') }}">
         <div class="row g-3">
             <div class="col-md-6">
                 <label for="first_name" class="form-label">First Name</label>
-                <input id="first_name" name="first_name" type="text" class="form-control" value="Jordan">
+                <input
+                    id="first_name"
+                    name="first_name"
+                    type="text"
+                    class="form-control"
+                    value="{{ user.first_name }}"
+                    required
+                >
             </div>
+
             <div class="col-md-6">
                 <label for="last_name" class="form-label">Last Name</label>
-                <input id="last_name" name="last_name" type="text" class="form-control" value="Mok">
+                <input
+                    id="last_name"
+                    name="last_name"
+                    type="text"
+                    class="form-control"
+                    value="{{ user.last_name }}"
+                    required
+                >
             </div>
+
             <div class="col-md-6">
                 <label for="display_name" class="form-label">Display Name</label>
-                <input id="display_name" name="display_name" type="text" class="form-control" value="Jordan Mok">
+                <input
+                    id="display_name"
+                    name="display_name"
+                    type="text"
+                    class="form-control"
+                    value="{{ user.display_name }}"
+                    required
+                >
             </div>
+
             <div class="col-md-6">
                 <label for="contact_number" class="form-label">Contact Number</label>
-                <input id="contact_number" name="contact_number" type="tel" class="form-control" value="+65 8765 4321">
+                <input
+                    id="contact_number"
+                    name="contact_number"
+                    type="tel"
+                    class="form-control"
+                    value="{{ user.contact_number }}"
+                    required
+                >
+                <p class="helper-text">Use digits only, for example 91234567.</p>
             </div>
+
             <div class="col-md-6">
                 <label for="email" class="form-label">NYP Email</label>
-                <input id="email" name="email" type="email" class="form-control readonly-control" value="jordan.mok@mymail.nyp.edu.sg" readonly disabled>
+                <input
+                    id="email"
+                    type="email"
+                    class="form-control readonly-control"
+                    value="{{ user.email }}"
+                    readonly
+                    disabled
+                >
                 <p class="helper-text">Locked after registration.</p>
             </div>
+
             <div class="col-md-6">
                 <label for="student_id" class="form-label">Student ID</label>
-                <input id="student_id" name="student_id" type="text" class="form-control readonly-control" value="S10234567" readonly disabled>
+                <input
+                    id="student_id"
+                    type="text"
+                    class="form-control readonly-control"
+                    value="{{ user.student_id }}"
+                    readonly
+                    disabled
+                >
                 <p class="helper-text">Locked after verification.</p>
             </div>
-            <div class="col-12">
-                <label for="bio" class="form-label">Bio</label>
-                <textarea id="bio" name="bio" class="form-control" rows="4">IT student selling textbooks and gadgets I no longer need. Quick replies.</textarea>
+
+            <div class="col-md-6">
+                <label for="password" class="form-label">New Password</label>
+                <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    class="form-control"
+                    placeholder="Leave blank to keep current password"
+                >
+            </div>
+
+            <div class="col-md-6">
+                <label for="confirm_password" class="form-label">Confirm New Password</label>
+                <input
+                    id="confirm_password"
+                    name="confirm_password"
+                    type="password"
+                    class="form-control"
+                    placeholder="Repeat new password"
+                >
             </div>
         </div>
 
