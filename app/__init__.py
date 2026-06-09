@@ -13,6 +13,7 @@ from app.db import (
     init_db,
     update_user_account,
 )
+import app.db as db_module  # noqa: F401 — exposes db functions for monkeypatching in tests
 from app.routes.listing import listings_bp
 from app.routes.offers import offers_bp
 
