@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="fw-bold mb-0">Reports Management</h2>
+  <a href="{{ url_for('admin.view_users') }}" class="btn btn-outline-secondary rounded-pill">
+    <i class="bi bi-people"></i> Manage Users
+  </a>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }} alert-dismissible fade show rounded-3">
+      {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  {% endfor %}
+{% endwith %}
+
+{% if reports %}
+<div class="table-responsive">
+  <table class="table table-hover align-middle">
+    <thead class="table-light">
+      <tr>
+        <th>Reported Listing</th>
+        <th>Reported By</th>
+        <th>Reason</th>
+        <th>Description</th>
+        <th>Date</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for report in reports %}
+      <tr>
+        <td>
+          {% if report.listing and not report.listing.is_deleted %}
+            <a href="{{ url_for('listing.listing_detail', listing_id=report.listing_id) }}">
+              {{ report.listing.title }}
+            </a>
+          {% else %}
+            <span class="text-muted fst-italic">Listing removed</span>
+          {% endif %}
+        </td>
+        <td>{{ report.reporter.display_name if report.reporter else 'Unknown' }}</td>
+        <td><span class="badge bg-warning text-dark">{{ report.reason }}</span></td>
+        <td class="text-truncate" style="max-width:200px;">{{ report.description }}</td>
+        <td>{{ report.created_at.strftime('%d %b %Y') }}</td>
+        <td>
+          {% if report.status == 'Pending' %}
+            <span class="badge bg-secondary">Pending</span>
+          {% elif report.status == 'Actioned' %}
+            <span class="badge bg-danger">Actioned</span>
+          {% else %}
+            <span class="badge bg-success">Dismissed</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if report.status == 'Pending' %}
+            <form method="POST"
+                  action="{{ url_for('admin.delete_reported_listing', report_id=report.id) }}"
+                  class="d-inline"
+                  onsubmit="return confirm('Delete this listing?')">
+              <button class="btn btn-sm btn-danger rounded-pill">Delete Listing</button>
+            </form>
+            <form method="POST"
+                  action="{{ url_for('admin.dismiss_report', report_id=report.id) }}"
+                  class="d-inline ms-1">
+              <button class="btn btn-sm btn-outline-secondary rounded-pill">Dismiss</button>
+            </form>
+          {% else %}
+            <span class="text-muted small">No action needed</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+  <div class="text-center py-5 text-muted">
+    <i class="bi bi-shield-check fs-1"></i>
+    <p class="mt-2">No reports submitted yet.</p>
+  </div>
+{% endif %}
+{% endblock %}
