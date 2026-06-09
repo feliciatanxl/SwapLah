@@ -1,8 +1,75 @@
 from flask import Blueprint, request, jsonify, session
-from app.db import create_listing,get_listing_by_id
+from app.db import create_listing, get_listing_by_id, get_db_connection
+import math
 import re
 from decimal import Decimal, InvalidOperation
 listings_bp = Blueprint("listings", __name__)
+
+
+@listings_bp.route("/api/listings", methods=["GET"])
+def api_get_active_listings():
+    db = get_db_connection()
+
+    page = request.args.get("page", 1, type=int)
+    per_page = 10
+
+    if page < 1:
+        page = 1
+
+    offset = (page - 1) * per_page
+
+    total_listings = db.execute("""
+        SELECT COUNT(*) AS count
+        FROM listings
+        WHERE status = 'Active'
+    """).fetchone()["count"]
+
+    rows = db.execute("""
+        SELECT 
+            id,
+            seller_id,
+            title,
+            description,
+            price,
+            category,
+            item_condition AS condition,
+            image_url,
+            listing_date,
+            last_modified_timestamp,
+            status
+        FROM listings
+        WHERE status = 'Active'
+        ORDER BY listing_date DESC
+        LIMIT ? OFFSET ?
+    """, (per_page, offset)).fetchall()
+
+    listings = []
+
+    for row in rows:
+        listings.append({
+            "id": row["id"],
+            "sellerId": row["seller_id"],
+            "title": row["title"],
+            "description": row["description"],
+            "price": row["price"],
+            "category": row["category"],
+            "condition": row["condition"],
+            "imageUrl": row["image_url"],
+            "listingDate": row["listing_date"],
+            "lastModifiedTimestamp": row["last_modified_timestamp"],
+            "status": row["status"]
+        })
+
+    total_pages = math.ceil(total_listings / per_page) if total_listings > 0 else 1
+
+    db.close()
+    return jsonify({
+        "listings": listings,
+        "page": page,
+        "perPage": per_page,
+        "totalListings": total_listings,
+        "totalPages": total_pages
+    }), 200
 
 @listings_bp.route("/api/listings", methods=["POST"])
 def api_create_listing():
@@ -128,3 +195,7 @@ def api_get_listing_detail(listing_id):
             }
         }
     }), 200
+
+
+
+

@@ -1,5 +1,6 @@
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
+import math
 from app.db import (
     get_all_listings,
     get_db_connection,
@@ -17,8 +18,30 @@ def create_app():
 
     @app.route('/')
     def index():
-        listings = get_all_listings()
-        return render_template('index.html', listings=listings)
+        page = request.args.get('page', 1, type=int)
+        per_page = 10
+
+        if page < 1:
+            page = 1
+
+        all_listings = get_all_listings()
+        total_listings = len(all_listings)
+        total_pages = math.ceil(total_listings / per_page) if total_listings > 0 else 1
+
+        if page > total_pages:
+            page = total_pages
+
+        start = (page - 1) * per_page
+        end = start + per_page
+        listings = all_listings[start:end]
+
+        return render_template(
+            'index.html',
+            listings=listings,
+            page=page,
+            total_pages=total_pages,
+            total_listings=total_listings
+        )
     @app.route('/listing/<int:listing_id>')
     def listing_detail(listing_id):
         listing = get_listing_by_id(listing_id)

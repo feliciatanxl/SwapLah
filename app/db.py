@@ -13,6 +13,11 @@ def get_db_connection():
     return conn
 
 
+
+
+
+
+
 def init_db():
     """Create database tables if they do not exist."""
     conn = get_db_connection()
@@ -45,13 +50,13 @@ def init_db():
             image_url TEXT NOT NULL,
             listing_date TEXT NOT NULL,
             last_modified_timestamp TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'Active',
             FOREIGN KEY (seller_id) REFERENCES users (id)
-                 
-                 
         )
     """)
 
-    
+    ensure_listing_status_column(conn)
+
     conn.commit()
     conn.close()
 
@@ -135,6 +140,7 @@ def get_all_listings():
             users.display_name AS seller
         FROM listings
         LEFT JOIN users ON listings.seller_id = users.id
+        WHERE listings.status = 'Active'
         ORDER BY listings.listing_date DESC
         """
     ).fetchall()
@@ -184,6 +190,7 @@ def get_listing_by_id(listing_id):
         FROM listings
         LEFT JOIN users ON listings.seller_id = users.id
         WHERE listings.id = ?
+        AND listings.status = 'Active'
         """,
         (listing_id,)
     ).fetchone()
@@ -209,6 +216,15 @@ def get_listing_by_id(listing_id):
         listing["image"] = listing["image_url"]
 
     return listing
+ 
+def ensure_listing_status_column(conn):
+    columns = conn.execute("PRAGMA table_info(listings)").fetchall()
+    column_names = [column["name"] for column in columns]
+
+    if "status" not in column_names:
+        conn.execute(
+            "ALTER TABLE listings ADD COLUMN status TEXT NOT NULL DEFAULT 'Active'"
+        )
 
 def get_user_by_id(user_id):
     """Retrieve one user by ID using a parameterized query."""
