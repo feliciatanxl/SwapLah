@@ -1,130 +1,104 @@
-from flask import Blueprint, request, jsonify, session
-from app.db import create_listing,get_listing_by_id
-import re
-from decimal import Decimal, InvalidOperation
-listings_bp = Blueprint("listings", __name__)
+"""Listing routes: browse, search, filter, detail, report."""
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask_login import login_required, current_user
+from ..models import db, Listing, Report
 
-@listings_bp.route("/api/listings", methods=["POST"])
-def api_create_listing():
-    # AC5: user must be logged in
-    seller_id = session.get("user_id")
+listing_bp = Blueprint('listing', __name__)
 
-    if not seller_id:
-        return jsonify({
-            "error": "You must be logged in to create a listing."
-        }), 401
+ITEMS_PER_PAGE = 10
 
-    data = request.get_json(silent=True)
 
-    if not data:
-        return jsonify({
-            "error": "Invalid request body."
-        }), 400
+@listing_bp.route('/listings')
+@login_required
+def browse():
+    """Browse all non-deleted listings with search, filter and pagination."""
+    page = request.args.get('page', 1, type=int)
+    search = request.args.get('search', '').strip()
+    category = request.args.get('category', '').strip()
+    condition = request.args.get('condition', '').strip()
 
-    title = data.get("title", "").strip()
-    description = data.get("description", "").strip()
-    price = str(data.get("price", "")).strip()
-    category = data.get("category", "").strip()
-    condition = data.get("condition", "").strip()
-    image_url = data.get("imageUrl") or data.get("image_url") or ""
-    image_url = image_url.strip()
+    query = Listing.query.filter_by(is_deleted=False)
+    query = _apply_filters(query, search, category, condition)
+    query = query.order_by(Listing.listing_date.desc())
 
-    # AC4: required fields validation
-    if not title or not description or not price or not category or not condition or not image_url:
-        return jsonify({
-            "error": "All fields are required."
-        }), 400
-
-    # AC2: price validation
-    if not is_valid_price(price):
-        return jsonify({
-            "error": "Price must be a number, Free, or Swap Only."
-        }), 400
-
-    price = normalise_price(price)
-
-    # AC1 + AC3 + AC6: create listing in database
-    listing = create_listing(
-        seller_id=seller_id,
-        title=title,
-        description=description,
-        price=price,
+    pagination = query.paginate(page=page, per_page=ITEMS_PER_PAGE, error_out=False)
+    return render_template(
+        'listings.html',
+        listings=pagination.items,
+        pagination=pagination,
+        search=search,
         category=category,
         condition=condition,
-        image_url=image_url
+        categories=Listing.CATEGORIES,
+        conditions=Listing.CONDITIONS
     )
 
-    return jsonify({
-        "message": "Listing created successfully.",
-        "listing": {
-            "id": listing["id"],
-            "sellerId": listing["seller_id"],
-            "title": listing["title"],
-            "description": listing["description"],
-            "price": listing["price"],
-            "category": listing["category"],
-            "condition": listing["item_condition"],
-            "imageUrl": listing["image_url"],
-            "listingDate": listing["listing_date"],
-            "lastModifiedTimestamp": listing["last_modified_timestamp"]
-        }
-    }), 201
 
-def is_valid_price(price):
-    price_lower = price.lower()
-
-    if price_lower == "free" or price_lower == "swap only":
-        return True
-
-    # Only allow whole numbers or max 2 decimal places
-    if not re.fullmatch(r"\d+(\.\d{1,2})?", price):
-        return False
-
-    try:
-        numeric_price = Decimal(price)
-        return numeric_price >= 0
-    except InvalidOperation:
-        return False
+def _apply_filters(query, search, category, condition):
+    """Apply search and filter parameters to the query."""
+    if search:
+        like = f'%{search}%'
+        query = query.filter(
+            db.or_(
+                Listing.title.ilike(like),
+                Listing.description.ilike(like)
+            )
+        )
+    if category:
+        query = query.filter_by(category=category)
+    if condition:
+        query = query.filter_by(condition=condition)
+    return query
 
 
-def normalise_price(price):
-    price_lower = price.lower()
+@listing_bp.route('/listing/<string:listing_id>')
+@login_required
+def listing_detail(listing_id):
+    """Show the detail page for a single listing."""
+    listing = Listing.query.get(listing_id)
+    if not listing or listing.is_deleted:
+        flash('Listing not found.', 'danger')
+        return redirect(url_for('listing.browse'))
+    return render_template('listing_detail.html', listing=listing,
+                           report_reasons=Report.REASONS)
 
-    if price_lower == "free":
-        return "Free"
 
-    if price_lower == "swap only":
-        return "Swap Only"
+@listing_bp.route('/listing/<string:listing_id>/report', methods=['POST'])
+@login_required
+def report_listing(listing_id):
+    """US#3 – Logged-in user reports a listing as inappropriate."""
+    listing = Listing.query.get(listing_id)
 
-    return str(Decimal(price).quantize(Decimal("0.01")))
+    if not listing or listing.is_deleted:
+        flash('Listing not found or has been removed.', 'danger')
+        return redirect(url_for('listing.browse'))
+
+    reason = request.form.get('reason', '').strip()
+    description = request.form.get('description', '').strip()
+
+    error = _validate_report(reason, description)
+    if error:
+        flash(error, 'danger')
+        return redirect(url_for('listing.listing_detail', listing_id=listing_id))
+
+    report = Report(
+        listing_id=listing_id,
+        reporter_id=current_user.id,
+        reason=reason,
+        description=description
+    )
+    db.session.add(report)
+    db.session.commit()
+    flash('Report submitted. Our team will review it shortly.', 'success')
+    return redirect(url_for('listing.listing_detail', listing_id=listing_id))
 
 
-## feature/view-listing-details
-@listings_bp.route("/api/listings/<int:listing_id>", methods=["GET"])
-def api_get_listing_detail(listing_id):
-    listing = get_listing_by_id(listing_id)
-
-    if listing is None:
-        return jsonify({
-            "error": "Listing not found or unavailable."
-        }), 404
-
-    return jsonify({
-        "listing": {
-            "id": listing["id"],
-            "title": listing["title"],
-            "description": listing["description"],
-            "price": listing["price"],
-            "category": listing["category"],
-            "condition": listing["condition"],
-            "imageUrl": listing["image_url"],
-            "images": listing.get("images", []),
-            "listingDate": listing["listing_date"],
-            "lastModifiedTimestamp": listing["last_modified_timestamp"],
-            "seller": {
-                "displayName": listing["seller_display_name"],
-                "email": listing["seller_email"],
-                "contactNumber": listing["seller_contact_number"]
-            }
-        }
-    }), 200
+def _validate_report(reason, description):
+    """Validate report form fields. Return error string or None."""
+    if not reason:
+        return 'Please select a reason for your report.'
+    if reason not in Report.REASONS:
+        return 'Invalid reason selected.'
+    if not description:
+        return 'Please provide a description for your report.'
+    return None
