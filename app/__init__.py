@@ -84,3 +84,5 @@ def _seed_admin():
         )
         db.session.add(admin)
         db.session.commit()
+
+from .models import db 
