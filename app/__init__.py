@@ -1,4 +1,6 @@
 """Flask application factory."""
+import re
+
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -7,7 +9,9 @@ from app.db import (
     get_db_connection,
     get_listing_by_id,
     get_user_by_email,
+    get_user_by_id,
     init_db,
+    update_user_account,
 )
 from app.routes.listing import listings_bp
 from app.routes.offers import offers_bp
@@ -134,12 +138,49 @@ def create_app():
         if 'user_id' not in session:
             flash('Please log in to access your profile.', 'danger')
             return redirect(url_for('login'))
-        return render_template('profile.html')
+        user = get_user_by_id(session['user_id'])
+        if user is None:
+            session.clear()
+            flash('Session expired. Please log in again.', 'danger')
+            return redirect(url_for('login'))
+        return render_template('profile.html', user=user)
 
-    @app.route('/profile/edit')
+    @app.route('/profile/edit', methods=['GET', 'POST'])
     def edit_profile():
-        """Render edit profile page."""
-        return render_template('edit_profile.html')
+        """Render and handle edit profile page."""
+        if 'user_id' not in session:
+            flash('Please log in to edit your profile.', 'danger')
+            return redirect(url_for('login'))
+        user = get_user_by_id(session['user_id'])
+        if user is None:
+            session.clear()
+            flash('Session expired. Please log in again.', 'danger')
+            return redirect(url_for('login'))
+        if request.method == 'GET':
+            return render_template('edit_profile.html', user=user)
+        # POST — process form
+        first_name = request.form.get('first_name', '').strip()
+        last_name = request.form.get('last_name', '').strip()
+        display_name = request.form.get('display_name', '').strip()
+        contact_number = request.form.get('contact_number', '').strip()
+        password = request.form.get('password', '')
+        confirm_password = request.form.get('confirm_password', '')
+        if not all([first_name, last_name, display_name, contact_number]):
+            flash('Please fill in all required profile fields.', 'danger')
+            return render_template('edit_profile.html', user=user)
+        if not re.fullmatch(r'\d{8}', contact_number):
+            flash('Please enter a valid contact number (8 digits).', 'danger')
+            return render_template('edit_profile.html', user=user)
+        if password and password != confirm_password:
+            flash('Passwords do not match.', 'danger')
+            return render_template('edit_profile.html', user=user)
+        new_hash = generate_password_hash(password) if password else None
+        update_user_account(
+            session['user_id'], first_name, last_name, display_name, contact_number, new_hash
+        )
+        session['display_name'] = display_name
+        flash('Profile updated successfully.', 'success')
+        return redirect(url_for('profile'))
 
     @app.route('/sell')
     def sell():
