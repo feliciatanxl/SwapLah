@@ -332,3 +332,128 @@ def create_offer(listing_id, buyer_id, offer_type, proposed_price=None, swap_lis
     offer = conn.execute("SELECT * FROM offers WHERE id = ?", (offer_id,)).fetchone()
     conn.close()
     return dict(offer)
+
+## feature/manage-received-offers
+
+def get_offers_for_seller(seller_id):
+    """Return all offers grouped by listing for a given seller."""
+    conn = get_db_connection()
+    rows = conn.execute(
+        """
+        SELECT
+            o.id,
+            o.listing_id,
+            o.buyer_id,
+            o.offer_type,
+            o.proposed_price,
+            o.swap_listing_id,
+            o.status,
+            o.created_at,
+            l.title        AS listing_title,
+            l.category     AS listing_category,
+            l.price        AS listing_price,
+            u.display_name AS buyer_display_name,
+            sl.title       AS swap_listing_title
+        FROM offers o
+        JOIN listings l  ON o.listing_id      = l.id
+        JOIN users    u  ON o.buyer_id         = u.id
+        LEFT JOIN listings sl ON o.swap_listing_id = sl.id
+        WHERE l.seller_id = :seller_id
+        ORDER BY o.created_at DESC
+        """,
+        {"seller_id": seller_id},
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_offer_by_id(offer_id):
+    """Return a single offer row as a dict, or None."""
+    conn = get_db_connection()
+    row = conn.execute(
+        "SELECT * FROM offers WHERE id = ?", (offer_id,)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def accept_offer(offer_id):
+    """
+    Accept one offer and reject all other Pending offers for the same listing.
+    Also creates a transaction record.
+    Returns the updated offer dict, or None if the offer was not found.
+    """
+    conn = get_db_connection()
+
+    offer = conn.execute(
+        "SELECT * FROM offers WHERE id = ?", (offer_id,)
+    ).fetchone()
+
+    if offer is None:
+        conn.close()
+        return None
+
+    listing_id = offer["listing_id"]
+
+    # Accept the chosen offer
+    conn.execute(
+        "UPDATE offers SET status = 'Accepted' WHERE id = ?", (offer_id,)
+    )
+
+    # Reject every other Pending offer for the same listing
+    conn.execute(
+        """
+        UPDATE offers
+        SET status = 'Rejected'
+        WHERE listing_id = ? AND id != ? AND status = 'Pending'
+        """,
+        (listing_id, offer_id),
+    )
+
+    # Create transaction record
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS transactions (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            offer_id   INTEGER NOT NULL UNIQUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (offer_id) REFERENCES offers (id)
+        )
+        """
+    )
+    conn.execute(
+        "INSERT INTO transactions (offer_id) VALUES (?)", (offer_id,)
+    )
+
+    conn.commit()
+    updated = conn.execute(
+        "SELECT * FROM offers WHERE id = ?", (offer_id,)
+    ).fetchone()
+    conn.close()
+    return dict(updated)
+
+
+def reject_offer(offer_id):
+    """
+    Reject a single offer.
+    Returns the updated offer dict, or None if the offer was not found.
+    """
+    conn = get_db_connection()
+
+    offer = conn.execute(
+        "SELECT * FROM offers WHERE id = ?", (offer_id,)
+    ).fetchone()
+
+    if offer is None:
+        conn.close()
+        return None
+
+    conn.execute(
+        "UPDATE offers SET status = 'Rejected' WHERE id = ?", (offer_id,)
+    )
+    conn.commit()
+    updated = conn.execute(
+        "SELECT * FROM offers WHERE id = ?", (offer_id,)
+    ).fetchone()
+    conn.close()
+    return dict(updated)
