@@ -2,6 +2,7 @@ from flask import Flask, flash, redirect, render_template, request, session, url
 from werkzeug.security import check_password_hash, generate_password_hash
 from app.db import get_db_connection, get_user_by_email, init_db,get_all_listings,get_listing_by_id
 from app.routes.listing import listings_bp
+from app.routes.offers import offers_bp
 def create_app():
     app = Flask(__name__)
     app.config['SECRET_KEY'] = 'your-secret-key' 
@@ -155,5 +156,6 @@ def create_app():
 
     ## Blueprints
     app.register_blueprint(listings_bp)
+    app.register_blueprint(offers_bp)
     
     return app
