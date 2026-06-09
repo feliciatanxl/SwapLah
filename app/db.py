@@ -51,7 +51,22 @@ def init_db():
         )
     """)
 
-    
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS offers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            listing_id INTEGER NOT NULL,
+            buyer_id INTEGER NOT NULL,
+            offer_type TEXT NOT NULL CHECK(offer_type IN ('cash', 'swap')),
+            proposed_price REAL,
+            swap_listing_id INTEGER,
+            status TEXT NOT NULL DEFAULT 'Pending',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (listing_id) REFERENCES listings (id),
+            FOREIGN KEY (buyer_id) REFERENCES users (id),
+            FOREIGN KEY (swap_listing_id) REFERENCES listings (id)
+        )
+    """)
+
     conn.commit()
     conn.close()
 
@@ -209,3 +224,46 @@ def get_listing_by_id(listing_id):
         listing["image"] = listing["image_url"]
 
     return listing
+
+## feature/submit-offer
+def get_listing_owner(listing_id):
+    """Return the seller_id for a given listing, or None if listing doesn't exist."""
+    conn = get_db_connection()
+    row = conn.execute(
+        "SELECT seller_id FROM listings WHERE id = ?",
+        (listing_id,)
+    ).fetchone()
+    conn.close()
+    return row["seller_id"] if row else None
+
+
+def get_active_listing_by_buyer(listing_id, buyer_id):
+    """
+    Return the listing if it exists and belongs to buyer_id, else None.
+    (All listings are currently considered active; extend with a status column as needed.)
+    """
+    conn = get_db_connection()
+    row = conn.execute(
+        "SELECT * FROM listings WHERE id = ? AND seller_id = ?",
+        (listing_id, buyer_id)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def create_offer(listing_id, buyer_id, offer_type, proposed_price=None, swap_listing_id=None):
+    """Insert a new offer and return it as a dict."""
+    conn = get_db_connection()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    cursor = conn.execute(
+        """
+        INSERT INTO offers (listing_id, buyer_id, offer_type, proposed_price, swap_listing_id, status, created_at)
+        VALUES (?, ?, ?, ?, ?, 'Pending', ?)
+        """,
+        (listing_id, buyer_id, offer_type, proposed_price, swap_listing_id, now)
+    )
+    conn.commit()
+    offer_id = cursor.lastrowid
+    offer = conn.execute("SELECT * FROM offers WHERE id = ?", (offer_id,)).fetchone()
+    conn.close()
+    return dict(offer)
