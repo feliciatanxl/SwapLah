@@ -2,17 +2,17 @@ import sqlite3
 import json
 from pathlib import Path
 from datetime import datetime
-
+ 
 DATABASE = Path(__file__).resolve().parent.parent / "swaplah.db"
-
-
+ 
+ 
 def get_db_connection():
     """Return a SQLite database connection."""
     conn = sqlite3.connect(DATABASE)
     conn.row_factory = sqlite3.Row
     return conn
-
-
+ 
+ 
 def init_db():
     """Create database tables if they do not exist."""
     conn = get_db_connection()
@@ -46,11 +46,9 @@ def init_db():
             listing_date TEXT NOT NULL,
             last_modified_timestamp TEXT NOT NULL,
             FOREIGN KEY (seller_id) REFERENCES users (id)
-                 
-                 
         )
     """)
-
+ 
     conn.execute("""
         CREATE TABLE IF NOT EXISTS offers (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -66,11 +64,11 @@ def init_db():
             FOREIGN KEY (swap_listing_id) REFERENCES listings (id)
         )
     """)
-
+ 
     conn.commit()
     conn.close()
-
-
+ 
+ 
 def get_user_by_email(email):
     """Retrieve one user by email using a parameterized query."""
     conn = get_db_connection()
@@ -80,13 +78,14 @@ def get_user_by_email(email):
     ).fetchone()
     conn.close()
     return user
-
-
+ 
+ 
 def create_listing(seller_id, title, description, price, category, condition, image_url):
+    """Insert a new listing and return it as a dict."""
     conn = get_db_connection()
-
+ 
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
+ 
     cursor = conn.execute(
         """
         INSERT INTO listings (
@@ -114,11 +113,11 @@ def create_listing(seller_id, title, description, price, category, condition, im
             now
         )
     )
-
+ 
     conn.commit()
-
+ 
     listing_id = cursor.lastrowid
-
+ 
     listing = conn.execute(
         """
         SELECT *
@@ -127,15 +126,16 @@ def create_listing(seller_id, title, description, price, category, condition, im
         """,
         (listing_id,)
     ).fetchone()
-
+ 
     conn.close()
-
+ 
     return dict(listing)
-
-
+ 
+ 
 def get_all_listings():
+    """Return all listings with seller display name, newest first."""
     conn = get_db_connection()
-
+ 
     rows = conn.execute(
         """
         SELECT
@@ -153,17 +153,17 @@ def get_all_listings():
         ORDER BY listings.listing_date DESC
         """
     ).fetchall()
-
+ 
     conn.close()
-
+ 
     listings = []
-
+ 
     for row in rows:
         listing = dict(row)
-
+ 
         try:
             images = json.loads(listing["image"])
-
+ 
             if isinstance(images, list) and len(images) > 0:
                 listing["images"] = images
                 listing["image"] = images[0]
@@ -171,16 +171,17 @@ def get_all_listings():
                 listing["images"] = [listing["image"]]
         except Exception:
             listing["images"] = [listing["image"]]
-
+ 
         listings.append(listing)
-
+ 
     return listings
-
-
+ 
+ 
 ## feature/view-listing-details
 def get_listing_by_id(listing_id):
+    """Return full listing detail by ID, or None if not found."""
     conn = get_db_connection()
-
+ 
     listing = conn.execute(
         """
         SELECT
@@ -202,17 +203,17 @@ def get_listing_by_id(listing_id):
         """,
         (listing_id,)
     ).fetchone()
-
+ 
     conn.close()
-
+ 
     if listing is None:
         return None
-
+ 
     listing = dict(listing)
-
+ 
     try:
         images = json.loads(listing["image_url"])
-
+ 
         if isinstance(images, list) and len(images) > 0:
             listing["images"] = images
             listing["image"] = images[0]
@@ -222,9 +223,73 @@ def get_listing_by_id(listing_id):
     except Exception:
         listing["images"] = [listing["image_url"]]
         listing["image"] = listing["image_url"]
-
+ 
     return listing
-
+ 
+ 
+## feature/update-account-details
+def get_user_by_id(user_id):
+    """Retrieve one user by ID using a parameterized query."""
+    conn = get_db_connection()
+    user = conn.execute(
+        "SELECT id, student_id, first_name, last_name, display_name, email, contact_number, role, status, created_at FROM users WHERE id = :user_id",
+        {"user_id": user_id},
+    ).fetchone()
+    conn.close()
+ 
+    if user is None:
+        return None
+ 
+    return dict(user)
+ 
+ 
+def update_user_account(user_id, first_name, last_name, display_name, contact_number, password_hash=None):
+    """Update editable account details only. Email and Student ID remain locked."""
+    conn = get_db_connection()
+ 
+    if password_hash:
+        conn.execute(
+            """
+            UPDATE users
+            SET first_name = :first_name,
+                last_name = :last_name,
+                display_name = :display_name,
+                contact_number = :contact_number,
+                password_hash = :password_hash
+            WHERE id = :user_id
+            """,
+            {
+                "first_name": first_name,
+                "last_name": last_name,
+                "display_name": display_name,
+                "contact_number": contact_number,
+                "password_hash": password_hash,
+                "user_id": user_id,
+            },
+        )
+    else:
+        conn.execute(
+            """
+            UPDATE users
+            SET first_name = :first_name,
+                last_name = :last_name,
+                display_name = :display_name,
+                contact_number = :contact_number
+            WHERE id = :user_id
+            """,
+            {
+                "first_name": first_name,
+                "last_name": last_name,
+                "display_name": display_name,
+                "contact_number": contact_number,
+                "user_id": user_id,
+            },
+        )
+ 
+    conn.commit()
+    conn.close()
+ 
+ 
 ## feature/submit-offer
 def get_listing_owner(listing_id):
     """Return the seller_id for a given listing, or None if listing doesn't exist."""
@@ -235,8 +300,8 @@ def get_listing_owner(listing_id):
     ).fetchone()
     conn.close()
     return row["seller_id"] if row else None
-
-
+ 
+ 
 def get_active_listing_by_buyer(listing_id, buyer_id):
     """
     Return the listing if it exists and belongs to buyer_id, else None.
@@ -249,8 +314,8 @@ def get_active_listing_by_buyer(listing_id, buyer_id):
     ).fetchone()
     conn.close()
     return dict(row) if row else None
-
-
+ 
+ 
 def create_offer(listing_id, buyer_id, offer_type, proposed_price=None, swap_listing_id=None):
     """Insert a new offer and return it as a dict."""
     conn = get_db_connection()
