@@ -66,6 +66,22 @@ def init_db():
         )
         """
     )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS offers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            listing_id INTEGER NOT NULL,
+            buyer_id INTEGER NOT NULL,
+            offer_type TEXT NOT NULL,
+            proposed_price REAL,
+            swap_listing_id INTEGER,
+            status TEXT NOT NULL DEFAULT 'Pending',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (listing_id) REFERENCES listings (id),
+            FOREIGN KEY (buyer_id) REFERENCES users (id)
+        )
+        """
+    )
     conn.commit()
     conn.close()
 
@@ -314,3 +330,67 @@ def toggle_user_status(user_id):
     conn.commit()
     conn.close()
     return new_status
+# ── Offers (add to bottom of app/db.py) ──────────────────────────────────────
+
+def init_offers_table(conn):
+    """Create offers table if it does not exist."""
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS offers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            listing_id INTEGER NOT NULL,
+            buyer_id INTEGER NOT NULL,
+            offer_type TEXT NOT NULL,
+            proposed_price REAL,
+            swap_listing_id INTEGER,
+            status TEXT NOT NULL DEFAULT 'Pending',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (listing_id) REFERENCES listings (id),
+            FOREIGN KEY (buyer_id) REFERENCES users (id)
+        )
+        """
+    )
+
+
+def get_listing_owner(listing_id):
+    """Return the seller_id of a listing, or None if not found."""
+    conn = get_db_connection()
+    row = conn.execute(
+        "SELECT seller_id FROM listings WHERE id = ? AND is_deleted = 0",
+        (listing_id,)
+    ).fetchone()
+    conn.close()
+    return row["seller_id"] if row else None
+
+
+def get_active_listing_by_buyer(listing_id, buyer_id):
+    """Return a listing if it exists and belongs to buyer_id, else None."""
+    conn = get_db_connection()
+    row = conn.execute(
+        """SELECT id, seller_id FROM listings
+           WHERE id = ? AND seller_id = ? AND is_deleted = 0""",
+        (listing_id, buyer_id)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def create_offer(listing_id, buyer_id, offer_type,
+                 proposed_price=None, swap_listing_id=None):
+    """Insert a new offer and return it as a dict."""
+    from datetime import datetime
+    conn = get_db_connection()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    cursor = conn.execute(
+        """INSERT INTO offers
+           (listing_id, buyer_id, offer_type, proposed_price, swap_listing_id,
+            status, created_at)
+           VALUES (?, ?, ?, ?, ?, 'Pending', ?)""",
+        (listing_id, buyer_id, offer_type, proposed_price, swap_listing_id, now)
+    )
+    conn.commit()
+    offer = conn.execute(
+        "SELECT * FROM offers WHERE id = ?", (cursor.lastrowid,)
+    ).fetchone()
+    conn.close()
+    return dict(offer)
