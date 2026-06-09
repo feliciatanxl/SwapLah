@@ -17,7 +17,7 @@
     <form id="create-listing-form" class="page-card form-card">
         <div class="row g-4">
             <div class="col-lg-5">
-                <label for="image_file" class="form-label">Upload Images *</label>
+                <label for="image_file" class="form-label">Upload Images</label>
                 <input id="image_file" name="image_file" type="file" accept="image/*" class="form-control" multiple>
                 <input id="image_url" name="image_url" type="hidden">
 
@@ -92,7 +92,7 @@
 
                     <div class="col-md-6">
                         <label for="price" class="form-label">Price </label>
-                        <input id="price" name="price" type="number" class="form-control"
+                        <input id="price" name="price" type="text" class="form-control"
                             placeholder="Enter price, e.g. 25" min="0" step="0.01" required>
                     </div>
                     <div class="col-md-6">
@@ -178,7 +178,8 @@
         const imageCounter = document.getElementById("image-counter");
         const removeCurrentImageBtn = document.getElementById("remove-current-image-btn");
         const clearImagesBtn = document.getElementById("clear-images-btn");
-
+        
+        
         let selectedImages = [];
         let currentImageIndex = 0;
 
