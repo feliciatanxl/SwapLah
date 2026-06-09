@@ -1,10 +1,14 @@
-"""Routes for creating cash and swap offers (POST /api/offers)."""
+"""Routes for creating, viewing, and managing offers."""
 from flask import Blueprint, jsonify, request, session
 
 from app.db import (
+    accept_offer,
     create_offer,
     get_active_listing_by_buyer,
     get_listing_owner,
+    get_offer_by_id,
+    get_offers_for_seller,
+    reject_offer,
 )
 
 offers_bp = Blueprint("offers", __name__)
@@ -67,7 +71,7 @@ def _format_offer(offer):
 
 
 # ---------------------------------------------------------------------------
-# Route
+# POST /api/offers  —  submit an offer (existing)
 # ---------------------------------------------------------------------------
 
 @offers_bp.route("/api/offers", methods=["POST"])
@@ -136,3 +140,111 @@ def _handle_swap_offer(data, listing_id, buyer_id):
         "message": "Swap offer submitted successfully.",
         "offer": _format_offer(offer),
     }), 201
+
+
+# ---------------------------------------------------------------------------
+# GET /api/offers/received  —  view pending offers as a seller
+# ---------------------------------------------------------------------------
+
+@offers_bp.route("/api/offers/received", methods=["GET"])
+def api_get_received_offers():
+    """
+    Return all offers received on the logged-in seller's listings.
+
+    Returns 200 with a list of offer objects grouped by listing.
+    AC1, AC2, AC3 — view received offers user story.
+    """
+    if not session.get("user_id"):
+        return jsonify({"error": "You must be logged in to view offers."}), 401
+
+    seller_id = session["user_id"]
+    offers = get_offers_for_seller(seller_id)
+
+    return jsonify({
+        "offers": [
+            {
+                "id": o["id"],
+                "listingId": o["listing_id"],
+                "listingTitle": o["listing_title"],
+                "listingCategory": o["listing_category"],
+                "listingPrice": o["listing_price"],
+                "buyerId": o["buyer_id"],
+                "buyerDisplayName": o["buyer_display_name"],
+                "offerType": o["offer_type"],
+                "proposedPrice": o["proposed_price"],
+                "swapListingId": o["swap_listing_id"],
+                "swapListingTitle": o["swap_listing_title"],
+                "status": o["status"],
+                "createdAt": o["created_at"],
+            }
+            for o in offers
+        ]
+    }), 200
+
+
+# ---------------------------------------------------------------------------
+# PATCH /api/offers/<id>/accept  —  seller accepts an offer
+# ---------------------------------------------------------------------------
+
+@offers_bp.route("/api/offers/<int:offer_id>/accept", methods=["PATCH"])
+def api_accept_offer(offer_id):
+    """
+    Accept a pending offer and auto-reject all other pending offers
+    for the same listing. Creates a transaction record.
+
+    AC1–AC5 — accept offer user story.
+    AC1 — accept offer auto-reject user story.
+    """
+    if not session.get("user_id"):
+        return jsonify({"error": "You must be logged in to accept an offer."}), 401
+
+    offer = get_offer_by_id(offer_id)
+    if offer is None:
+        return jsonify({"error": "Offer not found."}), 404
+
+    # Only the listing owner may accept
+    seller_id = get_listing_owner(offer["listing_id"])
+    if seller_id != session["user_id"]:
+        return jsonify({"error": "You are not authorised to accept this offer."}), 403
+
+    if offer["status"] != "Pending":
+        return jsonify({"error": "Only pending offers can be accepted."}), 409
+
+    updated = accept_offer(offer_id)
+    return jsonify({
+        "message": "Offer accepted. Other pending offers for this listing have been rejected.",
+        "offer": _format_offer(updated),
+    }), 200
+
+
+# ---------------------------------------------------------------------------
+# PATCH /api/offers/<id>/reject  —  seller rejects an offer
+# ---------------------------------------------------------------------------
+
+@offers_bp.route("/api/offers/<int:offer_id>/reject", methods=["PATCH"])
+def api_reject_offer(offer_id):
+    """
+    Reject a single pending offer. Other offers are not affected.
+
+    AC1–AC3 — reject offer user story.
+    """
+    if not session.get("user_id"):
+        return jsonify({"error": "You must be logged in to reject an offer."}), 401
+
+    offer = get_offer_by_id(offer_id)
+    if offer is None:
+        return jsonify({"error": "Offer not found."}), 404
+
+    # Only the listing owner may reject
+    seller_id = get_listing_owner(offer["listing_id"])
+    if seller_id != session["user_id"]:
+        return jsonify({"error": "You are not authorised to reject this offer."}), 403
+
+    if offer["status"] != "Pending":
+        return jsonify({"error": "Only pending offers can be rejected."}), 409
+
+    updated = reject_offer(offer_id)
+    return jsonify({
+        "message": "Offer rejected.",
+        "offer": _format_offer(updated),
+    }), 200
