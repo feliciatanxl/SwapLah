@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, session
-from app.db import create_listing, get_listing_by_id, get_db_connection
+from app.db import create_listing, get_listing_by_id, get_db_connection, update_listing
 import math
 import re
 from decimal import Decimal, InvalidOperation
@@ -136,6 +136,80 @@ def api_create_listing():
             "lastModifiedTimestamp": listing["last_modified_timestamp"]
         }
     }), 201
+
+@listings_bp.route("/api/listings/<int:listing_id>", methods=["PUT"])
+def api_update_listing(listing_id):
+    seller_id = session.get("user_id")
+
+    if not seller_id:
+        return jsonify({
+            "error": "You must be logged in to edit a listing."
+        }), 401
+
+    data = request.get_json(silent=True)
+
+    if not data:
+        return jsonify({
+            "error": "Invalid request body."
+        }), 400
+
+    title = data.get("title", "").strip()
+    description = data.get("description", "").strip()
+    price = str(data.get("price", "")).strip()
+    category = data.get("category", "").strip()
+    condition = data.get("condition", "").strip()
+    image_url = data.get("imageUrl") or data.get("image_url") or ""
+    image_url = image_url.strip()
+
+    if not title or not description or not price or not category or not condition or not image_url:
+        return jsonify({
+            "error": "All fields are required."
+        }), 400
+
+    if not is_valid_price(price):
+        return jsonify({
+            "error": "Price must be a number, Free, or Swap Only."
+        }), 400
+
+    price = normalise_price(price)
+
+    updated_listing, error = update_listing(
+        listing_id=listing_id,
+        seller_id=seller_id,
+        title=title,
+        description=description,
+        price=price,
+        category=category,
+        condition=condition,
+        image_url=image_url
+    )
+
+    if error == "not_found":
+        return jsonify({
+            "error": "Listing not found or has already been deleted."
+        }), 404
+
+    if error == "forbidden":
+        return jsonify({
+            "error": "You are not allowed to edit this listing."
+        }), 403
+
+    return jsonify({
+        "message": "Listing updated successfully.",
+        "listing": {
+            "id": updated_listing["id"],
+            "sellerId": updated_listing["seller_id"],
+            "title": updated_listing["title"],
+            "description": updated_listing["description"],
+            "price": updated_listing["price"],
+            "category": updated_listing["category"],
+            "condition": updated_listing["item_condition"],
+            "imageUrl": updated_listing["image_url"],
+            "listingDate": updated_listing["listing_date"],
+            "lastModifiedTimestamp": updated_listing["last_modified_timestamp"],
+            "status": updated_listing["status"]
+        }
+    }), 200
 
 def is_valid_price(price):
     price_lower = price.lower()
