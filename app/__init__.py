@@ -192,14 +192,14 @@ def create_app():
         """Render admin page."""
         return render_template('admin.html')
 
-    @app.route('/login', methods=['GET', 'POST'])
+    @app.route('/login', methods=['GET', 'POST'], endpoint='auth.login')
     def login():
         """Render login page or process login form."""
         if request.method == 'GET':
             return render_template('login.html')
         return _handle_login()
 
-    @app.route('/register', methods=['GET', 'POST'])
+    @app.route('/register', methods=['GET', 'POST'], endpoint='auth.register')
     def register():
         """Render register page or process registration form."""
         if request.method == 'GET':
