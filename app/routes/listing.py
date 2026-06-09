@@ -1,57 +1,102 @@
-from flask import Blueprint, request, jsonify, session
-from app.db import create_listing,get_listing_by_id
+"""Routes for listing creation and retrieval."""
 import re
 from decimal import Decimal, InvalidOperation
+
+from flask import Blueprint, jsonify, request, session
+
+from app.db import create_listing, get_listing_by_id
+
 listings_bp = Blueprint("listings", __name__)
+
+_PRICE_RE = re.compile(r"^\d+(\.\d{1,2})?$")
+_REQUIRED_FIELDS = ("title", "description", "price", "category", "condition")
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def is_valid_price(price):
+    """Return True if price is a valid non-negative number, 'Free', or 'Swap Only'."""
+    price_lower = price.lower()
+
+    if price_lower in ("free", "swap only"):
+        return True
+
+    if not _PRICE_RE.fullmatch(price):
+        return False
+
+    try:
+        return Decimal(price) >= 0
+    except InvalidOperation:
+        return False
+
+
+def normalise_price(price):
+    """Normalise a validated price string to a canonical form."""
+    price_lower = price.lower()
+
+    if price_lower == "free":
+        return "Free"
+
+    if price_lower == "swap only":
+        return "Swap Only"
+
+    return str(Decimal(price).quantize(Decimal("0.01")))
+
+
+def _extract_fields(data):
+    """Extract and strip all listing fields from the request payload."""
+    image_url = (data.get("imageUrl") or data.get("image_url") or "").strip()
+    return {
+        "title": data.get("title", "").strip(),
+        "description": data.get("description", "").strip(),
+        "price": str(data.get("price", "")).strip(),
+        "category": data.get("category", "").strip(),
+        "condition": data.get("condition", "").strip(),
+        "image_url": image_url,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Routes
+# ---------------------------------------------------------------------------
 
 @listings_bp.route("/api/listings", methods=["POST"])
 def api_create_listing():
-    # AC5: user must be logged in
-    seller_id = session.get("user_id")
+    """
+    Create a new listing for the logged-in seller.
 
+    Accepts JSON with: title, description, price, category, condition, imageUrl.
+    Returns 201 with the created listing on success.
+    """
+    seller_id = session.get("user_id")
     if not seller_id:
-        return jsonify({
-            "error": "You must be logged in to create a listing."
-        }), 401
+        return jsonify({"error": "You must be logged in to create a listing."}), 401
 
     data = request.get_json(silent=True)
-
     if not data:
-        return jsonify({
-            "error": "Invalid request body."
-        }), 400
+        return jsonify({"error": "Invalid request body."}), 400
 
-    title = data.get("title", "").strip()
-    description = data.get("description", "").strip()
-    price = str(data.get("price", "")).strip()
-    category = data.get("category", "").strip()
-    condition = data.get("condition", "").strip()
-    image_url = data.get("imageUrl") or data.get("image_url") or ""
-    image_url = image_url.strip()
+    fields = _extract_fields(data)
 
-    # AC4: required fields validation
-    if not title or not description or not price or not category or not condition or not image_url:
-        return jsonify({
-            "error": "All fields are required."
-        }), 400
+    missing = any(not fields[f] for f in _REQUIRED_FIELDS) or not fields["image_url"]
+    if missing:
+        return jsonify({"error": "All fields are required."}), 400
 
-    # AC2: price validation
-    if not is_valid_price(price):
-        return jsonify({
-            "error": "Price must be a number, Free, or Swap Only."
-        }), 400
+    if not is_valid_price(fields["price"]):
+        return jsonify({"error": "Price must be a number, Free, or Swap Only."}), 400
 
-    price = normalise_price(price)
+    fields["price"] = normalise_price(fields["price"])
 
-    # AC1 + AC3 + AC6: create listing in database
     listing = create_listing(
         seller_id=seller_id,
-        title=title,
-        description=description,
-        price=price,
-        category=category,
-        condition=condition,
-        image_url=image_url
+        title=fields["title"],
+        description=fields["description"],
+        price=fields["price"],
+        category=fields["category"],
+        condition=fields["condition"],
+        image_url=fields["image_url"],
     )
 
     return jsonify({
@@ -66,48 +111,19 @@ def api_create_listing():
             "condition": listing["item_condition"],
             "imageUrl": listing["image_url"],
             "listingDate": listing["listing_date"],
-            "lastModifiedTimestamp": listing["last_modified_timestamp"]
-        }
+            "lastModifiedTimestamp": listing["last_modified_timestamp"],
+        },
     }), 201
-
-def is_valid_price(price):
-    price_lower = price.lower()
-
-    if price_lower == "free" or price_lower == "swap only":
-        return True
-
-    # Only allow whole numbers or max 2 decimal places
-    if not re.fullmatch(r"\d+(\.\d{1,2})?", price):
-        return False
-
-    try:
-        numeric_price = Decimal(price)
-        return numeric_price >= 0
-    except InvalidOperation:
-        return False
-
-
-def normalise_price(price):
-    price_lower = price.lower()
-
-    if price_lower == "free":
-        return "Free"
-
-    if price_lower == "swap only":
-        return "Swap Only"
-
-    return str(Decimal(price).quantize(Decimal("0.01")))
 
 
 ## feature/view-listing-details
 @listings_bp.route("/api/listings/<int:listing_id>", methods=["GET"])
 def api_get_listing_detail(listing_id):
+    """Return full detail for a single listing by ID."""
     listing = get_listing_by_id(listing_id)
 
     if listing is None:
-        return jsonify({
-            "error": "Listing not found or unavailable."
-        }), 404
+        return jsonify({"error": "Listing not found or unavailable."}), 404
 
     return jsonify({
         "listing": {
@@ -124,7 +140,7 @@ def api_get_listing_detail(listing_id):
             "seller": {
                 "displayName": listing["seller_display_name"],
                 "email": listing["seller_email"],
-                "contactNumber": listing["seller_contact_number"]
-            }
+                "contactNumber": listing["seller_contact_number"],
+            },
         }
     }), 200
