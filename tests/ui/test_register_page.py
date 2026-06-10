@@ -11,5 +11,5 @@ def test_register_page_loads():
     assert response.status_code == 200
     assert b"Create account" in response.data
     assert b"Student ID" in response.data
-    assert b"NYP Email Address" in response.data
+    assert b"NYP Email" in response.data
     assert b"Create Account" in response.data

@@ -57,7 +57,7 @@ def api_create_listing():
     if 'user_id' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
 
-    data = request.get_json()
+    data = request.get_json(silent=True, force=True)
     if not data:
         return jsonify({'error': 'Invalid request body'}), 400
 
