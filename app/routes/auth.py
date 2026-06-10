@@ -46,7 +46,7 @@ def _handle_register(form):
     db.session.add(user)
     db.session.commit()
     flash('Account created! Please log in.', 'success')
-    return redirect(url_for('auth.login'))
+    return redirect(url_for('login'))
 
 
 def _validate_registration(form, email, student_id):
@@ -108,4 +108,4 @@ def logout():
     """Log out the current user."""
     logout_user()
     flash('You have been logged out.', 'info')
-    return redirect(url_for('auth.login'))
+    return redirect(url_for('login'))
