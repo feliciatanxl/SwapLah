@@ -145,8 +145,33 @@ def create_app():
                 listing=None,
                 error_message='This listing does not exist or is no longer available.'
             ), 404
-        return render_template('listing_detail.html', listing=listing, error_message=None)
 
+        return render_template(
+            'listing_detail.html',
+            listing=listing,
+            error_message=None
+        )
+    
+    @app.route('/listing/<int:listing_id>/edit')
+    def edit_listing(listing_id):
+        if 'user_id' not in session:
+            flash('Please log in to edit your listing.', 'danger')
+            return redirect(url_for('login'))
+        # return render_template('listing_detail.html', listing=listing, error_message=None)
+
+        listing = get_listing_by_id(listing_id)
+
+        if listing is None:
+            flash('This listing does not exist or is no longer available.', 'danger')
+            return redirect(url_for('index'))
+
+        if listing['seller_id'] != session['user_id']:
+            flash('You are not allowed to edit this listing.', 'danger')
+            return redirect(url_for('listing_detail', listing_id=listing_id))
+
+        return render_template('edit_listing.html', listing=listing)
+    
+    
     @app.route('/offers')
     def offers():
         """Render offers page."""

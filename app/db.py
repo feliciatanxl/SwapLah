@@ -152,7 +152,7 @@ def get_all_listings():
             listings.price,
             listings.category,
             listings.item_condition AS condition,
-            listings.image_url AS image,
+            listings.image_url,
             listings.listing_date,
             users.display_name AS seller
         FROM listings
@@ -169,21 +169,24 @@ def get_all_listings():
     for row in rows:
         listing = dict(row)
 
+        raw_image = listing["image_url"]
+
         try:
-            images = json.loads(listing["image"])
+            images = json.loads(raw_image)
 
             if isinstance(images, list) and len(images) > 0:
                 listing["images"] = images
                 listing["image"] = images[0]
             else:
-                listing["images"] = [listing["image"]]
+                listing["images"] = [raw_image]
+                listing["image"] = raw_image
         except Exception:
-            listing["images"] = [listing["image"]]
+            listing["images"] = [raw_image]
+            listing["image"] = raw_image
 
         listings.append(listing)
 
     return listings
-
 
 ## feature/view-listing-details
 def get_listing_by_id(listing_id):
@@ -193,18 +196,19 @@ def get_listing_by_id(listing_id):
     listing = conn.execute(
         """
         SELECT
-            listings.id,
-            listings.title,
-            listings.description,
-            listings.price,
-            listings.category,
-            listings.item_condition AS condition,
-            listings.image_url,
-            listings.listing_date,
-            listings.last_modified_timestamp,
-            users.display_name AS seller_display_name,
-            users.email AS seller_email,
-            users.contact_number AS seller_contact_number
+    listings.id,
+    listings.seller_id,
+    listings.title,
+    listings.description,
+    listings.price,
+    listings.category,
+    listings.item_condition AS condition,
+    listings.image_url,
+    listings.listing_date,
+    listings.last_modified_timestamp,
+    users.display_name AS seller_display_name,
+    users.email AS seller_email,
+    users.contact_number AS seller_contact_number
         FROM listings
         LEFT JOIN users ON listings.seller_id = users.id
         WHERE listings.id = ?
@@ -243,6 +247,73 @@ def ensure_listing_status_column(conn):
         conn.execute(
             "ALTER TABLE listings ADD COLUMN status TEXT NOT NULL DEFAULT 'Active'"
         )
+
+## update/edit listing
+def update_listing(listing_id, seller_id, title, description, price, category, condition, image_url):
+    """Update an active listing owned by the seller."""
+    conn = get_db_connection()
+
+    existing_listing = conn.execute(
+        """
+        SELECT *
+        FROM listings
+        WHERE id = ?
+        AND status = 'Active'
+        """,
+        (listing_id,)
+    ).fetchone()
+
+    if existing_listing is None:
+        conn.close()
+        return None, "not_found"
+
+    if existing_listing["seller_id"] != seller_id:
+        conn.close()
+        return None, "forbidden"
+
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    conn.execute(
+        """
+        UPDATE listings
+        SET title = ?,
+            description = ?,
+            price = ?,
+            category = ?,
+            item_condition = ?,
+            image_url = ?,
+            last_modified_timestamp = ?
+        WHERE id = ?
+        AND seller_id = ?
+        AND status = 'Active'
+        """,
+        (
+            title,
+            description,
+            price,
+            category,
+            condition,
+            image_url,
+            now,
+            listing_id,
+            seller_id
+        )
+    )
+
+    conn.commit()
+
+    updated_listing = conn.execute(
+        """
+        SELECT *
+        FROM listings
+        WHERE id = ?
+        """,
+        (listing_id,)
+    ).fetchone()
+
+    conn.close()
+
+    return dict(updated_listing), None
 
 
 ## feature/update-account-details
