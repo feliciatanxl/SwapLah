@@ -55,16 +55,16 @@ def delete_reported_listing(report_id):
     report = get_report_by_id(report_id)
     if not report:
         flash('Report not found.', 'danger')
-        return redirect(url_for('admin.view_reports'))
+        return redirect(url_for('admin.api_users'))
 
     listing = get_listing_by_id(report['listing_id'])
     if not listing or listing.get('is_deleted'):
         flash('Listing not found or already deleted.', 'warning')
-        return redirect(url_for('admin.view_reports'))
+        return redirect(url_for('admin.api_users'))
 
     soft_delete_listing(report['listing_id'])
     flash('Listing has been removed from the marketplace.', 'success')
-    return redirect(url_for('admin.view_reports'))
+    return redirect(url_for('admin.api_users'))
 
 
 @admin_bp.route('/reports/<int:report_id>/dismiss', methods=['POST'])
@@ -74,11 +74,11 @@ def dismiss_report_route(report_id):
     report = get_report_by_id(report_id)
     if not report:
         flash('Report not found.', 'danger')
-        return redirect(url_for('admin.view_reports'))
+        return redirect(url_for('admin.api_users'))
 
     dismiss_report(report_id)
     flash('Report has been dismissed.', 'success')
-    return redirect(url_for('admin.view_reports'))
+    return redirect(url_for('admin.api_users'))
 
 
 # ── Users (US5, US6) ──────────────────────────────────────────────────────────
@@ -100,7 +100,7 @@ def toggle_status(user_id):
         flash('User not found.', 'danger')
     else:
         flash(f'User status updated to {new_status}.', 'success')
-    return redirect(url_for('admin.view_users'))
+    return redirect(url_for('admin.api_users'))
 
 
 # ── Admin JSON API ────────────────────────────────────────────────────────────
