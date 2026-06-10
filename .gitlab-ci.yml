@@ -74,3 +74,11 @@ include:
 # Keep it running for evidence, but don't block the whole pipeline.
 gemnasium-python-dependency_scanning:
   allow_failure: true
+
+unit_testing_job:
+  stage: test
+  extends: .python_setup
+  script:
+    - pip install pytest pytest-cov
+    - echo "Running Unit Tests (Must have >= 60% coverage)..."
+    - pytest tests/unit/ tests/api/ tests/ui/ --cov=app --cov-fail-under=60
