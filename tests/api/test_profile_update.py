@@ -151,7 +151,7 @@ def test_update_profile_rejects_missing_required_fields(client):
             "password": "",
             "confirm_password": "",
         },
-        follow_redirects=True,
+        follow_redirects=False,
     )
 
     assert response.status_code == 200
@@ -176,7 +176,7 @@ def test_update_profile_rejects_invalid_contact_number(client):
             "password": "",
             "confirm_password": "",
         },
-        follow_redirects=True,
+        follow_redirects=False,
     )
 
     assert response.status_code == 200
@@ -201,7 +201,7 @@ def test_update_profile_rejects_password_mismatch(client):
             "password": "NewPassword123",
             "confirm_password": "DifferentPassword123",
         },
-        follow_redirects=True,
+        follow_redirects=False,
     )
 
     assert response.status_code == 200
