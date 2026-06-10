@@ -5,74 +5,132 @@
     <div class="page-heading">
         <div>
             <h1 class="section-title">Transaction History</h1>
-            <p class="section-subtitle">Completed buys, sells, swaps, and review actions.</p>
+            <p class="section-subtitle">Completed buys, sells, and swaps.</p>
         </div>
-        <span class="status-badge bg-soft-green text-green"><i class="bi bi-check-circle"></i> Demo data</span>
+        <span class="status-badge bg-soft-green text-green" id="total-badge">Loading…</span>
     </div>
 
-    <div class="row g-3 mb-4">
-        <div class="col-md-4"><div class="stats-card bg-soft-green"><small class="stats-label text-green">Total earned</small><h2 class="stats-value">$245</h2></div></div>
-        <div class="col-md-4"><div class="stats-card bg-soft-yellow"><small class="stats-label text-yellow">Total spent</small><h2 class="stats-value">$112</h2></div></div>
-        <div class="col-md-4"><div class="stats-card bg-soft-blue"><small class="stats-label text-blue">Completed deals</small><h2 class="stats-value">8</h2></div></div>
-    </div>
+    <div id="flash-area"></div>
 
     <ul class="nav nav-pills app-tabs mb-3" id="historyTabs" role="tablist">
-        <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#buyer-history" type="button">Buyer History</button></li>
-        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#seller-history" type="button">Seller History</button></li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#buyer-history" type="button">Buyer History</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="pill" data-bs-target="#seller-history" type="button">Seller History</button>
+        </li>
     </ul>
 
     <div class="tab-content">
+        <!-- Buyer tab -->
         <div class="tab-pane fade show active" id="buyer-history" role="tabpanel" tabindex="0">
-            <div class="table-card">
+            <div id="buyer-table-wrap" class="table-card d-none">
                 <table class="table align-middle mb-0">
-                    <thead><tr><th>Item</th><th>Seller</th><th>Date</th><th>Amount</th><th>Review</th></tr></thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Logitech MX Master 3</strong><br><small class="text-muted">Electronics</small></td>
-                            <td>Aisyah R.</td>
-                            <td>08 May 2026</td>
-                            <td>$55</td>
-                            <td><span class="badge-reviewed"><i class="bi bi-star-fill text-warning"></i> Reviewed</span></td>
-                        </tr>
-                        <tr>
-                            <td><strong>Physics Lab Goggles</strong><br><small class="text-muted">Lab Equipment</small></td>
-                            <td>Hafiz M.</td>
-                            <td>02 May 2026</td>
-                            <td>Free</td>
-                            <td><button class="btn btn-sm btn-accent">Leave review</button></td>
-                        </tr>
-                    </tbody>
+                    <thead><tr><th>Item</th><th>Seller</th><th>Date</th><th>Amount</th></tr></thead>
+                    <tbody id="buyer-tbody"></tbody>
                 </table>
             </div>
-            <div class="empty-state mt-4">
+            <div class="empty-state mt-4 d-none" id="buyer-empty">
                 <i class="bi bi-bag-check"></i>
-                <strong>No more buying transactions</strong>
+                <strong>No buying transactions yet</strong>
                 <span>Accepted purchases and swaps will appear here.</span>
+            </div>
+            <div class="empty-state mt-4" id="buyer-loading">
+                <i class="bi bi-hourglass-split"></i>
+                <strong>Loading…</strong>
             </div>
         </div>
 
+        <!-- Seller tab -->
         <div class="tab-pane fade" id="seller-history" role="tabpanel" tabindex="0">
-            <div class="table-card">
+            <div id="seller-table-wrap" class="table-card d-none">
                 <table class="table align-middle mb-0">
-                    <thead><tr><th>Item</th><th>Buyer</th><th>Date</th><th>Amount</th><th>Review</th></tr></thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Intro to Algorithms 3E</strong><br><small class="text-muted">Textbooks</small></td>
-                            <td>Wei Ming</td>
-                            <td>12 May 2026</td>
-                            <td>$20</td>
-                            <td><button class="btn btn-sm btn-accent">Leave review</button></td>
-                        </tr>
-                    </tbody>
+                    <thead><tr><th>Item</th><th>Buyer</th><th>Date</th><th>Amount</th></tr></thead>
+                    <tbody id="seller-tbody"></tbody>
                 </table>
             </div>
-            <div class="empty-state mt-4">
+            <div class="empty-state mt-4 d-none" id="seller-empty">
                 <i class="bi bi-shop"></i>
-                <strong>No more selling transactions</strong>
+                <strong>No selling transactions yet</strong>
                 <span>Completed sales will appear here after offers are accepted.</span>
             </div>
         </div>
     </div>
 </section>
+
+<script>
+function escHtml(str) {
+    return String(str ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+function formatDate(iso) {
+    if (!iso) return "—";
+    return new Date(iso).toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" });
+}
+
+function renderAmount(t) {
+    if (t.offerType === "swap") return `<span class="condition-tag">Swap</span>`;
+    return t.proposedPrice != null ? `$${parseFloat(t.proposedPrice).toFixed(2)}` : "—";
+}
+
+function showFlash(msg, type="success") {
+    const area = document.getElementById("flash-area");
+    area.innerHTML = `<div class="alert alert-${type} alert-dismissible fade show" role="alert">
+        ${escHtml(msg)}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>`;
+}
+
+async function loadHistory() {
+    try {
+        const res = await fetch("/api/transactions");
+        if (res.status === 401) { window.location.href = "/login"; return; }
+        if (!res.ok) { showFlash("Failed to load transaction history.", "danger"); return; }
+
+        const data = await res.json();
+        const txns = data.transactions || [];
+
+        const buyerRows = txns.filter(t => t.role === "buyer");
+        const sellerRows = txns.filter(t => t.role === "seller");
+
+        document.getElementById("total-badge").textContent =
+            `${txns.length} deal${txns.length !== 1 ? "s" : ""}`;
+
+        // Buyer tab
+        document.getElementById("buyer-loading").classList.add("d-none");
+        if (buyerRows.length === 0) {
+            document.getElementById("buyer-empty").classList.remove("d-none");
+        } else {
+            document.getElementById("buyer-table-wrap").classList.remove("d-none");
+            document.getElementById("buyer-tbody").innerHTML = buyerRows.map(t => `
+                <tr>
+                    <td><strong>${escHtml(t.listingTitle)}</strong><br>
+                        <small class="text-muted">${escHtml(t.listingCategory)}</small></td>
+                    <td>${escHtml(t.sellerDisplayName)}</td>
+                    <td>${formatDate(t.transactionDate)}</td>
+                    <td>${renderAmount(t)}</td>
+                </tr>`).join("");
+        }
+
+        // Seller tab
+        if (sellerRows.length === 0) {
+            document.getElementById("seller-empty").classList.remove("d-none");
+        } else {
+            document.getElementById("seller-table-wrap").classList.remove("d-none");
+            document.getElementById("seller-tbody").innerHTML = sellerRows.map(t => `
+                <tr>
+                    <td><strong>${escHtml(t.listingTitle)}</strong><br>
+                        <small class="text-muted">${escHtml(t.listingCategory)}</small></td>
+                    <td>${escHtml(t.buyerDisplayName)}</td>
+                    <td>${formatDate(t.transactionDate)}</td>
+                    <td>${renderAmount(t)}</td>
+                </tr>`).join("");
+        }
+
+    } catch {
+        showFlash("Network error. Please refresh.", "danger");
+    }
+}
+
+loadHistory();
+</script>
 
 {% endblock %}

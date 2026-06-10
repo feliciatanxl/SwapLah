@@ -457,3 +457,43 @@ def reject_offer(offer_id):
     ).fetchone()
     conn.close()
     return dict(updated)
+
+## feature/transaction-history
+
+def get_transactions_for_user(user_id):
+    """
+    Return all completed transactions where the user was the buyer or seller.
+    Each row includes offer and listing details for display.
+    """
+    conn = get_db_connection()
+    rows = conn.execute(
+        """
+        SELECT
+            t.id              AS transaction_id,
+            t.created_at      AS transaction_date,
+            o.id              AS offer_id,
+            o.offer_type,
+            o.proposed_price,
+            o.swap_listing_id,
+            o.buyer_id,
+            o.listing_id,
+            l.title           AS listing_title,
+            l.category        AS listing_category,
+            l.price           AS listing_price,
+            l.seller_id,
+            buyer.display_name  AS buyer_display_name,
+            seller.display_name AS seller_display_name,
+            sl.title          AS swap_listing_title
+        FROM transactions t
+        JOIN offers   o   ON t.offer_id        = o.id
+        JOIN listings l   ON o.listing_id      = l.id
+        JOIN users    buyer  ON o.buyer_id     = buyer.id
+        JOIN users    seller ON l.seller_id    = seller.id
+        LEFT JOIN listings sl ON o.swap_listing_id = sl.id
+        WHERE o.buyer_id = :user_id OR l.seller_id = :user_id
+        ORDER BY t.created_at DESC
+        """,
+        {"user_id": user_id},
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
