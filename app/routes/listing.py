@@ -42,13 +42,32 @@ def api_get_listings():
     return jsonify(listings)
 
 
+# app/routes/listing.py
+
 @listings_bp.route('/api/listings/<int:listing_id>', methods=['GET'])
 def api_get_listing(listing_id):
-    """Return a single listing by ID as JSON."""
     listing = get_listing_by_id(listing_id)
     if not listing or listing.get('is_deleted'):
-        return jsonify({'error': 'Listing not found'}), 404
-    return jsonify(listing)
+        return jsonify({'error': 'Listing not found or unavailable.'}), 404  # fix 1: message changed
+    return jsonify({                                                           # fix 2: wrap in 'listing' key
+        'listing': {
+            'id': listing['id'],
+            'title': listing['title'],
+            'description': listing['description'],
+            'price': listing['price'],
+            'category': listing['category'],
+            'condition': listing.get('item_condition') or listing.get('condition'),
+            'images': listing.get('images'),
+            'image': listing.get('image'),
+            'listingDate': listing['listing_date'],
+            'lastModifiedTimestamp': listing['last_modified_timestamp'],
+            'seller': {
+                'displayName': listing.get('seller_display_name'),
+                'email': listing.get('seller_email'),
+                'contactNumber': listing.get('seller_contact_number'),
+            }
+        }
+    })
 
 
 @listings_bp.route('/api/listings', methods=['POST'])

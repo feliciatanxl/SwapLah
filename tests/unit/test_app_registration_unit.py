@@ -26,9 +26,9 @@ def test_register_page_renders(client):
     response = test_client.get("/register")
 
     assert response.status_code == 200
-    assert b"Create your account" in response.data
+    assert b"Create account" in response.data
     assert b"Student ID" in response.data
-    assert b"NYP Email Address" in response.data
+    assert b"NYP Email" in response.data
 
 
 def test_database_creates_users_table(client):
