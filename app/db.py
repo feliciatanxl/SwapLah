@@ -56,6 +56,21 @@ def init_db():
     """)
 
     ensure_listing_status_column(conn)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS offers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            listing_id INTEGER NOT NULL,
+            buyer_id INTEGER NOT NULL,
+            offer_type TEXT NOT NULL CHECK(offer_type IN ('cash', 'swap')),
+            proposed_price REAL,
+            swap_listing_id INTEGER,
+            status TEXT NOT NULL DEFAULT 'Pending',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (listing_id) REFERENCES listings (id),
+            FOREIGN KEY (buyer_id) REFERENCES users (id),
+            FOREIGN KEY (swap_listing_id) REFERENCES listings (id)
+        )
+    """)
 
     conn.commit()
     conn.close()
@@ -73,6 +88,7 @@ def get_user_by_email(email):
 
 
 def create_listing(seller_id, title, description, price, category, condition, image_url):
+    """Insert a new listing and return it as a dict."""
     conn = get_db_connection()
 
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -124,6 +140,7 @@ def create_listing(seller_id, title, description, price, category, condition, im
 
 
 def get_all_listings():
+    """Return all listings with seller display name, newest first."""
     conn = get_db_connection()
 
     rows = conn.execute(
@@ -173,6 +190,7 @@ def get_all_listings():
 
 ## feature/view-listing-details
 def get_listing_by_id(listing_id):
+    """Return full listing detail by ID, or None if not found."""
     conn = get_db_connection()
 
     listing = conn.execute(
@@ -297,6 +315,8 @@ def update_listing(listing_id, seller_id, title, description, price, category, c
 
     return dict(updated_listing), None
 
+
+## feature/update-account-details
 def get_user_by_id(user_id):
     """Retrieve one user by ID using a parameterized query."""
     conn = get_db_connection()
@@ -310,6 +330,7 @@ def get_user_by_id(user_id):
         return None
 
     return dict(user)
+
 
 def update_user_account(user_id, first_name, last_name, display_name, contact_number, password_hash=None):
     """Update editable account details only. Email and Student ID remain locked."""
@@ -356,3 +377,47 @@ def update_user_account(user_id, first_name, last_name, display_name, contact_nu
 
     conn.commit()
     conn.close()
+
+
+## feature/submit-offer
+def get_listing_owner(listing_id):
+    """Return the seller_id for a given listing, or None if listing doesn't exist."""
+    conn = get_db_connection()
+    row = conn.execute(
+        "SELECT seller_id FROM listings WHERE id = ?",
+        (listing_id,)
+    ).fetchone()
+    conn.close()
+    return row["seller_id"] if row else None
+
+
+def get_active_listing_by_buyer(listing_id, buyer_id):
+    """
+    Return the listing if it exists and belongs to buyer_id, else None.
+    (All listings are currently considered active; extend with a status column as needed.)
+    """
+    conn = get_db_connection()
+    row = conn.execute(
+        "SELECT * FROM listings WHERE id = ? AND seller_id = ?",
+        (listing_id, buyer_id)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def create_offer(listing_id, buyer_id, offer_type, proposed_price=None, swap_listing_id=None):
+    """Insert a new offer and return it as a dict."""
+    conn = get_db_connection()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    cursor = conn.execute(
+        """
+        INSERT INTO offers (listing_id, buyer_id, offer_type, proposed_price, swap_listing_id, status, created_at)
+        VALUES (?, ?, ?, ?, ?, 'Pending', ?)
+        """,
+        (listing_id, buyer_id, offer_type, proposed_price, swap_listing_id, now)
+    )
+    conn.commit()
+    offer_id = cursor.lastrowid
+    offer = conn.execute("SELECT * FROM offers WHERE id = ?", (offer_id,)).fetchone()
+    conn.close()
+    return dict(offer)
