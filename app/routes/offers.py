@@ -240,3 +240,47 @@ def api_reject_offer(offer_id):
         "message": "Offer rejected.",
         "offer": _format_offer(updated),
     }), 200
+
+
+# ---------------------------------------------------------------------------
+# GET /api/transactions  —  view transaction history
+# ---------------------------------------------------------------------------
+
+@offers_bp.route("/api/transactions", methods=["GET"])
+def api_get_transactions():
+    """
+    Return all completed transactions for the logged-in user (as buyer or seller).
+
+    AC1 — shows transactions where user was buyer or seller.
+    AC2 — unauthenticated requests are rejected with 401.
+    AC3 — returns empty list when user has no transactions.
+    """
+    if not session.get("user_id"):
+        return jsonify({"error": "You must be logged in to view transaction history."}), 401
+
+    user_id = session["user_id"]
+    transactions = db_module.get_transactions_for_user(user_id)
+
+    return jsonify({
+        "transactions": [
+            {
+                "transactionId": t["transaction_id"],
+                "transactionDate": t["transaction_date"],
+                "offerId": t["offer_id"],
+                "offerType": t["offer_type"],
+                "proposedPrice": t["proposed_price"],
+                "swapListingId": t["swap_listing_id"],
+                "swapListingTitle": t["swap_listing_title"],
+                "listingId": t["listing_id"],
+                "listingTitle": t["listing_title"],
+                "listingCategory": t["listing_category"],
+                "listingPrice": t["listing_price"],
+                "buyerId": t["buyer_id"],
+                "buyerDisplayName": t["buyer_display_name"],
+                "sellerId": t["seller_id"],
+                "sellerDisplayName": t["seller_display_name"],
+                "role": "buyer" if t["buyer_id"] == user_id else "seller",
+            }
+            for t in transactions
+        ]
+    }), 200
