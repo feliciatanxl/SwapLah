@@ -40,7 +40,7 @@
                         <a class="nav-link {% if request.endpoint == 'history' %}active-nav{% endif %}" href="{{ url_for('history') }}">Transactions</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'admin' %}active-nav{% endif %}" href="{{ url_for('admin.view_users) }}">Admin</a>
+                        <a class="nav-link {% if request.endpoint == 'admin' %}active-nav{% endif %}" href="{{ url_for('admin.view_users') }}">Admin</a>
                     </li>
                     {% endif %}
                 </ul>
