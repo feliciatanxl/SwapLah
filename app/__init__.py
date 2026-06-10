@@ -14,7 +14,7 @@ from app.db import (
 )
 from app.routes.listing import listings_bp
 from app.routes.admin import admin_bp
-
+from app.routes.offers import offers_bp
 
 def create_app():
     """Create and configure the Flask application."""
@@ -213,5 +213,6 @@ def create_app():
 
     app.register_blueprint(listings_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(offers_bp)
 
     return app

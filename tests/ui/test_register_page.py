@@ -9,7 +9,7 @@ def test_register_page_loads():
         response = client.get("/register")
 
     assert response.status_code == 200
-    assert b"Create your account" in response.data
+    assert b"Create account" in response.data
     assert b"Student ID" in response.data
     assert b"NYP Email Address" in response.data
     assert b"Create Account" in response.data
