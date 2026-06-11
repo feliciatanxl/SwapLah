@@ -1,10 +1,14 @@
-"""Routes for creating cash and swap offers (POST /api/offers)."""
+"""Routes for creating and managing cash and swap offers."""
 from flask import Blueprint, jsonify, request, session
 
 from app.db import (
+    accept_offer,
     create_offer,
     get_active_listing_by_buyer,
     get_listing_owner,
+    get_offer_by_id,
+    get_offers_for_seller,
+    reject_offer,
 )
 
 offers_bp = Blueprint("offers", __name__)
@@ -66,8 +70,27 @@ def _format_offer(offer):
     }
 
 
+def _format_received_offer(offer):
+    """Serialise a received offer row (includes listing + buyer info) to JSON-safe dict."""
+    return {
+        "id": offer["id"],
+        "listingId": offer["listing_id"],
+        "buyerId": offer["buyer_id"],
+        "offerType": offer["offer_type"],
+        "proposedPrice": offer["proposed_price"],
+        "swapListingId": offer["swap_listing_id"],
+        "status": offer["status"],
+        "createdAt": offer["created_at"],
+        "listingTitle": offer["listing_title"],
+        "listingCategory": offer["listing_category"],
+        "listingPrice": offer["listing_price"],
+        "buyerDisplayName": offer["buyer_display_name"],
+        "swapListingTitle": offer["swap_listing_title"],
+    }
+
+
 # ---------------------------------------------------------------------------
-# Route
+# Routes — submit offer
 # ---------------------------------------------------------------------------
 
 @offers_bp.route("/api/offers", methods=["GET", "POST"])
@@ -139,3 +162,75 @@ def _handle_swap_offer(data, listing_id, buyer_id):
         "message": "Swap offer submitted successfully.",
         "offer": _format_offer(offer),
     }), 201
+
+
+# ---------------------------------------------------------------------------
+# Routes — manage received offers
+# ---------------------------------------------------------------------------
+
+@offers_bp.route("/api/offers/received", methods=["GET"])
+def api_get_received_offers():
+    """
+    Return all offers received on the current user's listings.
+
+    Returns 200 with a list of offers, grouped by listing.
+    """
+    user_id = session.get("user_id")
+    if not user_id:
+        return jsonify({"error": "You must be logged in to view offers."}), 401
+
+    offers = get_offers_for_seller(user_id)
+    return jsonify({"offers": [_format_received_offer(o) for o in offers]}), 200
+
+
+@offers_bp.route("/api/offers/<int:offer_id>/accept", methods=["PATCH"])
+def api_accept_offer(offer_id):
+    """
+    Accept a pending offer. Automatically rejects all other pending offers
+    for the same listing and creates a transaction record.
+    """
+    user_id = session.get("user_id")
+    if not user_id:
+        return jsonify({"error": "You must be logged in."}), 401
+
+    offer = get_offer_by_id(offer_id)
+    if offer is None:
+        return jsonify({"error": "Offer not found."}), 404
+
+    if get_listing_owner(offer["listing_id"]) != user_id:
+        return jsonify({"error": "You do not own this listing."}), 403
+
+    if offer["status"] != "Pending":
+        return jsonify({"error": f"Offer is already {offer['status']}."}), 409
+
+    updated = accept_offer(offer_id)
+    return jsonify({
+        "message": "Offer accepted. All other pending offers for this listing have been rejected.",
+        "offer": _format_offer(updated),
+    }), 200
+
+
+@offers_bp.route("/api/offers/<int:offer_id>/reject", methods=["PATCH"])
+def api_reject_offer(offer_id):
+    """
+    Reject a single pending offer. Other pending offers remain unchanged.
+    """
+    user_id = session.get("user_id")
+    if not user_id:
+        return jsonify({"error": "You must be logged in."}), 401
+
+    offer = get_offer_by_id(offer_id)
+    if offer is None:
+        return jsonify({"error": "Offer not found."}), 404
+
+    if get_listing_owner(offer["listing_id"]) != user_id:
+        return jsonify({"error": "You do not own this listing."}), 403
+
+    if offer["status"] != "Pending":
+        return jsonify({"error": f"Offer is already {offer['status']}."}), 409
+
+    updated = reject_offer(offer_id)
+    return jsonify({
+        "message": "Offer rejected.",
+        "offer": _format_offer(updated),
+    }), 200
