@@ -13,6 +13,11 @@ def get_db_connection():
     return conn
 
 
+
+
+
+
+
 def init_db():
     """Create database tables if they do not exist."""
     conn = get_db_connection()
@@ -46,28 +51,13 @@ def init_db():
             image_url TEXT NOT NULL,
             listing_date TEXT NOT NULL,
             last_modified_timestamp TEXT NOT NULL,
-            is_deleted INTEGER NOT NULL DEFAULT 0,
+            status TEXT NOT NULL DEFAULT 'Active',
             FOREIGN KEY (seller_id) REFERENCES users (id)
         )
-        """
-    )
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS reports (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            listing_id INTEGER NOT NULL,
-            reporter_id INTEGER NOT NULL,
-            reason TEXT NOT NULL,
-            description TEXT NOT NULL,
-            status TEXT NOT NULL DEFAULT 'Pending',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (listing_id) REFERENCES listings (id),
-            FOREIGN KEY (reporter_id) REFERENCES users (id)
-        )
-        """
-    )
-    conn.execute(
-        """
+    """)
+
+    ensure_listing_status_column(conn)
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS offers (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             listing_id INTEGER NOT NULL,
@@ -161,48 +151,71 @@ def get_all_listings():
     """Return all non-deleted listings with seller info."""
     conn = get_db_connection()
     rows = conn.execute(
-        """SELECT listings.id, listings.title, listings.description,
-           listings.price, listings.category,
-           listings.item_condition AS condition,
-           listings.image_url AS image, listings.listing_date,
-           users.display_name AS seller
-           FROM listings
-           LEFT JOIN users ON listings.seller_id = users.id
-           WHERE listings.is_deleted = 0
-           ORDER BY listings.listing_date DESC"""
+        """
+        SELECT
+            listings.id,
+            listings.title,
+            listings.description,
+            listings.price,
+            listings.category,
+            listings.item_condition AS condition,
+            listings.image_url,
+            listings.listing_date,
+            users.display_name AS seller
+        FROM listings
+        LEFT JOIN users ON listings.seller_id = users.id
+        WHERE listings.status = 'Active'
+        ORDER BY listings.listing_date DESC
+        """
     ).fetchall()
     conn.close()
     listings = []
     for row in rows:
         listing = dict(row)
+
+        raw_image = listing["image_url"]
+
         try:
-            images = json.loads(listing["image"])
+            images = json.loads(raw_image)
+
             if isinstance(images, list) and len(images) > 0:
                 listing["images"] = images
                 listing["image"] = images[0]
             else:
-                listing["images"] = [listing["image"]]
+                listing["images"] = [raw_image]
+                listing["image"] = raw_image
         except Exception:
-            listing["images"] = [listing["image"]]
+            listing["images"] = [raw_image]
+            listing["image"] = raw_image
+
         listings.append(listing)
     return listings
 
-
+## feature/view-listing-details
 def get_listing_by_id(listing_id):
     """Return a single listing by ID with seller info."""
     conn = get_db_connection()
     listing = conn.execute(
-        """SELECT listings.id, listings.title, listings.description,
-           listings.price, listings.category,
-           listings.item_condition AS condition,
-           listings.image_url, listings.listing_date,
-           listings.last_modified_timestamp, listings.is_deleted,
-           users.display_name AS seller_display_name,
-           users.email AS seller_email,
-           users.contact_number AS seller_contact_number
-           FROM listings
-           LEFT JOIN users ON listings.seller_id = users.id
-           WHERE listings.id = ?""",
+        """
+        SELECT
+    listings.id,
+    listings.seller_id,
+    listings.title,
+    listings.description,
+    listings.price,
+    listings.category,
+    listings.item_condition AS condition,
+    listings.image_url,
+    listings.listing_date,
+    listings.last_modified_timestamp,
+    users.display_name AS seller_display_name,
+    users.email AS seller_email,
+    users.contact_number AS seller_contact_number
+        FROM listings
+        LEFT JOIN users ON listings.seller_id = users.id
+        WHERE listings.id = ?
+        AND listings.status = 'Active'
+        """,
         (listing_id,)
     ).fetchone()
     conn.close()
@@ -221,6 +234,82 @@ def get_listing_by_id(listing_id):
         listing["images"] = [listing["image_url"]]
         listing["image"] = listing["image_url"]
     return listing
+ 
+def ensure_listing_status_column(conn):
+    columns = conn.execute("PRAGMA table_info(listings)").fetchall()
+    column_names = [column["name"] for column in columns]
+
+    if "status" not in column_names:
+        conn.execute(
+            "ALTER TABLE listings ADD COLUMN status TEXT NOT NULL DEFAULT 'Active'"
+        )
+
+## update/edit listing
+def update_listing(listing_id, seller_id, title, description, price, category, condition, image_url):
+    """Update an active listing owned by the seller."""
+    conn = get_db_connection()
+
+    existing_listing = conn.execute(
+        """
+        SELECT *
+        FROM listings
+        WHERE id = ?
+        AND status = 'Active'
+        """,
+        (listing_id,)
+    ).fetchone()
+
+    if existing_listing is None:
+        conn.close()
+        return None, "not_found"
+
+    if existing_listing["seller_id"] != seller_id:
+        conn.close()
+        return None, "forbidden"
+
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    conn.execute(
+        """
+        UPDATE listings
+        SET title = ?,
+            description = ?,
+            price = ?,
+            category = ?,
+            item_condition = ?,
+            image_url = ?,
+            last_modified_timestamp = ?
+        WHERE id = ?
+        AND seller_id = ?
+        AND status = 'Active'
+        """,
+        (
+            title,
+            description,
+            price,
+            category,
+            condition,
+            image_url,
+            now,
+            listing_id,
+            seller_id
+        )
+    )
+
+    conn.commit()
+
+    updated_listing = conn.execute(
+        """
+        SELECT *
+        FROM listings
+        WHERE id = ?
+        """,
+        (listing_id,)
+    ).fetchone()
+
+    conn.close()
+
+    return dict(updated_listing), None
 
 
 # ── Reporting (US1-US4) ───────────────────────────────────────────────────────
@@ -362,6 +451,15 @@ def get_listing_owner(listing_id):
     conn.close()
     return row["seller_id"] if row else None
 
+def get_listings_by_seller(seller_id):
+    """Return all listings belonging to seller_id (for swap dropdown)."""
+    conn = get_db_connection()
+    rows = conn.execute(
+        "SELECT id, title FROM listings WHERE seller_id = ?",
+        (seller_id,)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
 
 def get_active_listing_by_buyer(listing_id, buyer_id):
     """Return a listing if it exists and belongs to buyer_id, else None."""
