@@ -9,6 +9,7 @@ from app.db import (
     get_all_listings,
     get_db_connection,
     get_listing_by_id,
+    get_listings_by_seller,
     get_user_by_email,
     get_user_by_id,
     init_db,
@@ -132,9 +133,6 @@ def create_app():
             total_pages=total_pages,
             total_listings=total_listings
         )
-        """Render homepage with all listings."""
-        listings = get_all_listings()
-        return render_template('index.html', listings=listings)
 
     @app.route('/listing/<int:listing_id>')
     def listing_detail(listing_id):
@@ -150,15 +148,25 @@ def create_app():
         return render_template(
             'listing_detail.html',
             listing=listing,
+            listing_id=listing_id,
             error_message=None
         )
-    
+
+    @app.route('/api/my-listings')
+    def api_my_listings():
+        """Return the current user's listings as JSON (for the swap dropdown)."""
+        from flask import jsonify
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'Not logged in.'}), 401
+        listings = get_listings_by_seller(user_id)
+        return jsonify(listings)
+
     @app.route('/listing/<int:listing_id>/edit')
     def edit_listing(listing_id):
         if 'user_id' not in session:
             flash('Please log in to edit your listing.', 'danger')
             return redirect(url_for('login'))
-        # return render_template('listing_detail.html', listing=listing, error_message=None)
 
         listing = get_listing_by_id(listing_id)
 
@@ -171,8 +179,8 @@ def create_app():
             return redirect(url_for('listing_detail', listing_id=listing_id))
 
         return render_template('edit_listing.html', listing=listing)
-    
-    
+
+
     @app.route('/offers')
     def offers():
         """Render offers page."""
@@ -209,7 +217,6 @@ def create_app():
             return redirect(url_for('login'))
         if request.method == 'GET':
             return render_template('edit_profile.html', user=user)
-        # POST — process form
         first_name = request.form.get('first_name', '').strip()
         last_name = request.form.get('last_name', '').strip()
         display_name = request.form.get('display_name', '').strip()
