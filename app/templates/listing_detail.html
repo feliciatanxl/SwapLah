@@ -199,7 +199,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // ── Offer helpers ────────────────────────────────────────────────────────
-    const LISTING_ID = {{ listing.id }};
+    const LISTING_ID = Number("{{ listing.id }}");
     const feedback = document.getElementById("offer-feedback");
 
     function showFeedback(message, isError) {
