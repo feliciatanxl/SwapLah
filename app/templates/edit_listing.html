@@ -4,17 +4,22 @@
 <section class="page-shell">
     <div class="page-heading">
         <div>
-            <a href="{{ url_for('index') }}" class="back-link"><i class="bi bi-arrow-left"></i> Back to listings</a>
-            <h1 class="section-title mt-2">Create Listing</h1>
-            <p class="section-subtitle">Add one clear photo URL and the details buyers need before they make an offer.
+            <a href="{{ url_for('listing_detail', listing_id=listing.id) }}" class="back-link">
+                <i class="bi bi-arrow-left"></i> Back to listing
+            </a>
+            <h1 class="section-title mt-2">Edit Listing</h1>
+            <p class="section-subtitle">
+                Update your item details so buyers can see the latest information.
             </p>
         </div>
-        <span class="status-badge bg-soft-green text-green"><i class="bi bi-shield-check"></i> NYP marketplace</span>
+        <span class="status-badge bg-soft-green text-green">
+            <i class="bi bi-pencil-square"></i> Editing listing
+        </span>
     </div>
 
     <div id="listing-message" class="alert alert-info static-alert d-none" role="alert"></div>
 
-    <form id="create-listing-form" class="page-card form-card">
+    <form id="edit-listing-form" class="page-card form-card">
         <div class="row g-4">
             <div class="col-lg-5">
                 <label for="image_file" class="form-label">Upload Images</label>
@@ -52,24 +57,22 @@
                     <i class="bi bi-trash"></i> Remove All Images
                 </button>
 
-
-                <p class="helper-text mt-2">Upload one or more clear images of your item.</p>
-
-
+                <p class="helper-text mt-2">
+                    Upload one or more clear images of your item. Existing images are loaded automatically.
+                </p>
             </div>
 
             <div class="col-lg-7">
                 <div class="mb-3">
-                    <label for="title" class="form-label">Title </label>
+                    <label for="title" class="form-label">Title</label>
                     <input id="title" name="title" type="text" class="form-control"
-                        placeholder="e.g. Calculus 9E Textbook" required>
+                        value="{{ listing.title }}" required>
                 </div>
 
                 <div class="mb-3">
-                    <label for="description" class="form-label">Description </label>
+                    <label for="description" class="form-label">Description</label>
                     <textarea id="description" name="description" class="form-control" rows="4"
-                        placeholder="Condition, defects, included accessories, preferred meetup timing..."
-                        required></textarea>
+                        required>{{ listing.description }}</textarea>
                 </div>
 
                 <div class="row g-3">
@@ -77,56 +80,65 @@
                         <label class="form-label">Price Type</label>
                         <div class="price-type-group" role="group" aria-label="Price type">
                             <input type="radio" class="btn-check" name="price_type" id="price_type_set"
-                                value="set_price" checked>
-                            <label class="btn" for="price_type_set"><i class="bi bi-cash-coin"></i> Set Price</label>
+                                value="set_price">
+                            <label class="btn" for="price_type_set">
+                                <i class="bi bi-cash-coin"></i> Set Price
+                            </label>
 
                             <input type="radio" class="btn-check" name="price_type" id="price_type_free" value="free">
-                            <label class="btn" for="price_type_free"><i class="bi bi-gift"></i> Free</label>
+                            <label class="btn" for="price_type_free">
+                                <i class="bi bi-gift"></i> Free
+                            </label>
 
                             <input type="radio" class="btn-check" name="price_type" id="price_type_swap"
                                 value="swap_only">
-                            <label class="btn" for="price_type_swap"><i class="bi bi-arrow-left-right"></i> Swap
-                                Only</label>
+                            <label class="btn" for="price_type_swap">
+                                <i class="bi bi-arrow-left-right"></i> Swap Only
+                            </label>
                         </div>
                     </div>
 
                     <div class="col-md-6">
-                        <label for="price" class="form-label">Price </label>
+                        <label for="price" class="form-label">Price</label>
                         <input id="price" name="price" type="number" class="form-control"
-                            placeholder="Enter price, e.g. 25" min="0" step="0.01" required>
+                            placeholder="Enter price, e.g. 25" min="0" step="0.01">
                     </div>
+
                     <div class="col-md-6">
                         <label for="pickup_location" class="form-label">Pickup Location</label>
                         <input id="pickup_location" name="pickup_location" type="text" class="form-control"
-                            placeholder="Block L, LRC, Canteen" required>
+                            placeholder="Block L, LRC, Canteen">
                     </div>
+
                     <div class="col-md-6">
-                        <label for="category" class="form-label">Category </label>
+                        <label for="category" class="form-label">Category</label>
                         <select id="category" name="category" class="form-select" required>
                             <option value="">Choose category</option>
-                            <option>Textbooks</option>
-                            <option>Electronics</option>
-                            <option>Lab Equipment</option>
-                            <option>Stationery</option>
-                            <option>Clothing</option>
+                            <option {% if listing.category == "Textbooks" %}selected{% endif %}>Textbooks</option>
+                            <option {% if listing.category == "Electronics" %}selected{% endif %}>Electronics</option>
+                            <option {% if listing.category == "Lab Equipment" %}selected{% endif %}>Lab Equipment</option>
+                            <option {% if listing.category == "Stationery" %}selected{% endif %}>Stationery</option>
+                            <option {% if listing.category == "Clothing" %}selected{% endif %}>Clothing</option>
                         </select>
                     </div>
+
                     <div class="col-md-6">
                         <label for="condition" class="form-label">Condition</label>
                         <select id="condition" name="condition" class="form-select" required>
                             <option value="">Choose condition</option>
-                            <option>New</option>
-                            <option>Like New</option>
-                            <option>Good</option>
-                            <option>Fair</option>
+                            <option {% if listing.condition == "New" %}selected{% endif %}>New</option>
+                            <option {% if listing.condition == "Like New" %}selected{% endif %}>Like New</option>
+                            <option {% if listing.condition == "Good" %}selected{% endif %}>Good</option>
+                            <option {% if listing.condition == "Fair" %}selected{% endif %}>Fair</option>
                         </select>
                     </div>
                 </div>
 
                 <div class="form-actions">
-
-                    <button type="button" id="save-draft-btn" class="btn btn-outline-dark">Save Draft</button>
-                    <button type="submit" class="btn btn-accent">Post Listing</button>
+                    <a href="{{ url_for('listing_detail', listing_id=listing.id) }}" class="btn btn-outline-dark">
+                        Cancel
+                    </a>
+                    <button type="submit" class="btn btn-accent">Save Changes</button>
                 </div>
             </div>
         </div>
@@ -134,39 +146,11 @@
 </section>
 
 <script>
-
     document.addEventListener("DOMContentLoaded", function () {
-        const form = document.getElementById("create-listing-form");
+        const form = document.getElementById("edit-listing-form");
         const messageBox = document.getElementById("listing-message");
         const priceInput = document.getElementById("price");
         const priceTypeRadios = document.querySelectorAll("input[name='price_type']");
-        const saveDraftBtn = document.getElementById("save-draft-btn");
-        const DRAFT_KEY = "swaplah_create_listing_draft";
-
-        function syncPriceInput() {
-            const selectedPriceType = document.querySelector("input[name='price_type']:checked").value;
-
-            if (selectedPriceType === "set_price") {
-                priceInput.disabled = false;
-                priceInput.required = true;
-                priceInput.value = "";
-                priceInput.placeholder = "Enter price, e.g. 25";
-            } else if (selectedPriceType === "free") {
-                priceInput.value = "Free";
-                priceInput.disabled = true;
-                priceInput.required = false;
-            } else if (selectedPriceType === "swap_only") {
-                priceInput.value = "Swap Only";
-                priceInput.disabled = true;
-                priceInput.required = false;
-            }
-        }
-
-        priceTypeRadios.forEach(function (radio) {
-            radio.addEventListener("change", syncPriceInput);
-        });
-
-        syncPriceInput();
 
         const imageFileInput = document.getElementById("image_file");
         const imageUrlInput = document.getElementById("image_url");
@@ -179,8 +163,64 @@
         const removeCurrentImageBtn = document.getElementById("remove-current-image-btn");
         const clearImagesBtn = document.getElementById("clear-images-btn");
 
-        let selectedImages = [];
+        
+        const initialPrice = "{{ listing.price }}";
+        let selectedImages = JSON.parse('{{ listing.images | tojson | safe }}');
         let currentImageIndex = 0;
+                function showMessage(type, text) {
+            messageBox.classList.remove("d-none", "alert-info", "alert-success", "alert-danger");
+
+            if (type === "success") {
+                messageBox.classList.add("alert-success");
+            } else if (type === "danger") {
+                messageBox.classList.add("alert-danger");
+            } else {
+                messageBox.classList.add("alert-info");
+            }
+
+            messageBox.textContent = text;
+        }
+
+        function syncPriceInput() {
+            const selectedPriceType = document.querySelector("input[name='price_type']:checked").value;
+
+            if (selectedPriceType === "set_price") {
+                priceInput.disabled = false;
+                priceInput.required = true;
+                priceInput.placeholder = "Enter price, e.g. 25";
+
+                if (priceInput.value === "Free" || priceInput.value === "Swap Only") {
+                    priceInput.value = "";
+                }
+            } else if (selectedPriceType === "free") {
+                priceInput.value = "Free";
+                priceInput.disabled = true;
+                priceInput.required = false;
+            } else if (selectedPriceType === "swap_only") {
+                priceInput.value = "Swap Only";
+                priceInput.disabled = true;
+                priceInput.required = false;
+            }
+        }
+
+        function setupInitialPrice() {
+            if (initialPrice === "Free") {
+                document.getElementById("price_type_free").checked = true;
+                priceInput.value = "Free";
+            } else if (initialPrice === "Swap Only") {
+                document.getElementById("price_type_swap").checked = true;
+                priceInput.value = "Swap Only";
+            } else {
+                document.getElementById("price_type_set").checked = true;
+                priceInput.value = initialPrice;
+            }
+
+            syncPriceInput();
+        }
+
+        priceTypeRadios.forEach(function (radio) {
+            radio.addEventListener("change", syncPriceInput);
+        });
 
         function updateImagePreview() {
             if (selectedImages.length === 0) {
@@ -270,92 +310,12 @@
             updateImagePreview();
         });
 
-        function showMessage(type, text) {
-            messageBox.classList.remove("d-none", "alert-info", "alert-success", "alert-danger");
-
-            if (type === "success") {
-                messageBox.classList.add("alert-success");
-            } else if (type === "danger") {
-                messageBox.classList.add("alert-danger");
-            } else {
-                messageBox.classList.add("alert-info");
-            }
-
-            messageBox.textContent = text;
-        }
-
-        function getSelectedPriceType() {
-            return document.querySelector("input[name='price_type']:checked").value;
-        }
-
-        function setSelectedPriceType(priceType) {
-            const radio = document.querySelector(`input[name='price_type'][value='${priceType}']`);
-
-            if (radio) {
-                radio.checked = true;
-            }
-        }
-
-        function saveDraft() {
-            const draft = {
-                title: document.getElementById("title").value.trim(),
-                description: document.getElementById("description").value.trim(),
-                priceType: getSelectedPriceType(),
-                price: document.getElementById("price").value.trim(),
-                pickupLocation: document.getElementById("pickup_location").value.trim(),
-                category: document.getElementById("category").value,
-                condition: document.getElementById("condition").value,
-                images: selectedImages
-            };
-
-            try {
-                localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-                showMessage("success", "Draft saved successfully.");
-            } catch (error) {
-                draft.images = [];
-                localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-                showMessage("danger", "Draft saved, but images were too large to save.");
-            }
-        }
-
-        function loadDraft() {
-            const savedDraft = localStorage.getItem(DRAFT_KEY);
-
-            if (!savedDraft) {
-                return;
-            }
-
-            const draft = JSON.parse(savedDraft);
-
-            document.getElementById("title").value = draft.title || "";
-            document.getElementById("description").value = draft.description || "";
-            document.getElementById("pickup_location").value = draft.pickupLocation || "";
-            document.getElementById("category").value = draft.category || "";
-            document.getElementById("condition").value = draft.condition || "";
-
-            setSelectedPriceType(draft.priceType || "set_price");
-
-            if (typeof syncPriceInput === "function") {
-                syncPriceInput();
-            }
-
-            if ((draft.priceType || "set_price") === "set_price") {
-                document.getElementById("price").value = draft.price || "";
-            }
-
-            selectedImages = draft.images || [];
-            currentImageIndex = 0;
-            updateImagePreview();
-
-            showMessage("info", "Draft loaded.");
-        }
-
         form.addEventListener("submit", async function (event) {
             event.preventDefault();
 
             const priceType = document.querySelector("input[name='price_type']:checked").value;
 
-            let price = document.getElementById("price").value.trim();
+            let price = priceInput.value.trim();
 
             if (priceType === "free") {
                 price = "Free";
@@ -364,9 +324,7 @@
             }
 
             if (selectedImages.length === 0) {
-                messageBox.classList.remove("d-none", "alert-info", "alert-success");
-                messageBox.classList.add("alert-danger");
-                messageBox.textContent = "Please upload at least one image.";
+                showMessage("danger", "Please upload at least one image.");
                 return;
             }
 
@@ -380,8 +338,8 @@
             };
 
             try {
-                const response = await fetch("/api/listings", {
-                    method: "POST",
+                const response = await fetch("{{ url_for('listings.api_update_listing', listing_id=listing.id) }}", {
+                    method: "PUT",
                     headers: {
                         "Content-Type": "application/json"
                     },
@@ -390,37 +348,22 @@
 
                 const result = await response.json();
 
-                messageBox.classList.remove("d-none", "alert-info", "alert-success", "alert-danger");
-
                 if (response.ok) {
-                    messageBox.classList.add("alert-success");
-                    messageBox.textContent = "Listing created successfully!";
-                    localStorage.removeItem(DRAFT_KEY);
-
-                    form.reset();
-                    selectedImages = [];
-                    currentImageIndex = 0;
-                    updateImagePreview();
+                    showMessage("success", "Listing updated successfully!");
 
                     setTimeout(function () {
-                        window.location.href = "/";
+                        window.location.href = "{{ url_for('listing_detail', listing_id=listing.id) }}";
                     }, 1000);
                 } else {
-                    messageBox.classList.add("alert-danger");
-                    messageBox.textContent = result.error || "Unable to create listing.";
+                    showMessage("danger", result.error || "Unable to update listing.");
                 }
             } catch (error) {
-                messageBox.classList.remove("d-none", "alert-info", "alert-success");
-                messageBox.classList.add("alert-danger");
-                messageBox.textContent = "Something went wrong. Please try again.";
+                showMessage("danger", "Something went wrong. Please try again.");
             }
         });
 
-        saveDraftBtn.addEventListener("click", function () {
-            saveDraft();
-        });
-
-        loadDraft();
+        setupInitialPrice();
+        updateImagePreview();
     });
 </script>
 
