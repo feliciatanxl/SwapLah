@@ -70,7 +70,7 @@ def _format_offer(offer):
 # Route
 # ---------------------------------------------------------------------------
 
-@offers_bp.route("/api/offers", methods=["POST"])
+@offers_bp.route("/api/offers", methods=["GET", "POST"])
 def api_create_offer():
     """
     Create a cash or swap offer for a listing.
@@ -83,6 +83,9 @@ def api_create_offer():
 
     Returns 201 with the created offer on success.
     """
+    if request.method == "GET":
+        return jsonify({"error": "This endpoint only accepts POST requests."}), 405
+
     data = request.get_json(silent=True)
     err = _common_error(data)
     if err:
