@@ -89,33 +89,34 @@
 
                 <hr>
 
-                <form method="post" action="#">
-                    <h5 class="fw-bold">Submit Cash Offer</h5>
-                    <label for="cash_offer_amount" class="form-label">Cash offer</label>
-                    <div class="input-group mb-3">
-                        <span class="input-group-text">$</span>
-                        <input id="cash_offer_amount" name="cash_offer_amount" type="number" class="form-control"
-                            placeholder="20">
-                    </div>
-                    <button type="submit" class="btn btn-accent w-100 mb-3"><i class="bi bi-cash-coin"></i> Submit Cash
-                        Offer</button>
+                <div id="offer-feedback" class="alert d-none mb-3" role="alert"></div>
 
-                    <hr>
+                <!-- Cash Offer -->
+                <h5 class="fw-bold">Submit Cash Offer</h5>
+                <label for="cash_offer_amount" class="form-label">Cash offer</label>
+                <div class="input-group mb-3">
+                    <span class="input-group-text">$</span>
+                    <input id="cash_offer_amount" type="number" class="form-control" placeholder="20" min="0" step="0.01">
+                </div>
+                <button id="submit-cash-btn" type="button" class="btn btn-accent w-100 mb-3">
+                    <i class="bi bi-cash-coin"></i> Submit Cash Offer
+                </button>
 
-                    <h5 class="fw-bold">Submit Swap Offer</h5>
-                    <label for="swap_listing_id" class="form-label">Swap with my listing</label>
-                    <select id="swap_listing_id" name="swap_listing_id" class="form-select mb-3">
-                        <option value="">Select an existing listing</option>
-                        <option value="42">TI-84 Plus Calculator</option>
-                        <option value="43">Physics Lab Kit</option>
-                    </select>
+                <hr>
 
-                    <label for="offer_message" class="form-label">Message</label>
-                    <textarea id="offer_message" name="offer_message" rows="3" class="form-control mb-3"
-                        placeholder="Can meet at LRC tomorrow?"></textarea>
-                    <button type="submit" class="btn btn-outline-dark w-100"><i class="bi bi-arrow-left-right"></i>
-                        Submit Swap Offer</button>
-                </form>
+                <!-- Swap Offer -->
+                <h5 class="fw-bold">Submit Swap Offer</h5>
+                <label for="swap_listing_id" class="form-label">Swap with my listing</label>
+                <select id="swap_listing_id" class="form-select mb-3">
+                    <option value="">Select an existing listing</option>
+                </select>
+
+                <label for="offer_message" class="form-label">Message</label>
+                <textarea id="offer_message" rows="3" class="form-control mb-3"
+                    placeholder="Can meet at LRC tomorrow?"></textarea>
+                <button id="submit-swap-btn" type="button" class="btn btn-outline-dark w-100">
+                    <i class="bi bi-arrow-left-right"></i> Submit Swap Offer
+                </button>
 
                 <button class="btn btn-outline-danger w-100 mt-3" data-bs-toggle="modal"
                     data-bs-target="#reportModal"><i class="bi bi-flag"></i> Report Listing</button>
@@ -171,46 +172,121 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
+    // ── Image slider ────────────────────────────────────────────────────────
     const images = document.querySelectorAll(".detail-slider-image");
     const prevBtn = document.querySelector(".detail-slider-left");
     const nextBtn = document.querySelector(".detail-slider-right");
     const counter = document.querySelector(".detail-current-image-number");
-
     let currentIndex = 0;
 
     function showImage(index) {
-        images.forEach(function (image) {
-            image.classList.remove("active");
-        });
-
+        images.forEach(function (img) { img.classList.remove("active"); });
         images[index].classList.add("active");
-
-        if (counter) {
-            counter.textContent = index + 1;
-        }
+        if (counter) counter.textContent = index + 1;
     }
 
     if (prevBtn) {
         prevBtn.addEventListener("click", function () {
-            currentIndex--;
-
-            if (currentIndex < 0) {
-                currentIndex = images.length - 1;
-            }
-
+            currentIndex = (currentIndex - 1 + images.length) % images.length;
+            showImage(currentIndex);
+        });
+    }
+    if (nextBtn) {
+        nextBtn.addEventListener("click", function () {
+            currentIndex = (currentIndex + 1) % images.length;
             showImage(currentIndex);
         });
     }
 
-    if (nextBtn) {
-        nextBtn.addEventListener("click", function () {
-            currentIndex++;
+    // ── Offer helpers ────────────────────────────────────────────────────────
+    const LISTING_ID = {{ listing.id }};
+    const feedback = document.getElementById("offer-feedback");
 
-            if (currentIndex >= images.length) {
-                currentIndex = 0;
+    function showFeedback(message, isError) {
+        feedback.textContent = message;
+        feedback.className = "alert mb-3 " + (isError ? "alert-danger" : "alert-success");
+        feedback.classList.remove("d-none");
+        feedback.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    async function postOffer(payload) {
+        const res = await fetch("/api/offers", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Something went wrong.");
+        return data;
+    }
+
+    // ── Cash offer ───────────────────────────────────────────────────────────
+    const cashBtn = document.getElementById("submit-cash-btn");
+    if (cashBtn) {
+        cashBtn.addEventListener("click", async function () {
+            const price = parseFloat(document.getElementById("cash_offer_amount").value);
+            if (isNaN(price) || price < 0) {
+                showFeedback("Please enter a valid cash amount.", true);
+                return;
             }
+            cashBtn.disabled = true;
+            try {
+                const data = await postOffer({
+                    listingId: LISTING_ID,
+                    offerType: "cash",
+                    proposedPrice: price,
+                });
+                showFeedback(data.message || "Cash offer submitted!", false);
+                document.getElementById("cash_offer_amount").value = "";
+            } catch (err) {
+                showFeedback(err.message, true);
+            } finally {
+                cashBtn.disabled = false;
+            }
+        });
+    }
 
-            showImage(currentIndex);
+    // ── Swap dropdown — populate from user's own listings ───────────────────
+    const swapSelect = document.getElementById("swap_listing_id");
+    if (swapSelect) {
+        fetch("/api/my-listings")
+            .then(function (r) { return r.json(); })
+            .then(function (listings) {
+                listings.forEach(function (l) {
+                    if (l.id === LISTING_ID) return;
+                    const opt = document.createElement("option");
+                    opt.value = l.id;
+                    opt.textContent = l.title;
+                    swapSelect.appendChild(opt);
+                });
+            })
+            .catch(function () {});
+    }
+
+    // ── Swap offer ───────────────────────────────────────────────────────────
+    const swapBtn = document.getElementById("submit-swap-btn");
+    if (swapBtn) {
+        swapBtn.addEventListener("click", async function () {
+            const swapId = parseInt(swapSelect.value, 10);
+            if (!swapId) {
+                showFeedback("Please select one of your listings to swap.", true);
+                return;
+            }
+            swapBtn.disabled = true;
+            try {
+                const data = await postOffer({
+                    listingId: LISTING_ID,
+                    offerType: "swap",
+                    swapListingId: swapId,
+                });
+                showFeedback(data.message || "Swap offer submitted!", false);
+                swapSelect.value = "";
+                document.getElementById("offer_message").value = "";
+            } catch (err) {
+                showFeedback(err.message, true);
+            } finally {
+                swapBtn.disabled = false;
+            }
         });
     }
 });
