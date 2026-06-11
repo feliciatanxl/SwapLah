@@ -3,6 +3,7 @@ import re
 
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
+import math
 
 from app.db import (
     get_all_listings,
@@ -107,6 +108,30 @@ def create_app():
 
     @app.route('/')
     def index():
+        page = request.args.get('page', 1, type=int)
+        per_page = 10
+
+        if page < 1:
+            page = 1
+
+        all_listings = get_all_listings()
+        total_listings = len(all_listings)
+        total_pages = math.ceil(total_listings / per_page) if total_listings > 0 else 1
+
+        if page > total_pages:
+            page = total_pages
+
+        start = (page - 1) * per_page
+        end = start + per_page
+        listings = all_listings[start:end]
+
+        return render_template(
+            'index.html',
+            listings=listings,
+            page=page,
+            total_pages=total_pages,
+            total_listings=total_listings
+        )
         """Render homepage with all listings."""
         listings = get_all_listings()
         return render_template('index.html', listings=listings)
@@ -121,8 +146,33 @@ def create_app():
                 listing=None,
                 error_message='This listing does not exist or is no longer available.'
             ), 404
-        return render_template('listing_detail.html', listing=listing, error_message=None)
 
+        return render_template(
+            'listing_detail.html',
+            listing=listing,
+            error_message=None
+        )
+    
+    @app.route('/listing/<int:listing_id>/edit')
+    def edit_listing(listing_id):
+        if 'user_id' not in session:
+            flash('Please log in to edit your listing.', 'danger')
+            return redirect(url_for('login'))
+        # return render_template('listing_detail.html', listing=listing, error_message=None)
+
+        listing = get_listing_by_id(listing_id)
+
+        if listing is None:
+            flash('This listing does not exist or is no longer available.', 'danger')
+            return redirect(url_for('index'))
+
+        if listing['seller_id'] != session['user_id']:
+            flash('You are not allowed to edit this listing.', 'danger')
+            return redirect(url_for('listing_detail', listing_id=listing_id))
+
+        return render_template('edit_listing.html', listing=listing)
+    
+    
     @app.route('/offers')
     def offers():
         """Render offers page."""
