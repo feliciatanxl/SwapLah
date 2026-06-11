@@ -312,6 +312,20 @@ def update_listing(listing_id, seller_id, title, description, price, category, c
     return dict(updated_listing), None
 
 
+## feature/update-account-details
+def get_user_by_id(user_id):
+    """Retrieve one user by ID using a parameterized query."""
+    conn = get_db_connection()
+    user = conn.execute(
+        "SELECT id, student_id, first_name, last_name, display_name, email, contact_number, role, status, created_at FROM users WHERE id = :user_id",
+        {"user_id": user_id},
+    ).fetchone()
+
+    conn.close()
+
+    return dict(updated_listing), None
+
+
 # ── Reporting (US1-US4) ───────────────────────────────────────────────────────
 
 REPORT_REASONS = [
@@ -335,56 +349,55 @@ def create_report(listing_id, reporter_id, reason, description):
     conn.commit()
     conn.close()
 
+    if user is None:
+        return None
 
-def get_all_reports():
-    """Return all reports with listing and reporter info."""
+    return dict(user)
+
+
+def update_user_account(user_id, first_name, last_name, display_name, contact_number, password_hash=None):
+    """Update editable account details only. Email and Student ID remain locked."""
     conn = get_db_connection()
-    rows = conn.execute(
-        """SELECT reports.id, reports.reason, reports.description,
-           reports.status, reports.created_at, reports.listing_id,
-           listings.title AS listing_title,
-           listings.is_deleted AS listing_is_deleted,
-           reports.reporter_id,
-           users.display_name AS reporter_name
-           FROM reports
-           LEFT JOIN listings ON reports.listing_id = listings.id
-           LEFT JOIN users ON reports.reporter_id = users.id
-           ORDER BY reports.created_at DESC"""
-    ).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
 
+    if password_hash:
+        conn.execute(
+            """
+            UPDATE users
+            SET first_name = :first_name,
+                last_name = :last_name,
+                display_name = :display_name,
+                contact_number = :contact_number,
+                password_hash = :password_hash
+            WHERE id = :user_id
+            """,
+            {
+                "first_name": first_name,
+                "last_name": last_name,
+                "display_name": display_name,
+                "contact_number": contact_number,
+                "password_hash": password_hash,
+                "user_id": user_id,
+            },
+        )
+    else:
+        conn.execute(
+            """
+            UPDATE users
+            SET first_name = :first_name,
+                last_name = :last_name,
+                display_name = :display_name,
+                contact_number = :contact_number
+            WHERE id = :user_id
+            """,
+            {
+                "first_name": first_name,
+                "last_name": last_name,
+                "display_name": display_name,
+                "contact_number": contact_number,
+                "user_id": user_id,
+            },
+        )
 
-def get_report_by_id(report_id):
-    """Return a single report by ID."""
-    conn = get_db_connection()
-    row = conn.execute(
-        "SELECT * FROM reports WHERE id = ?", (report_id,)
-    ).fetchone()
-    conn.close()
-    return dict(row) if row else None
-
-
-def soft_delete_listing(listing_id):
-    """Soft-delete a listing and mark its reports as Actioned."""
-    conn = get_db_connection()
-    conn.execute(
-        "UPDATE listings SET is_deleted = 1 WHERE id = ?", (listing_id,)
-    )
-    conn.execute(
-        "UPDATE reports SET status = 'Actioned' WHERE listing_id = ?",
-        (listing_id,)
-    )
-    conn.commit()
-    conn.close()
-
-
-def dismiss_report(report_id):
-    """Mark a report as Dismissed."""
-    conn = get_db_connection()
-    conn.execute(
-        "UPDATE reports SET status = 'Dismissed' WHERE id = ?", (report_id,)
-    )
     conn.commit()
     conn.close()
 
