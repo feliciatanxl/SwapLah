@@ -17,6 +17,7 @@ from app.db import (
 )
 from app.routes.listing import listings_bp
 from app.routes.offers import offers_bp
+from app.routes.reviews import reviews_bp
 
 
 def _handle_login():
@@ -277,5 +278,6 @@ def create_app():
 
     app.register_blueprint(listings_bp)
     app.register_blueprint(offers_bp)
+    app.register_blueprint(reviews_bp)
 
     return app

@@ -18,7 +18,7 @@ def get_db_connection():
 
 
 
-def init_db():
+def init_db():  
     """Create database tables if they do not exist."""
     conn = get_db_connection()
     conn.execute(
@@ -71,6 +71,22 @@ def init_db():
             FOREIGN KEY (swap_listing_id) REFERENCES listings (id)
         )
     """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS reviews (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        offer_id INTEGER NOT NULL,
+        reviewer_id INTEGER NOT NULL,
+        reviewee_id INTEGER NOT NULL,
+        rating INTEGER NOT NULL,
+        comment TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+        FOREIGN KEY (offer_id) REFERENCES offers(id),
+        FOREIGN KEY (reviewer_id) REFERENCES users(id),
+        FOREIGN KEY (reviewee_id) REFERENCES users(id)
+    )
+""")
 
     conn.commit()
     conn.close()
@@ -430,3 +446,60 @@ def create_offer(listing_id, buyer_id, offer_type, proposed_price=None, swap_lis
     offer = conn.execute("SELECT * FROM offers WHERE id = ?", (offer_id,)).fetchone()
     conn.close()
     return dict(offer)
+
+def get_offer_by_id(offer_id):
+    conn = get_db_connection()
+
+    offer = conn.execute(
+        "SELECT * FROM offers WHERE id = ?",
+        (offer_id,)
+    ).fetchone()
+
+    conn.close()
+
+    if offer is None:
+        return None
+
+    return dict(offer)
+
+def create_review(
+    offer_id,
+    reviewer_id,
+    reviewee_id,
+    rating,
+    comment
+):
+    conn = get_db_connection()
+
+    cursor = conn.execute(
+        """
+        INSERT INTO reviews (
+            offer_id,
+            reviewer_id,
+            reviewee_id,
+            rating,
+            comment
+        )
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (
+            offer_id,
+            reviewer_id,
+            reviewee_id,
+            rating,
+            comment
+        )
+    )
+
+    conn.commit()
+
+    review_id = cursor.lastrowid
+
+    review = conn.execute(
+        "SELECT * FROM reviews WHERE id = ?",
+        (review_id,)
+    ).fetchone()
+
+    conn.close()
+
+    return dict(review)
