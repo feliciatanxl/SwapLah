@@ -3,10 +3,10 @@
 ## Sprint 2, Version 1.0.0
 
 **Team:** Team 2 — SwapLah
-**Team members:** Felicia Tan, Charlisa Tan, Vivion, `<add other team members>`
+**Team members:** Felicia, Charlisa, Lucas, Lucio, Elijah
 **Date created:** 12 Jun 2026
 **Last updated:** 12 Jun 2026
-**GitLab project:** `<paste GitLab project URL here>`
+**GitLab project:** `https://gitlab.com/nyp-sg/pet/it2112/26s1/it2112-03/assignment/team_2/swaplah`
 
 ---
 
