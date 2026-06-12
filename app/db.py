@@ -238,7 +238,7 @@ def get_listing_by_id(listing_id):
         listing["image"] = listing["image_url"]
 
     return listing
- 
+
 def ensure_listing_status_column(conn):
     columns = conn.execute("PRAGMA table_info(listings)").fetchall()
     column_names = [column["name"] for column in columns]
