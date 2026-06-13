@@ -131,38 +131,28 @@ def _handle_update_error(error):
     return None
 
 
-@listings_bp.route("/api/listings", methods=["GET"])
-def api_get_active_listings():
-    """Return active listings with pagination."""
-    db = get_db_connection()
-
+def _get_page_args():
+    """Return sanitized pagination values from the request."""
     page = request.args.get("page", 1, type=int)
     per_page = 10
     page = max(page, 1)
     offset = (page - 1) * per_page
+    return page, per_page, offset
 
-    total_listings = db.execute(
-        """
-        SELECT COUNT(*) AS count
-        FROM listings
-        WHERE status = 'Active'
-        """
-    ).fetchone()["count"]
 
-    rows = db.execute(
+def _count_active_listings(db):
+    """Return the total number of active listings."""
+    row = db.execute("SELECT COUNT(*) AS count FROM listings WHERE status = 'Active'").fetchone()
+    return row["count"]
+
+
+def _fetch_active_listing_rows(db, per_page, offset):
+    """Return one page of active listings."""
+    return db.execute(
         """
-        SELECT
-            id,
-            seller_id,
-            title,
-            description,
-            price,
-            category,
-            item_condition AS condition,
-            image_url,
-            listing_date,
-            last_modified_timestamp,
-            status
+        SELECT id, seller_id, title, description, price, category,
+               item_condition AS condition, image_url, listing_date,
+               last_modified_timestamp, status
         FROM listings
         WHERE status = 'Active'
         ORDER BY listing_date DESC
@@ -171,35 +161,45 @@ def api_get_active_listings():
         (per_page, offset),
     ).fetchall()
 
-    listings = [
-        {
-            "id": row["id"],
-            "sellerId": row["seller_id"],
-            "title": row["title"],
-            "description": row["description"],
-            "price": row["price"],
-            "category": row["category"],
-            "condition": row["condition"],
-            "imageUrl": row["image_url"],
-            "listingDate": row["listing_date"],
-            "lastModifiedTimestamp": row["last_modified_timestamp"],
-            "status": row["status"],
-        }
-        for row in rows
-    ]
 
+def _active_listing_json(row):
+    """Convert one active listing row into API JSON format."""
+    return {
+        "id": row["id"],
+        "sellerId": row["seller_id"],
+        "title": row["title"],
+        "description": row["description"],
+        "price": row["price"],
+        "category": row["category"],
+        "condition": row["condition"],
+        "imageUrl": row["image_url"],
+        "listingDate": row["listing_date"],
+        "lastModifiedTimestamp": row["last_modified_timestamp"],
+        "status": row["status"],
+    }
+
+
+def _listing_page_payload(rows, page, per_page, total_listings):
+    """Build the paginated listings API response payload."""
     total_pages = math.ceil(total_listings / per_page) if total_listings > 0 else 1
-    db.close()
+    return {
+        "listings": [_active_listing_json(row) for row in rows],
+        "page": page,
+        "perPage": per_page,
+        "totalListings": total_listings,
+        "totalPages": total_pages,
+    }
 
-    return jsonify(
-        {
-            "listings": listings,
-            "page": page,
-            "perPage": per_page,
-            "totalListings": total_listings,
-            "totalPages": total_pages,
-        }
-    ), 200
+
+@listings_bp.route("/api/listings", methods=["GET"])
+def api_get_active_listings():
+    """Return active listings with pagination."""
+    page, per_page, offset = _get_page_args()
+    db = get_db_connection()
+    total_listings = _count_active_listings(db)
+    rows = _fetch_active_listing_rows(db, per_page, offset)
+    db.close()
+    return jsonify(_listing_page_payload(rows, page, per_page, total_listings)), 200
 
 
 @listings_bp.route("/api/listings", methods=["POST"])
