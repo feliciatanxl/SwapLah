@@ -87,7 +87,15 @@ def get_user_by_email(email):
     return user
 
 
-def create_listing(seller_id, title, description, price, category, condition, image_url):
+def create_listing(  # pylint: disable=too-many-positional-arguments
+    seller_id,
+    title,
+    description,
+    price,
+    category,
+    condition,
+    image_url,
+):
     """Insert a new listing and return it as a dict."""
     conn = get_db_connection()
 
@@ -240,6 +248,7 @@ def get_listing_by_id(listing_id):
     return listing
 
 def ensure_listing_status_column(conn):
+    """Add the listing status column if it does not already exist."""
     columns = conn.execute("PRAGMA table_info(listings)").fetchall()
     column_names = [column["name"] for column in columns]
 
@@ -249,7 +258,16 @@ def ensure_listing_status_column(conn):
         )
 
 ## update/edit listing
-def update_listing(listing_id, seller_id, title, description, price, category, condition, image_url):
+def update_listing(  # pylint: disable=too-many-positional-arguments
+    listing_id,
+    seller_id,
+    title,
+    description,
+    price,
+    category,
+    condition,
+    image_url,
+):
     """Update an active listing owned by the seller."""
     conn = get_db_connection()
 
@@ -321,9 +339,23 @@ def get_user_by_id(user_id):
     """Retrieve one user by ID using a parameterized query."""
     conn = get_db_connection()
     user = conn.execute(
-        "SELECT id, student_id, first_name, last_name, display_name, email, contact_number, role, status, created_at FROM users WHERE id = :user_id",
-        {"user_id": user_id},
-    ).fetchone()
+    """
+    SELECT
+        id,
+        student_id,
+        first_name,
+        last_name,
+        display_name,
+        email,
+        contact_number,
+        role,
+        status,
+        created_at
+    FROM users
+    WHERE id = :user_id
+    """,
+    {"user_id": user_id},
+).fetchone()
     conn.close()
 
     if user is None:
@@ -331,8 +363,14 @@ def get_user_by_id(user_id):
 
     return dict(user)
 
-
-def update_user_account(user_id, first_name, last_name, display_name, contact_number, password_hash=None):
+def update_user_account(  # pylint: disable=too-many-positional-arguments
+    user_id,
+    first_name,
+    last_name,
+    display_name,
+    contact_number,
+    password_hash=None,
+):
     """Update editable account details only. Email and Student ID remain locked."""
     conn = get_db_connection()
 
