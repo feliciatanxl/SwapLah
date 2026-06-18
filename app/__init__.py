@@ -167,6 +167,14 @@ def _get_logged_in_user_or_redirect(message):
 
     return user, None
 
+def _redirect_logged_out_user(message):
+    """Redirect logged-out users to the login page."""
+    if "user_id" not in session:
+        flash(message, "danger")
+        return redirect(url_for("login"))
+
+    return None
+
 def _is_public_endpoint(endpoint):
     """Return True if the endpoint can be accessed without login."""
     return endpoint is None or endpoint in PUBLIC_ENDPOINTS
@@ -409,17 +417,32 @@ def _register_simple_page_routes(app):
 
     @app.route("/offers")
     def offers():
-        """Render offers page."""
+        """Render offers page for logged-in users."""
+        redirect_response = _redirect_logged_out_user("Please log in to view your offers.")
+
+        if redirect_response:
+            return redirect_response
+
         return render_template("offers.html")
 
     @app.route("/history")
     def history():
-        """Render history page."""
+        """Render history page for logged-in users."""
+        redirect_response = _redirect_logged_out_user("Please log in to view your history.")
+
+        if redirect_response:
+            return redirect_response
+
         return render_template("history.html")
 
     @app.route("/sell")
     def sell():
-        """Render sell page."""
+        """Render sell page for logged-in users."""
+        redirect_response = _redirect_logged_out_user("Please log in to create a listing.")
+
+        if redirect_response:
+            return redirect_response
+
         return render_template("sell.html")
 
     @app.route("/admin")
