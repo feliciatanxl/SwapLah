@@ -37,6 +37,10 @@ PUBLIC_ENDPOINTS = {
     "listings.api_get_listing_detail",
 }
 
+def _is_suspended_user(user):
+    """Return True if the user account is suspended."""
+    return user["status"] == "Suspended"
+
 def _handle_login():
     """Process POST login form and return a redirect or re-rendered login page."""
     email = request.form.get("email", "").strip().lower()
@@ -52,7 +56,7 @@ def _handle_login():
         flash("Invalid email or password.", "danger")
         return render_template("login.html")
 
-    if user["status"] == "Suspended":
+    if _is_suspended_user(user):
         flash("Your account has been suspended. Please contact an administrator.", "danger")
         return render_template("login.html")
 
