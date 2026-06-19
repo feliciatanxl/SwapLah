@@ -6,7 +6,7 @@ from decimal import Decimal, InvalidOperation
 
 from flask import Blueprint, jsonify, request, session
 
-from app.db import create_listing, get_db_connection, get_listing_by_id, update_listing
+from app.db import ( create_listing, get_db_connection, get_listing_by_id, update_listing, soft_delete_listing)
 
 listings_bp = Blueprint("listings", __name__)
 
@@ -127,6 +127,16 @@ def _handle_update_error(error):
 
     if error == "forbidden":
         return _error("You are not allowed to edit this listing.", 403)
+
+    return None
+
+def _handle_delete_error(error):
+    """Return the correct response for listing delete errors."""
+    if error == "not_found":
+        return _error("Listing not found or has already been deleted.", 404)
+
+    if error == "forbidden":
+        return _error("You are not allowed to delete this listing.", 403)
 
     return None
 
@@ -297,5 +307,31 @@ def api_get_listing_detail(listing_id):
                     "contactNumber": listing["seller_contact_number"],
                 },
             }
+        }
+    ), 200
+
+
+@listings_bp.route("/api/listings/<int:listing_id>", methods=["DELETE"])
+def api_delete_listing(listing_id):
+    """Soft-delete a listing if the logged-in user is the owner."""
+    seller_id = session.get("user_id")
+
+    if not seller_id:
+        return _error("You must be logged in to delete a listing.", 401)
+
+    deleted_listing, error = soft_delete_listing(
+        listing_id=listing_id,
+        seller_id=seller_id,
+    )
+
+    delete_error = _handle_delete_error(error)
+
+    if delete_error:
+        return delete_error
+
+    return jsonify(
+        {
+            "message": "Listing deleted successfully.",
+            "listing": _updated_listing_response(deleted_listing),
         }
     ), 200
