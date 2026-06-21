@@ -116,10 +116,10 @@ def _create_user_account(form_data):
     return redirect(url_for("login"))
 
 
-def _paginate_listings(page, search="", per_page=10):
+def _paginate_listings(page, search="", category="", condition="", per_page=10):
     """Return paginated listings and page metadata."""
     page = max(page, 1)
-    all_listings = search_active_listings(search)
+    all_listings = search_active_listings(search, category, condition)
     total_listings = len(all_listings)
     total_pages = math.ceil(total_listings / per_page) if total_listings > 0 else 1
     page = min(page, total_pages)
@@ -213,7 +213,10 @@ def _register_main_routes(app):
         """Render homepage with paginated listings."""
         page = request.args.get("page", 1, type=int)
         search = request.args.get("search", "").strip()
-        pagination = _paginate_listings(page, search)
+        category = request.args.get("category", "").strip()
+        condition = request.args.get("condition", "").strip()
+
+        pagination = _paginate_listings(page, search, category, condition)
 
         return render_template(
             "index.html",
@@ -222,7 +225,10 @@ def _register_main_routes(app):
             total_pages=pagination["total_pages"],
             total_listings=pagination["total_listings"],
             search=search,
+            category=category,
+            condition=condition,
         )
+
     @app.route("/listing/<int:listing_id>")
     def listing_detail(listing_id):
         """Render listing detail page."""

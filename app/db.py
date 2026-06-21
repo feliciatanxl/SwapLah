@@ -347,38 +347,57 @@ def soft_delete_listing(listing_id, seller_id):
 
     return dict(deleted_listing), None
 
-def search_active_listings(keyword=""):
-    """Return active listings matching keyword in title or description."""
+def search_active_listings(keyword="", category="", condition=""):
+    """Return active listings matching search, category, and condition filters."""
     conn = get_db_connection()
     search = keyword.strip()
+    category = category.strip()
+    condition = condition.strip()
+
+    clauses = ["listings.status = 'Active'"]
+    params = []
 
     if search:
         pattern = f"%{search}%"
-        rows = conn.execute(
+        clauses.append(
             """
-            SELECT
-                listings.id,
-                listings.title,
-                listings.description,
-                listings.price,
-                listings.category,
-                listings.item_condition AS condition,
-                listings.image_url,
-                listings.listing_date,
-                users.display_name AS seller
-            FROM listings
-            LEFT JOIN users ON listings.seller_id = users.id
-            WHERE listings.status = 'Active'
-            AND (
+            (
                 LOWER(listings.title) LIKE LOWER(?)
                 OR LOWER(listings.description) LIKE LOWER(?)
             )
-            ORDER BY listings.listing_date DESC
-            """,
-            (pattern, pattern),
-        ).fetchall()
-    else:
-        rows = conn.execute(ACTIVE_LISTINGS_SQL).fetchall()
+            """
+        )
+        params.extend([pattern, pattern])
+
+    if category:
+        clauses.append("listings.category = ?")
+        params.append(category)
+
+    if condition:
+        clauses.append("listings.item_condition = ?")
+        params.append(condition)
+
+    where_clause = " AND ".join(clauses)
+
+    rows = conn.execute(
+        f"""
+        SELECT
+            listings.id,
+            listings.title,
+            listings.description,
+            listings.price,
+            listings.category,
+            listings.item_condition AS condition,
+            listings.image_url,
+            listings.listing_date,
+            users.display_name AS seller
+        FROM listings
+        LEFT JOIN users ON listings.seller_id = users.id
+        WHERE {where_clause}
+        ORDER BY listings.listing_date DESC
+        """,
+        params,
+    ).fetchall()
 
     conn.close()
     return [_attach_images(dict(row)) for row in rows]

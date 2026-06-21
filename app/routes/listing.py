@@ -149,65 +149,65 @@ def _get_page_args():
     offset = (page - 1) * per_page
     return page, per_page, offset
 
+def _build_listing_filters(search="", category="", condition=""):
+    """Return SQL WHERE clause and params for listing filters."""
+    clauses = ["status = 'Active'"]
+    params = []
 
-def _count_active_listings(db, search=""):
-    """Return the total number of active listings matching the search keyword."""
-    if not search:
-        row = db.execute(
-            "SELECT COUNT(*) AS count FROM listings WHERE status = 'Active'"
-        ).fetchone()
-        return row["count"]
+    if search:
+        keyword = f"%{search}%"
+        clauses.append(
+            """
+            (
+                LOWER(title) LIKE LOWER(?)
+                OR LOWER(description) LIKE LOWER(?)
+            )
+            """
+        )
+        params.extend([keyword, keyword])
 
-    keyword = f"%{search}%"
+    if category:
+        clauses.append("category = ?")
+        params.append(category)
+
+    if condition:
+        clauses.append("item_condition = ?")
+        params.append(condition)
+
+    return " AND ".join(clauses), params
+
+
+def _count_active_listings(db, search="", category="", condition=""):
+    """Return the total number of active listings matching filters."""
+    where_clause, params = _build_listing_filters(search, category, condition)
     row = db.execute(
-        """
+        f"""
         SELECT COUNT(*) AS count
         FROM listings
-        WHERE status = 'Active'
-        AND (
-            LOWER(title) LIKE LOWER(?)
-            OR LOWER(description) LIKE LOWER(?)
-        )
+        WHERE {where_clause}
         """,
-        (keyword, keyword),
+        params,
     ).fetchone()
     return row["count"]
 
 
-def _fetch_active_listing_rows(db, per_page, offset, search=""):
-    """Return one page of active listings matching the search keyword."""
-    if not search:
-        return db.execute(
-            """
-            SELECT id, seller_id, title, description, price, category,
-                   item_condition AS condition, image_url, listing_date,
-                   last_modified_timestamp, status
-            FROM listings
-            WHERE status = 'Active'
-            ORDER BY listing_date DESC
-            LIMIT ? OFFSET ?
-            """,
-            (per_page, offset),
-        ).fetchall()
+def _fetch_active_listing_rows(db, per_page, offset, search="", category="", condition=""):
+    """Return one page of active listings matching filters."""
+    where_clause, params = _build_listing_filters(search, category, condition)
+    params.extend([per_page, offset])
 
-    keyword = f"%{search}%"
     return db.execute(
-        """
+        f"""
         SELECT id, seller_id, title, description, price, category,
                item_condition AS condition, image_url, listing_date,
                last_modified_timestamp, status
         FROM listings
-        WHERE status = 'Active'
-        AND (
-            LOWER(title) LIKE LOWER(?)
-            OR LOWER(description) LIKE LOWER(?)
-        )
+        WHERE {where_clause}
         ORDER BY listing_date DESC
         LIMIT ? OFFSET ?
         """,
-        (keyword, keyword, per_page, offset),
+        params,
     ).fetchall()
-
 
 def _active_listing_json(row):
     """Convert one active listing row into API JSON format."""
@@ -240,13 +240,22 @@ def _listing_page_payload(rows, page, per_page, total_listings):
 
 @listings_bp.route("/api/listings", methods=["GET"])
 def api_get_active_listings():
-    """Return active listings with pagination and optional keyword search."""
+    """Return active listings with pagination, search, and filters."""
     page, per_page, offset = _get_page_args()
     search = request.args.get("search", "", type=str).strip()
+    category = request.args.get("category", "", type=str).strip()
+    condition = request.args.get("condition", "", type=str).strip()
 
     db = get_db_connection()
-    total_listings = _count_active_listings(db, search)
-    rows = _fetch_active_listing_rows(db, per_page, offset, search)
+    total_listings = _count_active_listings(db, search, category, condition)
+    rows = _fetch_active_listing_rows(
+        db,
+        per_page,
+        offset,
+        search,
+        category,
+        condition,
+    )
     db.close()
 
     return jsonify(_listing_page_payload(rows, page, per_page, total_listings)), 200
