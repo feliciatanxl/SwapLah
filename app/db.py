@@ -434,5 +434,4 @@ def create_offer(listing_id, buyer_id, offer_type, proposed_price=None, swap_lis
     conn.commit()
     offer = conn.execute("SELECT * FROM offers WHERE id = ?", (cursor.lastrowid,)).fetchone()
     conn.close()
-
     return dict(offer)

@@ -3,6 +3,7 @@
 import math
 import os
 import re
+import time
 
 from flask import Flask, flash, jsonify, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -20,6 +21,25 @@ from app.db import (
 from app.routes.listing import listings_bp
 from app.routes.offers import offers_bp
 
+SESSION_TIMEOUT_SECONDS = 30 * 60
+# SESSION_TIMEOUT_SECONDS = 10
+SESSION_TIMEOUT_MESSAGE = "Session expired due to inactivity. Please log in again."
+
+PUBLIC_ENDPOINTS = {
+    "index",
+    "listing_detail",
+    "login",
+    "register",
+    "forgot_password",
+    "logout",
+    "static",
+    "listings.api_get_active_listings",
+    "listings.api_get_listing_detail",
+}
+
+def _is_suspended_user(user):
+    """Return True if the user account is suspended."""
+    return user["status"] == "Suspended"
 
 def _handle_login():
     """Process POST login form and return a redirect or re-rendered login page."""
@@ -36,7 +56,7 @@ def _handle_login():
         flash("Invalid email or password.", "danger")
         return render_template("login.html")
 
-    if user["status"] == "Suspended":
+    if _is_suspended_user(user):
         flash("Your account has been suspended. Please contact an administrator.", "danger")
         return render_template("login.html")
 
@@ -44,6 +64,7 @@ def _handle_login():
     session["email"] = user["email"]
     session["display_name"] = user["display_name"]
     session["role"] = user["role"]
+    session["last_activity"] = time.time()
 
     flash("Logged in successfully.", "success")
     return redirect(url_for("profile"))
@@ -149,6 +170,56 @@ def _get_logged_in_user_or_redirect(message):
         return None, redirect(url_for("login"))
 
     return user, None
+
+def _redirect_logged_out_user(message):
+    """Redirect logged-out users to the login page."""
+    if "user_id" not in session:
+        flash(message, "danger")
+        return redirect(url_for("login"))
+
+    return None
+
+def _is_public_endpoint(endpoint):
+    """Return True if the endpoint can be accessed without login."""
+    return endpoint is None or endpoint in PUBLIC_ENDPOINTS
+
+
+def _has_session_expired(now):
+    """Return True if the logged-in session has been inactive for too long."""
+    last_activity = session.get("last_activity")
+
+    if last_activity is None:
+        return False
+
+    return now - float(last_activity) > SESSION_TIMEOUT_SECONDS
+
+
+def _check_session_timeout():
+    """Expire inactive sessions and redirect protected requests to login."""
+    if "user_id" not in session:
+        return None
+
+    now = time.time()
+
+    if _has_session_expired(now):
+        session.clear()
+        flash(SESSION_TIMEOUT_MESSAGE, "danger")
+
+        if not _is_public_endpoint(request.endpoint):
+            return redirect(url_for("login"))
+
+        return None
+
+    session["last_activity"] = now
+    return None
+
+
+def _register_session_timeout(app):
+    """Register session inactivity timeout check before each request."""
+
+    @app.before_request
+    def enforce_session_timeout():
+        return _check_session_timeout()
 
 
 def _get_profile_form_data():
@@ -350,17 +421,32 @@ def _register_simple_page_routes(app):
 
     @app.route("/offers")
     def offers():
-        """Render offers page."""
+        """Render offers page for logged-in users."""
+        redirect_response = _redirect_logged_out_user("Please log in to view your offers.")
+
+        if redirect_response:
+            return redirect_response
+
         return render_template("offers.html")
 
     @app.route("/history")
     def history():
-        """Render history page."""
+        """Render history page for logged-in users."""
+        redirect_response = _redirect_logged_out_user("Please log in to view your history.")
+
+        if redirect_response:
+            return redirect_response
+
         return render_template("history.html")
 
     @app.route("/sell")
     def sell():
-        """Render sell page."""
+        """Render sell page for logged-in users."""
+        redirect_response = _redirect_logged_out_user("Please log in to create a listing.")
+
+        if redirect_response:
+            return redirect_response
+
         return render_template("sell.html")
 
     @app.route("/admin")
@@ -380,6 +466,7 @@ def create_app():
     _register_profile_routes(app)
     _register_auth_routes(app)
     _register_simple_page_routes(app)
+    _register_session_timeout(app)
 
     app.register_blueprint(listings_bp)
     app.register_blueprint(offers_bp)
