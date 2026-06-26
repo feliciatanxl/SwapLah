@@ -150,14 +150,47 @@ def _get_page_args():
     return page, per_page, offset
 
 
-def _count_active_listings(db):
-    """Return the total number of active listings."""
-    row = db.execute("SELECT COUNT(*) AS count FROM listings WHERE status = 'Active'").fetchone()
+def _count_active_listings(db, search=""):
+    """Return the total number of active listings matching the search keyword."""
+    if not search:
+        row = db.execute(
+            "SELECT COUNT(*) AS count FROM listings WHERE status = 'Active'"
+        ).fetchone()
+        return row["count"]
+
+    keyword = f"%{search}%"
+    row = db.execute(
+        """
+        SELECT COUNT(*) AS count
+        FROM listings
+        WHERE status = 'Active'
+        AND (
+            LOWER(title) LIKE LOWER(?)
+            OR LOWER(description) LIKE LOWER(?)
+        )
+        """,
+        (keyword, keyword),
+    ).fetchone()
     return row["count"]
 
 
-def _fetch_active_listing_rows(db, per_page, offset):
-    """Return one page of active listings."""
+def _fetch_active_listing_rows(db, per_page, offset, search=""):
+    """Return one page of active listings matching the search keyword."""
+    if not search:
+        return db.execute(
+            """
+            SELECT id, seller_id, title, description, price, category,
+                   item_condition AS condition, image_url, listing_date,
+                   last_modified_timestamp, status
+            FROM listings
+            WHERE status = 'Active'
+            ORDER BY listing_date DESC
+            LIMIT ? OFFSET ?
+            """,
+            (per_page, offset),
+        ).fetchall()
+
+    keyword = f"%{search}%"
     return db.execute(
         """
         SELECT id, seller_id, title, description, price, category,
@@ -165,10 +198,14 @@ def _fetch_active_listing_rows(db, per_page, offset):
                last_modified_timestamp, status
         FROM listings
         WHERE status = 'Active'
+        AND (
+            LOWER(title) LIKE LOWER(?)
+            OR LOWER(description) LIKE LOWER(?)
+        )
         ORDER BY listing_date DESC
         LIMIT ? OFFSET ?
         """,
-        (per_page, offset),
+        (keyword, keyword, per_page, offset),
     ).fetchall()
 
 
@@ -203,12 +240,15 @@ def _listing_page_payload(rows, page, per_page, total_listings):
 
 @listings_bp.route("/api/listings", methods=["GET"])
 def api_get_active_listings():
-    """Return active listings with pagination."""
+    """Return active listings with pagination and optional keyword search."""
     page, per_page, offset = _get_page_args()
+    search = request.args.get("search", "", type=str).strip()
+
     db = get_db_connection()
-    total_listings = _count_active_listings(db)
-    rows = _fetch_active_listing_rows(db, per_page, offset)
+    total_listings = _count_active_listings(db, search)
+    rows = _fetch_active_listing_rows(db, per_page, offset, search)
     db.close()
+
     return jsonify(_listing_page_payload(rows, page, per_page, total_listings)), 200
 
 

@@ -9,7 +9,7 @@ from flask import Flask, flash, jsonify, redirect, render_template, request, ses
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.db import (
-    get_all_listings,
+    search_active_listings,
     get_db_connection,
     get_listing_by_id,
     get_listings_by_seller,
@@ -137,10 +137,10 @@ def _create_user_account(form_data):
     return redirect(url_for("login"))
 
 
-def _paginate_listings(page, per_page=10):
+def _paginate_listings(page, search="", per_page=10):
     """Return paginated listings and page metadata."""
     page = max(page, 1)
-    all_listings = get_all_listings()
+    all_listings = search_active_listings(search)
     total_listings = len(all_listings)
     total_pages = math.ceil(total_listings / per_page) if total_listings > 0 else 1
     page = min(page, total_pages)
@@ -283,7 +283,8 @@ def _register_main_routes(app):
     def index():
         """Render homepage with paginated listings."""
         page = request.args.get("page", 1, type=int)
-        pagination = _paginate_listings(page)
+        search = request.args.get("search", "").strip()
+        pagination = _paginate_listings(page, search)
 
         return render_template(
             "index.html",
@@ -291,8 +292,8 @@ def _register_main_routes(app):
             page=pagination["page"],
             total_pages=pagination["total_pages"],
             total_listings=pagination["total_listings"],
+            search=search,
         )
-
     @app.route("/listing/<int:listing_id>")
     def listing_detail(listing_id):
         """Render listing detail page."""
