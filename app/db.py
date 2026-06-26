@@ -115,6 +115,15 @@ AND seller_id = ?
 AND status = 'Active'
 """
 
+SOFT_DELETE_LISTING_SQL = """
+UPDATE listings
+SET status = 'Deleted',
+    last_modified_timestamp = ?
+WHERE id = ?
+AND seller_id = ?
+AND status = 'Active'
+"""
+
 GET_USER_BY_ID_SQL = """
 SELECT
     id,
@@ -314,6 +323,29 @@ def update_listing(  # pylint: disable=too-many-positional-arguments
     conn.close()
     return dict(updated_listing), None
 
+def soft_delete_listing(listing_id, seller_id):
+    """Soft-delete an active listing owned by the seller."""
+    conn = get_db_connection()
+    existing_listing = _fetch_listing(conn, listing_id)
+
+    if existing_listing is None:
+        conn.close()
+        return None, "not_found"
+
+    if existing_listing["status"] == "Deleted":
+        conn.close()
+        return None, "not_found"
+
+    if existing_listing["seller_id"] != seller_id:
+        conn.close()
+        return None, "forbidden"
+
+    conn.execute(SOFT_DELETE_LISTING_SQL, (_now(), listing_id, seller_id))
+    conn.commit()
+    deleted_listing = _fetch_listing(conn, listing_id)
+    conn.close()
+
+    return dict(deleted_listing), None
 
 def get_user_by_id(user_id):
     """Retrieve one user by ID using a parameterized query."""
@@ -376,9 +408,15 @@ def get_active_listing_by_buyer(listing_id, buyer_id):
     """Return the listing if it exists and belongs to buyer_id, else None."""
     conn = get_db_connection()
     row = conn.execute(
-        "SELECT * FROM listings WHERE id = ? AND seller_id = ?",
-        (listing_id, buyer_id),
-    ).fetchone()
+    """
+    SELECT *
+    FROM listings
+    WHERE id = ?
+    AND seller_id = ?
+    AND status = 'Active'
+    """,
+    (listing_id, buyer_id),
+).fetchone() ## prevents deleted listings from being used in swap/offer logic
     conn.close()
     return dict(row) if row else None
 
