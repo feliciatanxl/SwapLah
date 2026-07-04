@@ -1,8 +1,7 @@
 """Selenium UI test for cash offer submission flow."""
 
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as expected
-from selenium.webdriver.support.ui import WebDriverWait
+from tests.ui.selenium.pages.listing_detail_page import ListingDetailPage
+from tests.ui.selenium.pages.login_page import LoginPage
 
 
 def test_buyer_can_submit_cash_offer_end_to_end(
@@ -10,12 +9,8 @@ def test_buyer_can_submit_cash_offer_end_to_end(
     browser,
     seed_user,
     seed_listing,
-    login_as,
-    safe_click,
 ):
     """A buyer should submit a cash offer on another seller's listing."""
-    wait = WebDriverWait(browser, 10)
-
     seller = seed_user(
         email="seleniumofferseller@mymail.nyp.edu.sg",
         student_id="S44444441",
@@ -35,18 +30,9 @@ def test_buyer_can_submit_cash_offer_end_to_end(
         condition="Good",
     )
 
-    login_as(buyer["email"])
+    LoginPage(browser, live_server).open_login().login(buyer["email"])
 
-    browser.get(f"{live_server}/listing/{listing['id']}")
-
-    wait.until(lambda driver: "Selenium Offer Textbook" in driver.page_source)
-    wait.until(
-        expected.presence_of_element_located((By.ID, "cash_offer_amount"))
-    ).send_keys("18.50")
-
-    safe_click((By.ID, "submit-cash-btn"))
-
-    feedback = wait.until(
-        expected.presence_of_element_located((By.ID, "offer-feedback"))
-    )
-    wait.until(lambda driver: "Cash offer submitted successfully" in feedback.text)
+    listing_page = ListingDetailPage(browser, live_server)
+    listing_page.open_listing(listing["id"])
+    listing_page.assert_page_contains("Selenium Offer Textbook")
+    listing_page.submit_cash_offer("18.50").assert_cash_offer_success()

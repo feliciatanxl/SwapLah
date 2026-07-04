@@ -1,7 +1,7 @@
 """Selenium UI test for seller soft-delete listing flow."""
 
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.common.by import By
+from tests.ui.selenium.pages.listing_detail_page import ListingDetailPage
+from tests.ui.selenium.pages.login_page import LoginPage
 
 
 def test_seller_can_soft_delete_own_listing_end_to_end(
@@ -9,11 +9,8 @@ def test_seller_can_soft_delete_own_listing_end_to_end(
     browser,
     seed_user,
     seed_listing,
-    login_as,
 ):
     """A seller should soft-delete their own listing from the detail page."""
-    wait = WebDriverWait(browser, 10)
-
     seller = seed_user(
         email="seleniumdelete@mymail.nyp.edu.sg",
         student_id="S33333333",
@@ -28,17 +25,13 @@ def test_seller_can_soft_delete_own_listing_end_to_end(
         condition="Good",
     )
 
-    login_as(seller["email"])
+    LoginPage(browser, live_server).open_login().login(seller["email"])
 
-    browser.get(f"{live_server}/listing/{listing['id']}")
+    listing_page = ListingDetailPage(browser, live_server)
+    listing_page.open_listing(listing["id"])
+    listing_page.assert_page_contains("Selenium Soft Delete Listing")
+    listing_page.soft_delete_listing()
+    listing_page.assert_url_is(f"{live_server}/")
 
-    wait.until(lambda driver: "Selenium Soft Delete Listing" in driver.page_source)
-
-    confirm_delete = browser.find_element(By.ID, "confirm-delete-btn")
-    browser.execute_script("arguments[0].click();", confirm_delete)
-
-    wait.until(lambda driver: driver.current_url == f"{live_server}/")
-
-    browser.get(f"{live_server}/listing/{listing['id']}")
-
-    wait.until(lambda driver: "does not exist or is no longer available" in driver.page_source)
+    listing_page.open_listing(listing["id"])
+    listing_page.assert_page_contains("does not exist or is no longer available")

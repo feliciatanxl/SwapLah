@@ -1,8 +1,9 @@
 """Shared Selenium UI test fixtures and helpers."""
+# pylint: disable=redefined-outer-name,too-many-arguments,too-many-positional-arguments
 
 import os
 import threading
-
+import base64
 import pytest
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -187,3 +188,14 @@ def safe_click(browser):
         return element
 
     return _safe_click
+
+@pytest.fixture()
+def listing_image(tmp_path):
+    """Create a small PNG file for Selenium listing image upload."""
+    image_bytes = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8"
+        "/x8AAwMB/6X7pfsAAAAASUVORK5CYII="
+    )
+    image_path = tmp_path / "listing-test-image.png"
+    image_path.write_bytes(image_bytes)
+    return image_path
