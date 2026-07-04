@@ -27,3 +27,10 @@ class LoginPage(BasePage):
     def assert_login_page_opened(self):
         """Assert that the browser is on the login page."""
         return self.assert_url_contains("/login")
+
+    def attempt_login(self, email, password="Password123"):
+        """Submit login form without expecting successful redirect."""
+        self.enter_text(self.EMAIL, email)
+        self.enter_text(self.PASSWORD, password)
+        self.click(self.SUBMIT)
+        return self
