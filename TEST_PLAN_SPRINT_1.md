@@ -51,8 +51,8 @@ This Sprint adds and verifies the following features:
 | Performance testing             | Not required for Sprint 1 and not part of Assignment 1 scope                                |
 | Load testing                    | SwapLah is a student project and does not require traffic simulation for Sprint 1           |
 | Security penetration testing    | GitLab SAST and secret detection are used instead                                           |
-| Full Sprint 2 item listing test suite | Detailed item listing coverage is handled in Sprint 2; this Sprint 1 plan includes Selenium regression coverage for core listing creation and soft-delete flows |
-| Full offers and transactions test suite | Detailed offers and transactions coverage is handled outside Sprint 1; this plan includes one Selenium regression flow for cash offer submission |
+| Full item listing feature test suite | Detailed item listing coverage is handled in the item-listing test plan; this Sprint 1 plan only includes these as regression / assignment-wide UI evidence |
+| Full offers and transactions test suite | Detailed offers and transactions coverage is handled outside Sprint 1; this plan only includes one Selenium regression flow as assignment-wide UI evidence |
 | Review and rating testing       | Reviews are not part of Sprint 1 scope                                                      |
 | Full cross-browser matrix testing | Selenium tests run in headless Chrome only; Edge/Firefox matrix testing is outside Sprint 1 scope |
 
@@ -126,8 +126,8 @@ This Sprint adds and verifies the following features:
 | Selenium profile update flow   | #16         |     Medium |             1 | High     |
 | Selenium suspended login flow  | #19         |     Medium |             1 | High     |
 | Selenium session timeout flow  | #17         |     Medium |             1 | High     |
-| Selenium listing creation flow | Sprint 2 / Regression | Medium | 1 | High |
-| Selenium search/filter flow    | Sprint 2 / Regression | Medium | 1 | Medium |
+| Selenium listing creation flow | Core marketplace regression | Medium | 1 | High |
+| Selenium search/filter flow    | Core marketplace regression | Medium | 1 | Medium |
 | Selenium offer submission flow | Regression | Medium | 1 | Medium |
 | Selenium soft-delete flow      | Regression | Medium | 1 | Medium |
 
