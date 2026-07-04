@@ -5,7 +5,7 @@
 **Team:** Team 2 — SwapLah
 **Team members:** Felicia, Charlisa, Lucas, Lucio, Elijah
 **Date created:** 12 Jun 2026
-**Last updated:** 12 Jun 2026
+**Last updated:** 4 Jul 2026
 **GitLab project:** `https://gitlab.com/nyp-sg/pet/it2112/26s1/it2112-03/assignment/team_2/swaplah`
 
 ---
@@ -39,6 +39,8 @@ This Sprint adds and verifies the following features:
 * Cyclomatic complexity checking using radon
 * Test coverage checking using pytest-cov
 * Manual browser testing for Sprint 1 acceptance criteria
+* Selenium headless browser tests for Sprint 1 and core marketplace user flows
+* Page Object Model structure for Selenium UI tests under `tests/ui/selenium/pages/`
 * GitLab CI/CD pipeline verification
 * GitLab Test Cases linked to related Sprint 1 PBIs
 
@@ -49,10 +51,10 @@ This Sprint adds and verifies the following features:
 | Performance testing             | Not required for Sprint 1 and not part of Assignment 1 scope                                |
 | Load testing                    | SwapLah is a student project and does not require traffic simulation for Sprint 1           |
 | Security penetration testing    | GitLab SAST and secret detection are used instead                                           |
-| Item listing end-to-end flow    | Item listing features are handled in Sprint 2                                               |
-| Offers and transactions testing | Offers are outside Sprint 1 account management scope                                        |
+| Full Sprint 2 item listing test suite | Detailed item listing coverage is handled in Sprint 2; this Sprint 1 plan includes Selenium regression coverage for core listing creation and soft-delete flows |
+| Full offers and transactions test suite | Detailed offers and transactions coverage is handled outside Sprint 1; this plan includes one Selenium regression flow for cash offer submission |
 | Review and rating testing       | Reviews are not part of Sprint 1 scope                                                      |
-| Full cross-browser automation   | Manual browser checks may be done, but full browser automation is out of scope for Sprint 1 |
+| Full cross-browser matrix testing | Selenium tests run in headless Chrome only; Edge/Firefox matrix testing is outside Sprint 1 scope |
 
 ---
 
@@ -64,7 +66,8 @@ This Sprint adds and verifies the following features:
 | ----------------- | ------------------------: | -------------------------- | -------------- |
 | Unit tests        |                     10–15 | pytest                     | test           |
 | API / Route tests |                     10–15 | pytest + Flask test client | test           |
-| UI smoke tests    |                       1–2 | pytest / Flask test client | test           |
+| UI tests          |                        11 | pytest + Flask test client + Selenium headless Chrome | test |
+| Selenium E2E tests |                        9 | Selenium WebDriver + Page Object Model | test |
 | Static analysis   |           All `.py` files | pylint >= 7.0              | lint           |
 | Complexity check  | All application functions | radon                      | lint           |
 | Coverage check    |         Application logic | pytest-cov                 | test           |
@@ -85,17 +88,20 @@ This Sprint adds and verifies the following features:
 
 ### Dynamic Testing
 
-* **Tool:** pytest + pytest-cov
+* **Tool:** pytest + pytest-cov + Selenium WebDriver
 * **Minimum coverage required:** >= 60% application logic coverage
 * **Team target coverage:** >= 70% where possible
-* **Test design:** White-box testing for unit tests and black-box testing for route/API tests
+* **UI automation target:** >= 5 Selenium UI scripts running in a headless browser
+* **Current UI automation evidence:** 9 Selenium E2E tests and 11 total UI tests
+* **Test design:** White-box testing for unit tests, black-box testing for route/API tests, and browser-based end-to-end testing for UI flows
 * **Stage:** test
 
 ### Acceptance Testing
 
-* **Method:** Sprint Review demonstration and manual browser testing
+* **Method:** Sprint Review demonstration, manual browser testing, and Selenium headless browser testing
 * **Assessor:** Tutor / Product Owner / Team reviewer
 * **Criteria:** Acceptance Criteria for each Sprint 1 user story must be verified
+* **Selenium coverage:** Registration, login/logout, protected page access, profile update, session timeout, suspended login rejection, listing creation, listing search/filter clearing, offer submission, and soft-delete listing flows
 
 ---
 
@@ -115,6 +121,15 @@ This Sprint adds and verifies the following features:
 | `/logout`                      | #2          |        Low |             1 | Medium   |
 | Session timeout logic          | #17         |     Medium |             2 | High     |
 | Protected route access control | #18         |     Medium |             4 | High     |
+| Selenium registration flow     | #1          |     Medium |             1 | High     |
+| Selenium login/logout flow     | #2, #3, #18 |     Medium |             1 | High     |
+| Selenium profile update flow   | #16         |     Medium |             1 | High     |
+| Selenium suspended login flow  | #19         |     Medium |             1 | High     |
+| Selenium session timeout flow  | #17         |     Medium |             1 | High     |
+| Selenium listing creation flow | Sprint 2 / Regression | Medium | 1 | High |
+| Selenium search/filter flow    | Sprint 2 / Regression | Medium | 1 | Medium |
+| Selenium offer submission flow | Regression | Medium | 1 | Medium |
+| Selenium soft-delete flow      | Regression | Medium | 1 | Medium |
 
 ---
 
@@ -129,7 +144,7 @@ This Sprint adds and verifies the following features:
 * **Complexity analysis:** radon
 * **CI/CD platform:** GitLab CI/CD
 * **Dependencies:** installed from `requirements.txt`
-* **Browser:** Chrome / Edge / Firefox
+* **Browser:** Chrome / Edge / Firefox for manual checks; headless Chrome / Chromium for Selenium CI tests
 
 ### Test Isolation Rule
 
@@ -147,6 +162,7 @@ Testing can begin when:
 * Merge Request is created.
 * No Python syntax errors exist.
 * Required test files are added under `tests/unit`, `tests/api`, or `tests/ui`.
+* Selenium page object classes are added under `tests/ui/selenium/pages/` when UI flows are automated.
 * Feature acceptance criteria are written in the related GitLab issue.
 * Related issue has Sprint 1 milestone, labels, priority, and story points.
 * pylint validate stage passes with score >= 7.0.
@@ -157,11 +173,11 @@ Sprint 1 verification is complete when:
 
 * [ ] All unit tests pass with 0 failures.
 * [ ] All API / route tests pass with 0 failures.
-* [ ] UI smoke tests pass.
+* [ ] UI smoke tests and Selenium headless browser tests pass.
 * [ ] Test coverage is at least 60%.
 * [ ] pylint score is at least 7.0/10.
 * [ ] radon complexity check shows function complexity does not exceed 10.
-* [ ] GitLab pipeline is green on the Merge Request.
+* [ ] GitLab pipeline is green on the Merge Request, including `ui_testing_job`.
 * [ ] No generated files such as `.env`, `.coverage`, `.venv`, `__pycache__`, or `swaplah.db` are committed.
 
 ### Exit Criteria — Validation
@@ -188,8 +204,8 @@ Sprint 1 validation is complete when:
 | TC-S1-LOGIN-002   | Login           | #2          | Reject wrong password                         | Negative            | Registered user exists                             | 1. Open `/login` 2. Enter valid email but wrong password 3. Submit form                                                                                     | Login fails and invalid email or password message is shown                                          | Pass              |
 | TC-S1-LOGIN-003   | Login           | #2          | Reject missing credentials                    | Negative            | User is on login page                              | 1. Open `/login` 2. Submit form with missing email or password                                                                                              | Login fails and required credentials message is shown                                               | Pass              |
 | TC-S1-LOGIN-004   | Login           | #2          | Create correct session after successful login | Positive            | Registered active user exists                      | 1. Login with valid credentials 2. Check session data                                                                                                       | Session contains user ID, email, display name, and role                                             | Pass              |
-| TC-S1-SUSP-001    | Suspended Login | #19         | Block suspended user from logging in          | Negative / Security | Suspended user account exists                      | 1. Open `/login` 2. Enter suspended user credentials 3. Submit form                                                                                         | Login is blocked and suspended account message is shown                                             | Pending / Not Run |
-| TC-S1-SUSP-002    | Suspended Login | #19         | Allow active user to log in                   | Positive            | Active registered user exists                      | 1. Open `/login` 2. Enter active user credentials 3. Submit form                                                                                            | Active user logs in successfully                                                                    | Pending / Not Run |
+| TC-S1-SUSP-001    | Suspended Login | #19         | Block suspended user from logging in          | Negative / Security | Suspended user account exists                      | 1. Open `/login` 2. Enter suspended user credentials 3. Submit form                                                                                         | Login is blocked and suspended account message is shown                                             | Pass |
+| TC-S1-SUSP-002    | Suspended Login | #19         | Allow active user to log in                   | Positive            | Active registered user exists                      | 1. Open `/login` 2. Enter active user credentials 3. Submit form                                                                                            | Active user logs in successfully                                                                    | Pass |
 | TC-S1-PROF-001    | Profile         | #3          | View account details when logged in           | Positive            | User is logged in                                  | 1. Login 2. Open `/profile`                                                                                                                                 | Student ID, First Name, Last Name, Display Name, Email, and Contact Number are displayed            | Pass              |
 | TC-S1-PROF-002    | Profile         | #3, #18     | Redirect logged-out user from profile         | Negative            | User is not logged in                              | 1. Clear session or log out 2. Open `/profile` directly                                                                                                     | User is redirected to login page with an access message                                             | Pass              |
 | TC-S1-PROF-003    | Profile         | #3          | Invalid session redirects to login            | Negative            | Session contains invalid user ID                   | 1. Manually set invalid user ID in session 2. Open `/profile`                                                                                               | Session is cleared and user is asked to log in again                                                | Pass              |
@@ -200,21 +216,50 @@ Sprint 1 validation is complete when:
 | TC-S1-UPD-005     | Update Profile  | #16         | Update password successfully                  | Positive            | User is logged in                                  | 1. Open `/profile/edit` 2. Enter matching new password and confirm password 3. Submit form 4. Log out and log in with new password                          | Password is updated securely and user can log in using the new password                             | Pass              |
 | TC-S1-AUTH-001    | Protected Pages | #18         | Block logged-out user from profile page       | Negative / Security | User is logged out                                 | 1. Open `/profile` directly                                                                                                                                 | User is redirected to login page                                                                    | Pass              |
 | TC-S1-AUTH-002    | Protected Pages | #18         | Block logged-out user from edit profile page  | Negative / Security | User is logged out                                 | 1. Open `/profile/edit` directly                                                                                                                            | User is redirected to login page                                                                    | Pass              |
-| TC-S1-AUTH-003    | Protected Pages | #18         | Block logged-out user from sell page          | Negative / Security | User is logged out                                 | 1. Open `/sell` directly                                                                                                                                    | User is redirected to login page or access is blocked                                               | Pending / Not Run |
-| TC-S1-AUTH-004    | Protected Pages | #18         | Block logged-out user from offers page        | Negative / Security | User is logged out                                 | 1. Open `/offers` directly                                                                                                                                  | User is redirected to login page or access is blocked                                               | Pending / Not Run |
-| TC-S1-SESSION-001 | Session Timeout | #17         | Auto logout after 30 minutes of inactivity    | Negative / Security | User is logged in and session timeout logic exists | 1. Login 2. Simulate last activity older than 30 minutes 3. Open protected page                                                                             | Session expires, user is logged out, and user is redirected to login page                           | Pending / Not Run |
-| TC-S1-SESSION-002 | Session Timeout | #17         | Keep active session before 30 minutes         | Positive            | User is logged in and session is still active      | 1. Login 2. Access protected page before 30 minutes of inactivity                                                                                           | User remains logged in and can access protected page                                                | Pending / Not Run |
+| TC-S1-AUTH-003    | Protected Pages | #18         | Block logged-out user from sell page          | Negative / Security | User is logged out                                 | 1. Open `/sell` directly                                                                                                                                    | User is redirected to login page or access is blocked                                               | Pass |
+| TC-S1-AUTH-004    | Protected Pages | #18         | Block logged-out user from offers page        | Negative / Security | User is logged out                                 | 1. Open `/offers` directly                                                                                                                                  | User is redirected to login page or access is blocked                                               | Pass |
+| TC-S1-SESSION-001 | Session Timeout | #17         | Auto logout after 30 minutes of inactivity    | Negative / Security | User is logged in and session timeout logic exists | 1. Login 2. Simulate last activity older than 30 minutes 3. Open protected page                                                                             | Session expires, user is logged out, and user is redirected to login page                           | Pass |
+| TC-S1-SESSION-002 | Session Timeout | #17         | Keep active session before 30 minutes         | Positive            | User is logged in and session is still active      | 1. Login 2. Access protected page before 30 minutes of inactivity                                                                                           | User remains logged in and can access protected page                                                | Pass |
 | TC-S1-LOGOUT-001  | Logout          | #2          | User logs out successfully                    | Positive            | User is logged in                                  | 1. Click logout or open `/logout` 2. Try to access profile again                                                                                            | Session is cleared and user is redirected to login page                                             | Pass              |
 
 ---
 
-## 8. Regression Testing
+## 8. Selenium UI Test Cases
+
+The Selenium UI tests are stored under `tests/ui/selenium/` and use the Page Object Model pattern with page classes stored under `tests/ui/selenium/pages/`. These tests run in headless Chrome / Chromium through the GitLab `ui_testing_job`.
+
+| Test ID          | Test Script                                      | Related Area                 | Complete User Flow Covered                                      | Expected Result                                      | Status |
+| ---------------- | ------------------------------------------------ | ---------------------------- | --------------------------------------------------------------- | ---------------------------------------------------- | ------ |
+| TC-UI-SEL-001    | `test_registration_selenium.py`                  | Registration / #1            | User opens register page, enters valid NYP account details, and submits registration | User is redirected to login page with success message | Pass   |
+| TC-UI-SEL-002    | `test_login_logout_selenium.py`                  | Login, Profile, Protected Access / #2, #3, #18 | User logs in, views profile, logs out, and attempts protected access again | User can view profile when logged in and is redirected after logout | Pass |
+| TC-UI-SEL-003    | `test_profile_update_selenium.py`                | Profile Update / #16         | Logged-in user edits display name and contact number through the browser | Updated details are saved and shown on profile page | Pass |
+| TC-UI-SEL-004    | `test_session_timeout_selenium.py`               | Session Timeout / #17        | Expired browser session is simulated and a protected page is opened | Session expires and user is redirected to login page | Pass |
+| TC-UI-SEL-005    | `test_suspended_login_selenium.py`               | Suspended Login / #19        | Suspended user attempts to log in with valid credentials | Login is blocked and suspended account message appears | Pass |
+| TC-UI-SEL-006    | `test_listing_creation_selenium.py`              | Listing Creation Regression  | Seller logs in, opens Sell page, fills listing form, uploads image, and submits | Listing is created and displayed on homepage | Pass |
+| TC-UI-SEL-007    | `test_listing_search_filter_selenium.py`         | Search / Filter Regression   | Buyer searches listings, applies category and condition filters, and clears filters individually | Matching listing remains visible and cleared filters update URL correctly | Pass |
+| TC-UI-SEL-008    | `test_offer_submission_selenium.py`              | Offer Submission Regression  | Buyer logs in, opens another user's listing, and submits a cash offer | Cash offer success message is displayed | Pass |
+| TC-UI-SEL-009    | `test_soft_delete_listing_selenium.py`           | Soft Delete Regression       | Seller logs in, opens own listing, soft-deletes it, and reopens the detail page | Listing is hidden / unavailable after soft delete | Pass |
+
+### Selenium Page Object Model Structure
+
+| Page Object File | Purpose |
+| ---------------- | ------- |
+| `base_page.py` | Shared waiting, element finding, text entry, clicking, and assertion helpers |
+| `login_page.py` | Login form actions and login page assertions |
+| `register_page.py` | Registration form actions and registration success assertion |
+| `profile_page.py` | Profile, edit profile, and logout actions |
+| `home_page.py` | Homepage search, filter, and clear filter actions |
+| `sell_page.py` | Listing creation form actions |
+| `listing_detail_page.py` | Listing detail actions including cash offer and soft delete |
+
+
+## 9. Regression Testing
 
 Before merging any Sprint 1 Merge Request, the following regression checks must pass:
 
 | Regression Area             | Command / Method                                            | Expected Result                                    |
 | --------------------------- | ----------------------------------------------------------- | -------------------------------------------------- |
-| Full automated test suite   | `python -m pytest`                                          | All tests pass                                     |
+| Full automated test suite   | `python -m pytest -q`                                       | All tests pass                                     |
 | Unit coverage               | `python -m pytest tests/unit --cov=app --cov-fail-under=60` | Coverage is at least 60%                           |
 | Linting                     | `python -m pylint app/ --fail-under=7.0`                    | Score is at least 7.0                              |
 | Complexity                  | `python -m radon cc app/ -s`                                | No function exceeds complexity 10                  |
@@ -224,10 +269,12 @@ Before merging any Sprint 1 Merge Request, the following regression checks must 
 | Manual profile flow         | Browser test                                                | Logged-in user can view and update account details |
 | Manual protected page flow  | Browser test                                                | Logged-out user cannot access protected pages      |
 | Manual session timeout flow | Browser test / simulated test                               | Inactive session expires after 30 minutes          |
+| Selenium UI suite           | `python -m pytest tests/ui/selenium`                        | 9 Selenium tests pass in headless browser          |
+| All UI tests                | `python -m pytest tests/ui`                                 | 11 UI tests pass                                   |
 
 ---
 
-## 9. Risks
+## 10. Risks
 
 | Risk                                                | Probability | Impact | Mitigation                                                           |
 | --------------------------------------------------- | ----------- | ------ | -------------------------------------------------------------------- |
@@ -244,7 +291,7 @@ Before merging any Sprint 1 Merge Request, the following regression checks must 
 
 ---
 
-## 10. Related Links
+## 11. Related Links
 
 * [Sprint board](/-/boards)
 * [CI/CD pipelines](/-/pipelines)
@@ -257,7 +304,7 @@ Before merging any Sprint 1 Merge Request, the following regression checks must 
 
 ---
 
-## 11. Sprint 1 Definition of Done
+## 12. Sprint 1 Definition of Done
 
 ### Verification
 
@@ -265,9 +312,9 @@ Before merging any Sprint 1 Merge Request, the following regression checks must 
 * [ ] Cyclomatic complexity per function does not exceed 10.
 * [ ] All unit tests pass.
 * [ ] All API / route tests pass.
-* [ ] UI smoke tests pass.
+* [ ] UI smoke tests and Selenium headless browser tests pass.
 * [ ] Test coverage is at least 60%.
-* [ ] Pipeline is green on the Merge Request.
+* [ ] Pipeline is green on the Merge Request, including lint, unit, API, UI/Selenium, and security jobs.
 
 ### Validation
 
@@ -278,7 +325,7 @@ Before merging any Sprint 1 Merge Request, the following regression checks must 
 
 ---
 
-## 12. AI Prompt and Refinement Evidence
+## 13. AI Prompt and Refinement Evidence
 
 ### AI Prompt Used
 
@@ -287,3 +334,5 @@ Before merging any Sprint 1 Merge Request, the following regression checks must 
 ### Refinement Made
 
 The AI-generated test plan was reviewed and refined to match the actual Sprint 1 GitLab issues used by the SwapLah team: #1, #2, #3, #16, #17, #18, and #19. The test cases were adjusted to match the team’s acceptance criteria and implementation status. Test cases that were already implemented were marked as Pass, while incomplete Sprint 1 items were marked as Pending / Not Run to avoid overstating the project progress. The coverage threshold was also adjusted to 60% to match the Assignment 1 requirement, while keeping 70% as a team target where possible.
+The test plan was later updated after Selenium UI automation was added. The UI testing scope was expanded from simple Flask smoke tests to include 9 Selenium end-to-end tests running in a headless browser. The Selenium tests were also refactored using the Page Object Model pattern, where shared locators and page actions are stored under `tests/ui/selenium/pages/`. This update was made to align the test plan with the actual repository evidence and the final UI testing rubric requirement for multiple headless browser user-flow tests.
+
