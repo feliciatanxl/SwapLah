@@ -68,8 +68,12 @@ ui_testing_job:
   stage: test
   extends: .python_setup
   script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends chromium chromium-driver
     - mkdir -p reports
-    - echo "Running UI tests."
+    - export CHROME_BIN=/usr/bin/chromium
+    - export CHROMEDRIVER_PATH=/usr/bin/chromedriver
+    - echo "Running Selenium UI tests."
     - python -m pytest tests/ui/ --junitxml=reports/ui-tests.xml
   artifacts:
     when: always
