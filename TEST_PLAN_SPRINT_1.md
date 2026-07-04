@@ -39,8 +39,8 @@ This Sprint adds and verifies the following features:
 * Cyclomatic complexity checking using radon
 * Test coverage checking using pytest-cov
 * Manual browser testing for Sprint 1 acceptance criteria
-* Selenium headless browser tests for Sprint 1 and core marketplace user flows
-* Page Object Model structure for Selenium UI tests under `tests/ui/selenium/pages/`
+* Selenium headless browser tests for Sprint 1 authentication and account-management flows
+* Page Object Model structure for Sprint 1 Selenium UI tests under `tests/ui/selenium/pages/`
 * GitLab CI/CD pipeline verification
 * GitLab Test Cases linked to related Sprint 1 PBIs
 
@@ -51,8 +51,8 @@ This Sprint adds and verifies the following features:
 | Performance testing             | Not required for Sprint 1 and not part of Assignment 1 scope                                |
 | Load testing                    | SwapLah is a student project and does not require traffic simulation for Sprint 1           |
 | Security penetration testing    | GitLab SAST and secret detection are used instead                                           |
-| Full item listing feature test suite | Detailed item listing coverage is handled in the item-listing test plan; this Sprint 1 plan only includes these as regression / assignment-wide UI evidence |
-| Full offers and transactions test suite | Detailed offers and transactions coverage is handled outside Sprint 1; this plan only includes one Selenium regression flow as assignment-wide UI evidence |
+| Item listing end-to-end flow    | Item listing features are handled outside the Sprint 1 account-management scope             |
+| Offers and transactions testing | Offers are outside Sprint 1 account management scope                                        |
 | Review and rating testing       | Reviews are not part of Sprint 1 scope                                                      |
 | Full cross-browser matrix testing | Selenium tests run in headless Chrome only; Edge/Firefox matrix testing is outside Sprint 1 scope |
 
@@ -66,8 +66,8 @@ This Sprint adds and verifies the following features:
 | ----------------- | ------------------------: | -------------------------- | -------------- |
 | Unit tests        |                     10–15 | pytest                     | test           |
 | API / Route tests |                     10–15 | pytest + Flask test client | test           |
-| UI tests          |                        11 | pytest + Flask test client + Selenium headless Chrome | test |
-| Selenium E2E tests |                        9 | Selenium WebDriver + Page Object Model | test |
+| UI smoke tests    |                       1–2 | pytest / Flask test client | test           |
+| Sprint 1 Selenium E2E tests |              5 | Selenium WebDriver + Page Object Model + headless Chrome | test |
 | Static analysis   |           All `.py` files | pylint >= 7.0              | lint           |
 | Complexity check  | All application functions | radon                      | lint           |
 | Coverage check    |         Application logic | pytest-cov                 | test           |
@@ -91,9 +91,9 @@ This Sprint adds and verifies the following features:
 * **Tool:** pytest + pytest-cov + Selenium WebDriver
 * **Minimum coverage required:** >= 60% application logic coverage
 * **Team target coverage:** >= 70% where possible
-* **UI automation target:** >= 5 Selenium UI scripts running in a headless browser
-* **Current UI automation evidence:** 9 Selenium E2E tests and 11 total UI tests
-* **Test design:** White-box testing for unit tests, black-box testing for route/API tests, and browser-based end-to-end testing for UI flows
+* **Sprint 1 UI automation target:** >= 5 Selenium UI scripts running in a headless browser
+* **Sprint 1 Selenium evidence:** 5 Selenium E2E tests for registration, login/logout/protected access, profile update, session timeout, and suspended login rejection
+* **Test design:** White-box testing for unit tests, black-box testing for route/API tests, and browser-based end-to-end testing for Sprint 1 UI flows
 * **Stage:** test
 
 ### Acceptance Testing
@@ -101,7 +101,7 @@ This Sprint adds and verifies the following features:
 * **Method:** Sprint Review demonstration, manual browser testing, and Selenium headless browser testing
 * **Assessor:** Tutor / Product Owner / Team reviewer
 * **Criteria:** Acceptance Criteria for each Sprint 1 user story must be verified
-* **Selenium coverage:** Registration, login/logout, protected page access, profile update, session timeout, suspended login rejection, listing creation, listing search/filter clearing, offer submission, and soft-delete listing flows
+* **Sprint 1 Selenium coverage:** Registration, login/logout, protected page access, profile update, session timeout, and suspended login rejection
 
 ---
 
@@ -122,14 +122,10 @@ This Sprint adds and verifies the following features:
 | Session timeout logic          | #17         |     Medium |             2 | High     |
 | Protected route access control | #18         |     Medium |             4 | High     |
 | Selenium registration flow     | #1          |     Medium |             1 | High     |
-| Selenium login/logout flow     | #2, #3, #18 |     Medium |             1 | High     |
+| Selenium login/logout and protected access flow | #2, #3, #18 | Medium | 1 | High |
 | Selenium profile update flow   | #16         |     Medium |             1 | High     |
-| Selenium suspended login flow  | #19         |     Medium |             1 | High     |
 | Selenium session timeout flow  | #17         |     Medium |             1 | High     |
-| Selenium listing creation flow | Core marketplace regression | Medium | 1 | High |
-| Selenium search/filter flow    | Core marketplace regression | Medium | 1 | Medium |
-| Selenium offer submission flow | Regression | Medium | 1 | Medium |
-| Selenium soft-delete flow      | Regression | Medium | 1 | Medium |
+| Selenium suspended login flow  | #19         |     Medium |             1 | High     |
 
 ---
 
@@ -162,7 +158,7 @@ Testing can begin when:
 * Merge Request is created.
 * No Python syntax errors exist.
 * Required test files are added under `tests/unit`, `tests/api`, or `tests/ui`.
-* Selenium page object classes are added under `tests/ui/selenium/pages/` when UI flows are automated.
+* Sprint 1 Selenium page object classes are added under `tests/ui/selenium/pages/` when UI flows are automated.
 * Feature acceptance criteria are written in the related GitLab issue.
 * Related issue has Sprint 1 milestone, labels, priority, and story points.
 * pylint validate stage passes with score >= 7.0.
@@ -173,7 +169,7 @@ Sprint 1 verification is complete when:
 
 * [ ] All unit tests pass with 0 failures.
 * [ ] All API / route tests pass with 0 failures.
-* [ ] UI smoke tests and Selenium headless browser tests pass.
+* [ ] UI smoke tests and Sprint 1 Selenium headless browser tests pass.
 * [ ] Test coverage is at least 60%.
 * [ ] pylint score is at least 7.0/10.
 * [ ] radon complexity check shows function complexity does not exceed 10.
@@ -224,23 +220,21 @@ Sprint 1 validation is complete when:
 
 ---
 
-## 8. Selenium UI Test Cases
+## 8. Sprint 1 Selenium UI Test Cases
 
-The Selenium UI tests are stored under `tests/ui/selenium/` and use the Page Object Model pattern with page classes stored under `tests/ui/selenium/pages/`. These tests run in headless Chrome / Chromium through the GitLab `ui_testing_job`.
+The Sprint 1 Selenium UI tests are stored under `tests/ui/selenium/` and use the Page Object Model pattern with page classes stored under `tests/ui/selenium/pages/`. These tests run in headless Chrome / Chromium through the GitLab `ui_testing_job`.
 
-| Test ID          | Test Script                                      | Related Area                 | Complete User Flow Covered                                      | Expected Result                                      | Status |
-| ---------------- | ------------------------------------------------ | ---------------------------- | --------------------------------------------------------------- | ---------------------------------------------------- | ------ |
-| TC-UI-SEL-001    | `test_registration_selenium.py`                  | Registration / #1            | User opens register page, enters valid NYP account details, and submits registration | User is redirected to login page with success message | Pass   |
-| TC-UI-SEL-002    | `test_login_logout_selenium.py`                  | Login, Profile, Protected Access / #2, #3, #18 | User logs in, views profile, logs out, and attempts protected access again | User can view profile when logged in and is redirected after logout | Pass |
-| TC-UI-SEL-003    | `test_profile_update_selenium.py`                | Profile Update / #16         | Logged-in user edits display name and contact number through the browser | Updated details are saved and shown on profile page | Pass |
-| TC-UI-SEL-004    | `test_session_timeout_selenium.py`               | Session Timeout / #17        | Expired browser session is simulated and a protected page is opened | Session expires and user is redirected to login page | Pass |
-| TC-UI-SEL-005    | `test_suspended_login_selenium.py`               | Suspended Login / #19        | Suspended user attempts to log in with valid credentials | Login is blocked and suspended account message appears | Pass |
-| TC-UI-SEL-006    | `test_listing_creation_selenium.py`              | Listing Creation Regression  | Seller logs in, opens Sell page, fills listing form, uploads image, and submits | Listing is created and displayed on homepage | Pass |
-| TC-UI-SEL-007    | `test_listing_search_filter_selenium.py`         | Search / Filter Regression   | Buyer searches listings, applies category and condition filters, and clears filters individually | Matching listing remains visible and cleared filters update URL correctly | Pass |
-| TC-UI-SEL-008    | `test_offer_submission_selenium.py`              | Offer Submission Regression  | Buyer logs in, opens another user's listing, and submits a cash offer | Cash offer success message is displayed | Pass |
-| TC-UI-SEL-009    | `test_soft_delete_listing_selenium.py`           | Soft Delete Regression       | Seller logs in, opens own listing, soft-deletes it, and reopens the detail page | Listing is hidden / unavailable after soft delete | Pass |
+This section only documents Sprint 1 account-management and authentication flows. Item listing, offer, review, and reporting flows are outside this Sprint 1 test plan.
 
-### Selenium Page Object Model Structure
+| Test ID          | Test Script                         | Related PBI | Complete User Flow Covered | Expected Result | Status |
+| ---------------- | ----------------------------------- | ----------- | -------------------------- | --------------- | ------ |
+| TC-S1-SEL-001    | `test_registration_selenium.py`     | #1          | User opens register page, enters valid NYP account details, and submits registration | User is redirected to login page with success message | Pass |
+| TC-S1-SEL-002    | `test_login_logout_selenium.py`     | #2, #3, #18 | User logs in, views profile, logs out, and attempts protected access again | User can view profile when logged in and is redirected after logout | Pass |
+| TC-S1-SEL-003    | `test_profile_update_selenium.py`   | #16         | Logged-in user edits display name and contact number through the browser | Updated details are saved and shown on profile page | Pass |
+| TC-S1-SEL-004    | `test_session_timeout_selenium.py`  | #17         | Expired browser session is simulated and a protected page is opened | Session expires and user is redirected to login page | Pass |
+| TC-S1-SEL-005    | `test_suspended_login_selenium.py`  | #19         | Suspended user attempts to log in with valid credentials | Login is blocked and suspended account message appears | Pass |
+
+### Sprint 1 Selenium Page Object Model Structure
 
 | Page Object File | Purpose |
 | ---------------- | ------- |
@@ -248,9 +242,6 @@ The Selenium UI tests are stored under `tests/ui/selenium/` and use the Page Obj
 | `login_page.py` | Login form actions and login page assertions |
 | `register_page.py` | Registration form actions and registration success assertion |
 | `profile_page.py` | Profile, edit profile, and logout actions |
-| `home_page.py` | Homepage search, filter, and clear filter actions |
-| `sell_page.py` | Listing creation form actions |
-| `listing_detail_page.py` | Listing detail actions including cash offer and soft delete |
 
 
 ## 9. Regression Testing
@@ -269,8 +260,7 @@ Before merging any Sprint 1 Merge Request, the following regression checks must 
 | Manual profile flow         | Browser test                                                | Logged-in user can view and update account details |
 | Manual protected page flow  | Browser test                                                | Logged-out user cannot access protected pages      |
 | Manual session timeout flow | Browser test / simulated test                               | Inactive session expires after 30 minutes          |
-| Selenium UI suite           | `python -m pytest tests/ui/selenium`                        | 9 Selenium tests pass in headless browser          |
-| All UI tests                | `python -m pytest tests/ui`                                 | 11 UI tests pass                                   |
+| Sprint 1 Selenium UI suite   | `python -m pytest tests/ui/selenium/test_registration_selenium.py tests/ui/selenium/test_login_logout_selenium.py tests/ui/selenium/test_profile_update_selenium.py tests/ui/selenium/test_session_timeout_selenium.py tests/ui/selenium/test_suspended_login_selenium.py` | 5 Sprint 1 Selenium tests pass in headless browser |
 
 ---
 
@@ -312,7 +302,7 @@ Before merging any Sprint 1 Merge Request, the following regression checks must 
 * [ ] Cyclomatic complexity per function does not exceed 10.
 * [ ] All unit tests pass.
 * [ ] All API / route tests pass.
-* [ ] UI smoke tests and Selenium headless browser tests pass.
+* [ ] UI smoke tests and Sprint 1 Selenium headless browser tests pass.
 * [ ] Test coverage is at least 60%.
 * [ ] Pipeline is green on the Merge Request, including lint, unit, API, UI/Selenium, and security jobs.
 
@@ -334,5 +324,5 @@ Before merging any Sprint 1 Merge Request, the following regression checks must 
 ### Refinement Made
 
 The AI-generated test plan was reviewed and refined to match the actual Sprint 1 GitLab issues used by the SwapLah team: #1, #2, #3, #16, #17, #18, and #19. The test cases were adjusted to match the team’s acceptance criteria and implementation status. Test cases that were already implemented were marked as Pass, while incomplete Sprint 1 items were marked as Pending / Not Run to avoid overstating the project progress. The coverage threshold was also adjusted to 60% to match the Assignment 1 requirement, while keeping 70% as a team target where possible.
-The test plan was later updated after Selenium UI automation was added. The UI testing scope was expanded from simple Flask smoke tests to include 9 Selenium end-to-end tests running in a headless browser. The Selenium tests were also refactored using the Page Object Model pattern, where shared locators and page actions are stored under `tests/ui/selenium/pages/`. This update was made to align the test plan with the actual repository evidence and the final UI testing rubric requirement for multiple headless browser user-flow tests.
+The test plan was later updated after Sprint 1 Selenium UI automation was added. The UI testing scope was expanded from simple Flask smoke tests to include 5 Sprint 1 Selenium end-to-end tests running in a headless browser. The Selenium tests were also refactored using the Page Object Model pattern, where shared locators and page actions are stored under `tests/ui/selenium/pages/`. This update was made to align the Sprint 1 test plan with the actual authentication and account-management UI test evidence.
 
