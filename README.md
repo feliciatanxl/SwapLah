@@ -169,7 +169,6 @@ swaplah/
 │           ├── test_listing_creation_selenium.py
 │           ├── test_listing_search_filter_selenium.py
 │           ├── test_login_logout_selenium.py
-│           ├── test_offer_submission_selenium.py
 │           ├── test_profile_update_selenium.py
 │           ├── test_registration_selenium.py
 │           ├── test_session_timeout_selenium.py
