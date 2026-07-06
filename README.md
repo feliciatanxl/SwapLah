@@ -374,7 +374,6 @@ python -m radon cc app/ -s
 | `test_listing_creation_selenium.py` | Tests end-to-end listing creation. |
 | `test_listing_search_filter_selenium.py` | Tests listing search, filter, and clear filter behaviour. |
 | `test_soft_delete_listing_selenium.py` | Tests owner-only soft delete flow. |
-| `test_offer_submission_selenium.py` | Tests buyer cash offer submission flow. |
 
 ---
 

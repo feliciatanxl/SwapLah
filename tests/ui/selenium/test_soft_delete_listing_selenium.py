@@ -1,5 +1,6 @@
 """Selenium UI test for seller soft-delete listing flow."""
 
+from app.db import get_listing_by_id
 from tests.ui.selenium.pages.listing_detail_page import ListingDetailPage
 from tests.ui.selenium.pages.login_page import LoginPage
 
@@ -32,6 +33,6 @@ def test_seller_can_soft_delete_own_listing_end_to_end(
     listing_page.assert_page_contains("Selenium Soft Delete Listing")
     listing_page.soft_delete_listing()
     listing_page.assert_url_is(f"{live_server}/")
+    listing_page.assert_page_not_contains("Selenium Soft Delete Listing")
 
-    listing_page.open_listing(listing["id"])
-    listing_page.assert_page_contains("does not exist or is no longer available")
+    assert get_listing_by_id(listing["id"]) is None
