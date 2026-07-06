@@ -1,9 +1,10 @@
 """Shared Selenium UI test fixtures and helpers."""
 # pylint: disable=redefined-outer-name,too-many-arguments,too-many-positional-arguments
 
+import base64
 import os
 import threading
-import base64
+
 import pytest
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -55,7 +56,7 @@ def live_server(live_app):
 
 @pytest.fixture()
 def browser(tmp_path):
-    """Create a headless Chrome browser for Selenium tests."""
+    """Create a Chrome browser for Selenium tests."""
     options = Options()
     options.add_argument("--headless")
     options.add_argument("--no-sandbox")
@@ -63,28 +64,38 @@ def browser(tmp_path):
     options.add_argument("--disable-gpu")
     options.add_argument("--disable-extensions")
     options.add_argument("--disable-software-rasterizer")
-    options.add_argument("--disable-setuid-sandbox")
     options.add_argument("--no-first-run")
     options.add_argument("--no-default-browser-check")
-    options.add_argument("--remote-debugging-port=0")
     options.add_argument("--window-size=1920,1080")
     options.add_argument("--force-device-scale-factor=1")
-    options.add_argument(f"--user-data-dir={tmp_path / 'chrome-user-data'}")
-    options.add_argument(f"--data-path={tmp_path / 'chrome-data'}")
-    options.add_argument(f"--disk-cache-dir={tmp_path / 'chrome-cache'}")
 
-    chrome_binary = os.getenv("CHROME_BIN")
-    chromedriver_path = os.getenv("CHROMEDRIVER_PATH")
+    selenium_remote_url = os.getenv("SELENIUM_REMOTE_URL")
 
-    if chrome_binary:
-        options.binary_location = chrome_binary
+    if selenium_remote_url:
+        driver = webdriver.Remote(
+            command_executor=selenium_remote_url,
+            options=options,
+        )
+    else:
+        options.add_argument("--disable-setuid-sandbox")
+        options.add_argument("--remote-debugging-port=0")
+        options.add_argument(f"--user-data-dir={tmp_path / 'chrome-user-data'}")
+        options.add_argument(f"--data-path={tmp_path / 'chrome-data'}")
+        options.add_argument(f"--disk-cache-dir={tmp_path / 'chrome-cache'}")
 
-    service = Service(chromedriver_path) if chromedriver_path else Service()
-    driver = webdriver.Chrome(service=service, options=options)
+        chrome_binary = os.getenv("CHROME_BIN")
+        chromedriver_path = os.getenv("CHROMEDRIVER_PATH")
+
+        if chrome_binary:
+            options.binary_location = chrome_binary
+
+        service = Service(chromedriver_path) if chromedriver_path else Service()
+        driver = webdriver.Chrome(service=service, options=options)
 
     yield driver
 
     driver.quit()
+
 
 @pytest.fixture()
 def seed_user():
@@ -196,6 +207,7 @@ def safe_click(browser):
         return element
 
     return _safe_click
+
 
 @pytest.fixture()
 def listing_image(tmp_path):

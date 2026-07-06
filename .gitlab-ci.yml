@@ -67,13 +67,33 @@ api_testing_job:
 ui_testing_job:
   stage: test
   extends: .python_setup
+  services:
+    - name: selenium/standalone-chrome:4.27.0
+      alias: selenium
+  variables:
+    SELENIUM_REMOTE_URL: "http://selenium:4444/wd/hub"
   script:
-    - apt-get update
-    - apt-get install -y --no-install-recommends chromium chromium-driver
     - mkdir -p reports
-    - export CHROME_BIN=/usr/bin/chromium
-    - export CHROMEDRIVER_PATH=/usr/bin/chromedriver
-    - echo "Running Selenium UI tests."
+    - echo "Waiting for Selenium Chrome service."
+    - |
+      python - <<'PY'
+      import time
+      import urllib.request
+
+      url = "http://selenium:4444/status"
+
+      for attempt in range(30):
+          try:
+              with urllib.request.urlopen(url, timeout=2) as response:
+                  print(response.read().decode()[:300])
+                  break
+          except Exception as error:
+              print(f"Waiting for Selenium service... {attempt + 1}/30: {error}")
+              time.sleep(2)
+      else:
+          raise SystemExit("Selenium service did not become ready.")
+      PY
+    - echo "Running UI tests."
     - python -m pytest tests/ui/ --junitxml=reports/ui-tests.xml
   artifacts:
     when: always
