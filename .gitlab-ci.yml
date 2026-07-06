@@ -1,4 +1,4 @@
-image: python:3.11-slim
+image: python:3.11-bookworm
 
 stages:
   - lint
@@ -25,7 +25,7 @@ linting_job:
   extends: .python_setup
   script:
     - echo "Running pylint. Minimum required score is 7.0."
-    - python -m pylint app/ --fail-under=7.0
+    - python -m pylint app tests --fail-under=7.0
     - echo "Checking cyclomatic complexity."
     - python -m radon cc app/ -s
   allow_failure: false
