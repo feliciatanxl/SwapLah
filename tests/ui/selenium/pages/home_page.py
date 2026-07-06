@@ -24,14 +24,24 @@ class HomePage(BasePage):
         )
         return self.open(path)
 
+    def open_clear_filter_link(self, locator):
+        """Open the clear-filter link href directly to avoid stale element errors."""
+        element = self.find(locator)
+        href = element.get_attribute("href")
+
+        assert href, "Clear filter link must have a href."
+
+        self.browser.get(href)
+        self.find(self.CATEGORY)
+        return self
+
     def clear_category_filter(self):
         """Clear only the category filter."""
-        return self.safe_click(self.CLEAR_CATEGORY)
+        return self.open_clear_filter_link(self.CLEAR_CATEGORY)
 
     def clear_condition_filter(self):
         """Clear only the condition filter."""
-        self.find(self.CATEGORY)
-        return self.safe_click(self.CLEAR_CONDITION)
+        return self.open_clear_filter_link(self.CLEAR_CONDITION)
 
     def assert_url_has(self, text):
         """Assert that current URL contains text."""
