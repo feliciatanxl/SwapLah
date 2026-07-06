@@ -3,7 +3,10 @@
 
 import base64
 import os
+import socket
 import threading
+import time
+import urllib.request
 
 import pytest
 from selenium import webdriver
@@ -40,15 +43,45 @@ def live_app(tmp_path, monkeypatch):
     return app
 
 
+def _get_ci_host_ip():
+    """Return the job container IP that Selenium service container can access."""
+    hostname = socket.gethostname()
+    return socket.gethostbyname(hostname)
+
+
+def _wait_for_server(url):
+    """Wait until the Flask test server is reachable."""
+    for _ in range(30):
+        try:
+            with urllib.request.urlopen(url, timeout=2):
+                return
+        except Exception:
+            time.sleep(0.2)
+
+    raise RuntimeError(f"Live server did not start: {url}")
+
+
 @pytest.fixture()
 def live_server(live_app):
     """Run the Flask app in a background server for Selenium."""
-    server = make_server("127.0.0.1", 0, live_app)
+    selenium_remote_url = os.getenv("SELENIUM_REMOTE_URL")
+
+    if selenium_remote_url:
+        bind_host = "0.0.0.0"
+        browser_host = _get_ci_host_ip()
+    else:
+        bind_host = "127.0.0.1"
+        browser_host = "127.0.0.1"
+
+    server = make_server(bind_host, 0, live_app)
     server_thread = threading.Thread(target=server.serve_forever)
     server_thread.daemon = True
     server_thread.start()
 
-    yield f"http://127.0.0.1:{server.server_port}"
+    base_url = f"http://{browser_host}:{server.server_port}"
+    _wait_for_server(base_url)
+
+    yield base_url
 
     server.shutdown()
     server_thread.join(timeout=5)
