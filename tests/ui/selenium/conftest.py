@@ -54,15 +54,24 @@ def live_server(live_app):
 
 
 @pytest.fixture()
-def browser():
+def browser(tmp_path):
     """Create a headless Chrome browser for Selenium tests."""
     options = Options()
-    options.add_argument("--headless=new")
+    options.add_argument("--headless")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--window-size=1920,1080")
     options.add_argument("--disable-gpu")
+    options.add_argument("--disable-extensions")
+    options.add_argument("--disable-software-rasterizer")
+    options.add_argument("--disable-setuid-sandbox")
+    options.add_argument("--no-first-run")
+    options.add_argument("--no-default-browser-check")
+    options.add_argument("--remote-debugging-port=0")
+    options.add_argument("--window-size=1920,1080")
     options.add_argument("--force-device-scale-factor=1")
+    options.add_argument(f"--user-data-dir={tmp_path / 'chrome-user-data'}")
+    options.add_argument(f"--data-path={tmp_path / 'chrome-data'}")
+    options.add_argument(f"--disk-cache-dir={tmp_path / 'chrome-cache'}")
 
     chrome_binary = os.getenv("CHROME_BIN")
     chromedriver_path = os.getenv("CHROMEDRIVER_PATH")
@@ -76,7 +85,6 @@ def browser():
     yield driver
 
     driver.quit()
-
 
 @pytest.fixture()
 def seed_user():
