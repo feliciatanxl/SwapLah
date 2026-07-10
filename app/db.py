@@ -507,6 +507,10 @@ def get_reviews_for_user(user_id):
     rows = conn.execute(
         """
         SELECT
+            reviews.id,
+            reviews.offer_id,
+            reviews.reviewer_id,
+            reviews.reviewee_id,
             reviews.rating,
             reviews.comment,
             reviews.created_at,

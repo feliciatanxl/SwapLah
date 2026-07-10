@@ -2,10 +2,37 @@ from flask import Blueprint, jsonify, request, session
 
 from app.db import (
     create_review,
-    get_offer_by_id
+    get_offer_by_id,
+    get_reviews_for_user,
+    get_user_by_id,
+    get_user_rating_stats
 )
 
 reviews_bp = Blueprint("reviews", __name__)
+
+@reviews_bp.route("/api/users/<int:user_id>/reviews", methods=["GET"])
+def get_user_reviews(user_id):
+
+    user = get_user_by_id(user_id)
+
+    if user is None:
+        return jsonify({
+            "error": "User not found"
+        }), 404
+
+    reviews = get_reviews_for_user(user_id)
+    stats = get_user_rating_stats(user_id)
+
+    response = {
+        "average_rating": stats["average_rating"],
+        "review_count": stats["review_count"],
+        "reviews": reviews
+    }
+
+    if stats["review_count"] == 0:
+        response["message"] = "No reviews yet"
+
+    return jsonify(response), 200
 
 @reviews_bp.route("/api/reviews", methods=["POST"])
 def submit_review():
@@ -52,7 +79,11 @@ def submit_review():
         comment=comment
     )
 
+    stats = get_user_rating_stats(reviewee_id)
+
     return jsonify({
         "message": "Review submitted successfully",
-        "review": review
+        "review": review,
+        "average_rating": stats["average_rating"],
+        "review_count": stats["review_count"]
     }), 201

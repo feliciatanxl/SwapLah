@@ -17,6 +17,7 @@ def client():
 def fake_listing():
     return {
         "id": 1,
+        "seller_id": 2,
         "title": "Casio Calculator",
         "description": "Good condition calculator",
         "price": "25.00",
