@@ -12,6 +12,8 @@ from app.db import (
     get_listings_by_seller,
     get_user_by_email,
     get_user_by_id,
+    get_reviews_for_user,
+    get_user_rating_stats,
     init_db,
     update_user_account,
 )
@@ -145,10 +147,13 @@ def create_app():
                 error_message='This listing does not exist or is no longer available.'
             ), 404
 
+        seller_rating = get_user_rating_stats(listing['seller_id'])
+
         return render_template(
             'listing_detail.html',
             listing=listing,
             listing_id=listing_id,
+            seller_rating=seller_rating,
             error_message=None
         )
 
@@ -202,7 +207,26 @@ def create_app():
             session.clear()
             flash('Session expired. Please log in again.', 'danger')
             return redirect(url_for('login'))
-        return render_template('profile.html', user=user)
+        rating = get_user_rating_stats(session['user_id'])
+        reviews = get_reviews_for_user(session['user_id'])
+        return render_template(
+            'profile.html', user=user, rating=rating, reviews=reviews, is_own_profile=True
+        )
+
+    @app.route('/profile/<int:user_id>')
+    def view_profile(user_id):
+        """Render another user's public profile page."""
+        if session.get('user_id') == user_id:
+            return redirect(url_for('profile'))
+        user = get_user_by_id(user_id)
+        if user is None:
+            flash('This user does not exist.', 'danger')
+            return redirect(url_for('index'))
+        rating = get_user_rating_stats(user_id)
+        reviews = get_reviews_for_user(user_id)
+        return render_template(
+            'profile.html', user=user, rating=rating, reviews=reviews, is_own_profile=False
+        )
 
     @app.route('/profile/edit', methods=['GET', 'POST'])
     def edit_profile():

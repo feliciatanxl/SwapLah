@@ -72,6 +72,7 @@ def init_db():
         )
     """)
 
+    ensure_reviews_schema(conn)
     conn.execute("""
         CREATE TABLE IF NOT EXISTS reviews (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -255,6 +256,17 @@ def get_listing_by_id(listing_id):
 
     return listing
  
+def ensure_reviews_schema(conn):
+    """Rebuild the reviews table if it uses the outdated schema (user_id, no offer_id)."""
+    columns = conn.execute("PRAGMA table_info(reviews)").fetchall()
+    column_names = [column["name"] for column in columns]
+
+    if column_names and "reviewee_id" not in column_names:
+        row_count = conn.execute("SELECT COUNT(*) FROM reviews").fetchone()[0]
+        if row_count == 0:
+            conn.execute("DROP TABLE reviews")
+
+
 def ensure_listing_status_column(conn):
     columns = conn.execute("PRAGMA table_info(listings)").fetchall()
     column_names = [column["name"] for column in columns]
@@ -461,6 +473,56 @@ def get_offer_by_id(offer_id):
         return None
 
     return dict(offer)
+
+## feature/seller-review-buyer
+def get_user_rating_stats(user_id):
+    """Return the average rating and review count received by a user."""
+    conn = get_db_connection()
+
+    row = conn.execute(
+        """
+        SELECT
+            AVG(rating) AS average_rating,
+            COUNT(*) AS review_count
+        FROM reviews
+        WHERE reviewee_id = ?
+        """,
+        (user_id,)
+    ).fetchone()
+
+    conn.close()
+
+    review_count = row["review_count"]
+
+    return {
+        "average_rating": round(row["average_rating"], 1) if review_count > 0 else None,
+        "review_count": review_count
+    }
+
+
+def get_reviews_for_user(user_id):
+    """Return all reviews received by a user, newest first, with reviewer names."""
+    conn = get_db_connection()
+
+    rows = conn.execute(
+        """
+        SELECT
+            reviews.rating,
+            reviews.comment,
+            reviews.created_at,
+            users.display_name AS reviewer_name
+        FROM reviews
+        LEFT JOIN users ON reviews.reviewer_id = users.id
+        WHERE reviews.reviewee_id = ?
+        ORDER BY reviews.created_at DESC
+        """,
+        (user_id,)
+    ).fetchall()
+
+    conn.close()
+
+    return [dict(row) for row in rows]
+
 
 def create_review(
     offer_id,
