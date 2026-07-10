@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request, session
 
 from app.db import (
     create_review,
+    get_listing_owner,
     get_offer_by_id,
     get_reviews_for_user,
     get_user_by_id,
@@ -42,7 +43,7 @@ def submit_review():
             "error": "Login required"
         }), 401
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
 
     offer_id = data.get("offer_id")
     reviewee_id = data.get("reviewee_id")
@@ -52,6 +53,11 @@ def submit_review():
     if rating is None:
         return jsonify({
             "error": "Rating is required"
+        }), 400
+
+    if not isinstance(rating, int) or isinstance(rating, bool):
+        return jsonify({
+            "error": "Rating must be a whole number from 1 to 5"
         }), 400
 
     if rating < 1 or rating > 5:
@@ -69,6 +75,20 @@ def submit_review():
     if offer["status"] != "Accepted":
         return jsonify({
             "error": "Transaction not completed"
+        }), 400
+
+    if offer["buyer_id"] != session["user_id"]:
+        return jsonify({
+            "error": "Only the buyer of this transaction can leave a review"
+        }), 403
+
+    seller_id = get_listing_owner(offer["listing_id"])
+
+    if reviewee_id is None:
+        reviewee_id = seller_id
+    elif reviewee_id != seller_id:
+        return jsonify({
+            "error": "Review must be for the seller of this transaction"
         }), 400
 
     review = create_review(
