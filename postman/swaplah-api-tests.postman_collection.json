@@ -1,0 +1,1110 @@
+{
+  "info": {
+    "_postman_id": "8d5c5c30-65a2-4d7c-a3f1-swaplahnewman",
+    "name": "SwapLah Sprint 1 and Sprint 2 API Tests",
+    "description": "Newman/Postman API journey for Sprint 1 authentication and Sprint 2 item listings.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (!pm.collectionVariables.get('runId')) {",
+          "  const runId = Date.now().toString().slice(-8);",
+          "  pm.collectionVariables.set('runId', runId);",
+          "  pm.collectionVariables.set('ownerStudentId', `S${runId}`);",
+          "  pm.collectionVariables.set('ownerEmail', `s${runId}@mymail.nyp.edu.sg`);",
+          "  pm.collectionVariables.set('ownerDisplayName', `NewmanOwner${runId}`);",
+          "  pm.collectionVariables.set('ownerUpdatedDisplayName', `UpdatedOwner${runId}`);",
+          "  pm.collectionVariables.set('otherStudentId', `T${runId}`);",
+          "  pm.collectionVariables.set('otherEmail', `t${runId}@mymail.nyp.edu.sg`);",
+          "  pm.collectionVariables.set('otherDisplayName', `NewmanOther${runId}`);",
+          "  pm.collectionVariables.set('listingTitle', `Newman Laptop ${runId}`);",
+          "  pm.collectionVariables.set('updatedListingTitle', `Updated Newman Laptop ${runId}`);",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "password",
+      "value": "Password123"
+    },
+    {
+      "key": "listingId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Sprint 1 - User Account and Authentication",
+      "item": [
+        {
+          "name": "Protected profile rejects logged-out user",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "profile"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 302 redirect', () => pm.response.to.have.status(302));",
+                  "pm.test('Redirects to login', () => pm.expect(pm.response.headers.get('Location')).to.include('/login'));"
+                ]
+              }
+            }
+          ],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "Registration rejects non-NYP email",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "student_id",
+                  "value": "BAD{{runId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "first_name",
+                  "value": "Invalid",
+                  "type": "text"
+                },
+                {
+                  "key": "last_name",
+                  "value": "Email",
+                  "type": "text"
+                },
+                {
+                  "key": "display_name",
+                  "value": "InvalidEmail",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "invalid{{runId}}@gmail.com",
+                  "type": "text"
+                },
+                {
+                  "key": "contact_number",
+                  "value": "91234567",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "{{password}}",
+                  "type": "text"
+                },
+                {
+                  "key": "confirm_password",
+                  "value": "{{password}}",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('NYP email validation message shown', () => pm.expect(pm.response.text()).to.include('@mymail.nyp.edu.sg'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register valid owner account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "student_id",
+                  "value": "{{ownerStudentId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "first_name",
+                  "value": "Newman",
+                  "type": "text"
+                },
+                {
+                  "key": "last_name",
+                  "value": "Owner",
+                  "type": "text"
+                },
+                {
+                  "key": "display_name",
+                  "value": "{{ownerDisplayName}}",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "{{ownerEmail}}",
+                  "type": "text"
+                },
+                {
+                  "key": "contact_number",
+                  "value": "91234567",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "{{password}}",
+                  "type": "text"
+                },
+                {
+                  "key": "confirm_password",
+                  "value": "{{password}}",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Registration completes successfully', () => pm.response.to.have.status(200));",
+                  "pm.test('Success message is shown after redirect', () => pm.expect(pm.response.text()).to.include('Account created successfully'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login rejects invalid password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "email",
+                  "value": "{{ownerEmail}}",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "WrongPassword",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Invalid credential message shown', () => pm.expect(pm.response.text()).to.include('Invalid email or password'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login owner successfully",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "email",
+                  "value": "{{ownerEmail}}",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "{{password}}",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login reaches profile page', () => pm.response.to.have.status(200));",
+                  "pm.test('Profile contains owner email', () => pm.expect(pm.response.text()).to.include(pm.collectionVariables.get('ownerEmail')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "View owner profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "profile"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Profile is accessible while logged in', () => pm.response.to.have.status(200));",
+                  "pm.test('Profile contains owner display name', () => pm.expect(pm.response.text()).to.include(pm.collectionVariables.get('ownerDisplayName')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update owner profile",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/profile/edit",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "profile",
+                "edit"
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "first_name",
+                  "value": "Newman",
+                  "type": "text"
+                },
+                {
+                  "key": "last_name",
+                  "value": "Owner",
+                  "type": "text"
+                },
+                {
+                  "key": "display_name",
+                  "value": "{{ownerUpdatedDisplayName}}",
+                  "type": "text"
+                },
+                {
+                  "key": "contact_number",
+                  "value": "92345678",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "",
+                  "type": "text"
+                },
+                {
+                  "key": "confirm_password",
+                  "value": "",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Profile update succeeds', () => pm.response.to.have.status(200));",
+                  "pm.test('Updated display name is shown', () => pm.expect(pm.response.text()).to.include(pm.collectionVariables.get('ownerUpdatedDisplayName')));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Sprint 2 - Item Listing Management",
+      "item": [
+        {
+          "name": "Get active listings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/listings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "listings"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response contains pagination metadata', () => { const data = pm.response.json(); pm.expect(data).to.have.keys('listings','page','perPage','totalListings','totalPages'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create listing rejects missing fields",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/listings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "listings"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\": \"\", \"description\": \"\", \"price\": \"\", \"category\": \"\", \"condition\": \"\", \"imageUrl\": \"\"}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Validation error is returned', () => pm.expect(pm.response.json()).to.have.property('error'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create valid listing",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/listings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "listings"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\": \"{{listingTitle}}\", \"description\": \"Created by the Newman Sprint 2 API collection.\", \"price\": \"45\", \"category\": \"Electronics\", \"condition\": \"Like New\", \"imageUrl\": \"https://example.com/newman-laptop.jpg\"}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Listing is created and ID is saved', () => { const data = pm.response.json(); pm.expect(data.message).to.eql('Listing created successfully.'); pm.expect(data.listing.title).to.eql(pm.collectionVariables.get('listingTitle')); pm.collectionVariables.set('listingId', data.listing.id); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get listing detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/listings/{{listingId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "listings",
+                "{{listingId}}"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Correct listing and seller details returned', () => { const data = pm.response.json().listing; pm.expect(data.title).to.eql(pm.collectionVariables.get('listingTitle')); pm.expect(data.seller.email).to.eql(pm.collectionVariables.get('ownerEmail')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search and filter listing",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/listings?search={{runId}}&category=Electronics&condition=Like%20New",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "listings"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "{{runId}}"
+                },
+                {
+                  "key": "category",
+                  "value": "Electronics"
+                },
+                {
+                  "key": "condition",
+                  "value": "Like%20New"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Search returns created listing', () => { const data = pm.response.json(); pm.expect(data.listings.some(item => item.id == pm.collectionVariables.get('listingId'))).to.be.true; });",
+                  "pm.test('Every result matches filters', () => { const data = pm.response.json(); data.listings.forEach(item => { pm.expect(item.category).to.eql('Electronics'); pm.expect(item.condition).to.eql('Like New'); }); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout owner",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "logout"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Logout reaches login page', () => pm.response.to.have.status(200));",
+                  "pm.test('Logout message shown', () => pm.expect(pm.response.text().toLowerCase()).to.include('logged out'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create listing rejects logged-out user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/listings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "listings"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\": \"Unauthorised Listing\", \"description\": \"Should not be created\", \"price\": \"10\", \"category\": \"Electronics\", \"condition\": \"Good\", \"imageUrl\": \"https://example.com/no.jpg\"}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Authentication error returned', () => pm.expect(pm.response.json().error).to.include('logged in'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register second user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "student_id",
+                  "value": "{{otherStudentId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "first_name",
+                  "value": "Newman",
+                  "type": "text"
+                },
+                {
+                  "key": "last_name",
+                  "value": "Other",
+                  "type": "text"
+                },
+                {
+                  "key": "display_name",
+                  "value": "{{otherDisplayName}}",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "{{otherEmail}}",
+                  "type": "text"
+                },
+                {
+                  "key": "contact_number",
+                  "value": "93456789",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "{{password}}",
+                  "type": "text"
+                },
+                {
+                  "key": "confirm_password",
+                  "value": "{{password}}",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Second user registration succeeds', () => pm.response.to.have.status(200));",
+                  "pm.test('Success message shown', () => pm.expect(pm.response.text()).to.include('Account created successfully'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login second user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "email",
+                  "value": "{{otherEmail}}",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "{{password}}",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Second user logs in', () => pm.response.to.have.status(200));",
+                  "pm.test('Profile contains second user email', () => pm.expect(pm.response.text()).to.include(pm.collectionVariables.get('otherEmail')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Non-owner cannot update listing",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/listings/{{listingId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "listings",
+                "{{listingId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\": \"Illegal Update\", \"description\": \"This update must be rejected.\", \"price\": \"10\", \"category\": \"Electronics\", \"condition\": \"Good\", \"imageUrl\": \"https://example.com/illegal.jpg\"}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Owner-only update enforced', () => pm.expect(pm.response.json().error).to.include('not allowed to edit'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Non-owner cannot delete listing",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/listings/{{listingId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "listings",
+                "{{listingId}}"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Owner-only delete enforced', () => pm.expect(pm.response.json().error).to.include('not allowed to delete'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout second user",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "logout"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Logout succeeds', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login owner again",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "email",
+                  "value": "{{ownerEmail}}",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "{{password}}",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Owner logs back in', () => pm.response.to.have.status(200));",
+                  "pm.test('Owner profile displayed', () => pm.expect(pm.response.text()).to.include(pm.collectionVariables.get('ownerEmail')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update listing rejects invalid price",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/listings/{{listingId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "listings",
+                "{{listingId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\": \"{{updatedListingTitle}}\", \"description\": \"Updated by the Newman API collection.\", \"price\": \"invalid-price\", \"category\": \"Electronics\", \"condition\": \"Good\", \"imageUrl\": \"https://example.com/updated-laptop.jpg\"}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Price validation error returned', () => pm.expect(pm.response.json().error).to.include('Price'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Owner updates listing",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/listings/{{listingId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "listings",
+                "{{listingId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\": \"{{updatedListingTitle}}\", \"description\": \"Updated by the Newman API collection.\", \"price\": \"55.50\", \"category\": \"Electronics\", \"condition\": \"Good\", \"imageUrl\": \"https://example.com/updated-laptop.jpg\"}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Listing is updated', () => { const data = pm.response.json(); pm.expect(data.message).to.eql('Listing updated successfully.'); pm.expect(data.listing.title).to.eql(pm.collectionVariables.get('updatedListingTitle')); pm.expect(data.listing.price).to.eql('55.50'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Owner soft-deletes listing",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/listings/{{listingId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "listings",
+                "{{listingId}}"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Listing status becomes Deleted', () => { const data = pm.response.json(); pm.expect(data.message).to.eql('Listing deleted successfully.'); pm.expect(data.listing.status).to.eql('Deleted'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Deleted listing is unavailable",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/listings/{{listingId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "listings",
+                "{{listingId}}"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Unavailable listing error returned', () => pm.expect(pm.response.json().error).to.include('not found'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
