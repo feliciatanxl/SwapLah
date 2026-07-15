@@ -553,6 +553,59 @@ def get_offer_by_id(offer_id):
     return dict(row) if row else None
 
 
+TRANSACTIONS_FOR_BUYER_SQL = """
+SELECT
+    transactions.id,
+    transactions.transaction_type,
+    transactions.amount,
+    transactions.created_at,
+    listings.title AS listing_title,
+    listings.category AS listing_category,
+    seller.display_name AS counterparty_display_name
+FROM transactions
+JOIN listings ON transactions.listing_id = listings.id
+JOIN users AS seller ON transactions.seller_id = seller.id
+WHERE transactions.buyer_id = ?
+ORDER BY transactions.created_at DESC
+"""
+
+TRANSACTIONS_FOR_SELLER_SQL = """
+SELECT
+    transactions.id,
+    transactions.transaction_type,
+    transactions.amount,
+    transactions.created_at,
+    listings.title AS listing_title,
+    listings.category AS listing_category,
+    buyer.display_name AS counterparty_display_name
+FROM transactions
+JOIN listings ON transactions.listing_id = listings.id
+JOIN users AS buyer ON transactions.buyer_id = buyer.id
+WHERE transactions.seller_id = ?
+ORDER BY transactions.created_at DESC
+"""
+
+
+def get_transactions_for_user(user_id, role):
+    """
+    Return completed transactions for a user.
+
+    role must be either 'buyer' or 'seller'. Each row includes the item,
+    category, counterparty display name, transaction type, amount and date.
+    """
+    if role == "buyer":
+        sql = TRANSACTIONS_FOR_BUYER_SQL
+    elif role == "seller":
+        sql = TRANSACTIONS_FOR_SELLER_SQL
+    else:
+        raise ValueError("role must be 'buyer' or 'seller'")
+
+    conn = get_db_connection()
+    rows = conn.execute(sql, (user_id,)).fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
 def _create_transaction_for_offer(conn, offer):
     """Insert a transaction record for a just-accepted offer."""
     seller_id = conn.execute(
