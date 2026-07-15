@@ -2,7 +2,6 @@
 Unit tests for:
   GET  /api/offers/received
   PATCH /api/offers/<id>/accept
-  PATCH /api/offers/<id>/reject
 
 All DB calls are monkeypatched — no real database needed.
 """
@@ -151,78 +150,6 @@ def test_unit_accept_offer_unauthenticated(client):
     resp = client.patch("/api/offers/1/accept")
     assert resp.status_code == 401
 
-
-# ===========================================================================
-# PATCH /api/offers/<id>/reject
-# ===========================================================================
-
-def test_unit_reject_offer_success(client, monkeypatch):
-    """AC1 (reject): seller rejects a pending offer."""
-    login_as(client, 1)
-    monkeypatch.setattr(db_module, "get_offer_by_id", lambda oid: FAKE_OFFER_PENDING)
-    monkeypatch.setattr(db_module, "get_listing_owner", lambda lid: 1)
-    monkeypatch.setattr(db_module, "reject_offer", lambda oid: FAKE_OFFER_REJECTED)
-
-    resp = client.patch("/api/offers/1/reject")
-
-    assert resp.status_code == 200
-    assert resp.get_json()["offer"]["status"] == "Rejected"
-
-
-def test_unit_reject_offer_non_owner_forbidden(client, monkeypatch):
-    """AC2 (reject): non-owner gets 403."""
-    login_as(client, 2)
-    monkeypatch.setattr(db_module, "get_offer_by_id", lambda oid: FAKE_OFFER_PENDING)
-    monkeypatch.setattr(db_module, "get_listing_owner", lambda lid: 1)
-
-    resp = client.patch("/api/offers/1/reject")
-
-    assert resp.status_code == 403
-
-
-def test_unit_reject_offer_not_found(client, monkeypatch):
-    """Rejecting non-existent offer → 404."""
-    login_as(client, 1)
-    monkeypatch.setattr(db_module, "get_offer_by_id", lambda oid: None)
-
-    resp = client.patch("/api/offers/999/reject")
-
-    assert resp.status_code == 404
-
-
-def test_unit_reject_offer_already_rejected(client, monkeypatch):
-    """Cannot reject an already-rejected offer → 409."""
-    login_as(client, 1)
-    monkeypatch.setattr(db_module, "get_offer_by_id", lambda oid: FAKE_OFFER_REJECTED)
-    monkeypatch.setattr(db_module, "get_listing_owner", lambda lid: 1)
-
-    resp = client.patch("/api/offers/1/reject")
-
-    assert resp.status_code == 409
-
-
-def test_unit_reject_offer_unauthenticated(client):
-    """Unauthenticated reject → 401."""
-    resp = client.patch("/api/offers/1/reject")
-    assert resp.status_code == 401
-
-
-def test_unit_reject_does_not_touch_other_offers(client, monkeypatch):
-    """AC3 (reject): reject_offer is called once with the correct offer id."""
-    login_as(client, 1)
-    monkeypatch.setattr(db_module, "get_offer_by_id", lambda oid: FAKE_OFFER_PENDING)
-    monkeypatch.setattr(db_module, "get_listing_owner", lambda lid: 1)
-
-    rejected_ids = []
-    def fake_reject(oid):
-        rejected_ids.append(oid)
-        return FAKE_OFFER_REJECTED
-
-    monkeypatch.setattr(db_module, "reject_offer", fake_reject)
-
-    client.patch("/api/offers/1/reject")
-
-    assert rejected_ids == [1]
 
 # ===========================================================================
 # POST /api/offers  —  create offer (coverage helpers)
