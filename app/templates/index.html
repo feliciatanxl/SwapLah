@@ -16,12 +16,15 @@
                 Trade securely with fellow students.
             </p>
 
-            <form class="hero-search">
+            <form class="hero-search" method="get" action="{{ url_for('index') }}#latest-listings">
                 <div class="position-relative flex-grow-1">
                     <i class="bi bi-search"></i>
-                    <input type="search" class="form-control" placeholder="Search for textbooks, laptops...">
+                    <input type="search" name="search" class="form-control"
+                        placeholder="Search for textbooks, laptops..." value="{{ request.args.get('search', '') }}">
                 </div>
-                <button class="btn btn-accent px-4" type="submit"><i class="bi bi-search"></i></button>
+                <button class="btn btn-accent px-4" type="submit">
+                    <i class="bi bi-search"></i>
+                </button>
             </form>
 
             <div class="d-flex flex-wrap gap-3">
@@ -119,30 +122,54 @@
             </div>
         </div>
 
-        <form class="market-filter-bar mb-4" method="get" action="#">
+        <form class="market-filter-bar mb-4" method="get" action="{{ url_for('index') }}#latest-listings">
             <input id="search" name="search" class="form-control filter-search"
-                placeholder="Search title or description">
+                placeholder="Search title or description" value="{{ request.args.get('search', '') }}">
             <select id="category" name="category" class="form-select">
                 <option value="">All categories</option>
-                <option>Textbooks</option>
-                <option>Electronics</option>
-                <option>Lab Equipment</option>
+                <option value="Textbooks" {% if request.args.get('category')=='Textbooks' %}selected{% endif %}>
+                    Textbooks</option>
+                <option value="Electronics" {% if request.args.get('category')=='Electronics' %}selected{% endif %}>
+                    Electronics</option>
+                <option value="Lab Equipment" {% if request.args.get('category')=='Lab Equipment' %}selected{% endif %}>
+                    Lab Equipment</option>
             </select>
             <select id="condition" name="condition" class="form-select">
                 <option value="">All conditions</option>
-                <option>New</option>
-                <option>Like New</option>
-                <option>Good</option>
-                <option>Fair</option>
+                <option value="New" {% if request.args.get('condition')=='New' %}selected{% endif %}>New</option>
+                <option value="Like New" {% if request.args.get('condition')=='Like New' %}selected{% endif %}>Like New
+                </option>
+                <option value="Good" {% if request.args.get('condition')=='Good' %}selected{% endif %}>Good</option>
+                <option value="Fair" {% if request.args.get('condition')=='Fair' %}selected{% endif %}>Fair</option>
             </select>
             <button class="btn btn-accent" type="submit">Apply</button>
-            <button class="btn btn-outline-dark" type="button">Clear filters</button>
+            <a class="btn btn-outline-dark" href="{{ url_for('index') }}#latest-listings">
+                Clear filters
+            </a>
+            {% if request.args.get('category') or request.args.get('condition') %}
             <div class="filter-pills active-filter-row">
-                <span class="filter-pill active">All</span>
-                <span class="filter-pill">Textbooks <i class="bi bi-x"></i></span>
-                <span class="filter-pill">Like New <i class="bi bi-x"></i></span>
-                <span class="filter-pill">Good</span>
+                {% if request.args.get('category') %}
+                <a class="filter-pill text-decoration-none" aria-label="Clear category filter" href="{{ url_for(
+            'index',
+            search=request.args.get('search', ''),
+            condition=request.args.get('condition', '')
+        ) }}#latest-listings">
+                    {{ request.args.get('category') }} <i class="bi bi-x"></i>
+                </a>
+                {% endif %}
+
+                {% if request.args.get('condition') %}
+                <a class="filter-pill text-decoration-none" aria-label="Clear condition filter" href="{{ url_for(
+            'index',
+            search=request.args.get('search', ''),
+            category=request.args.get('category', '')
+        ) }}#latest-listings">
+                    {{ request.args.get('condition') }} <i class="bi bi-x"></i>
+                </a>
+                {% endif %}
             </div>
+            {% endif %}
+
         </form>
 
         <div class="row g-4">
@@ -211,7 +238,13 @@
 
             {% else %}
             <div class="col-12">
-                <p class="text-center text-muted mb-0">No active listings available.</p>
+                <p class="text-center text-muted mb-0">
+                    {% if request.args.get('search') or request.args.get('category') or request.args.get('condition') %}
+                    No matching listings found.
+                    {% else %}
+                    No active listings available.
+                    {% endif %}
+                </p>
             </div>
             {% endfor %}
 
@@ -225,7 +258,13 @@
 
                 {% if page > 1 %}
                 <li class="page-item">
-                    <a class="page-link" href="{{ url_for('index', page=page-1) }}#latest-listings">Previous</a>
+                    <a class="page-link" href="{{ url_for('index',page=page-1,
+       search=request.args.get('search', ''),
+       category=request.args.get('category', ''),
+       condition=request.args.get('condition', '')
+   ) }}#latest-listings">
+                        Previous
+                    </a>
                 </li>
                 {% else %}
                 <li class="page-item disabled">
@@ -235,12 +274,28 @@
 
                 {% for p in range(1, total_pages + 1) %}
                 <li class="page-item {% if p == page %}active{% endif %}">
-                    <a class="page-link" href="{{ url_for('index', page=p) }}#latest-listings">{{ p }}</a>
+                    <a class="page-link" href="{{ url_for(
+       'index',
+       page=p,
+       search=request.args.get('search', ''),
+       category=request.args.get('category', ''),
+       condition=request.args.get('condition', '')
+   ) }}#latest-listings">
+                        {{ p }}
+                    </a>
                 </li>
                 {% endfor %}
 
                 {% if page < total_pages %} <li class="page-item">
-                    <a class="page-link" href="{{ url_for('index', page=page+1) }}#latest-listings">Next</a>
+                    <a class="page-link" href="{{ url_for(
+       'index',
+       page=page+1,
+       search=request.args.get('search', ''),
+       category=request.args.get('category', ''),
+       condition=request.args.get('condition', '')
+   ) }}#latest-listings">
+                        Next
+                    </a>
                     </li>
                     {% else %}
                     <li class="page-item disabled">

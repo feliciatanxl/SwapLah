@@ -1,3 +1,7 @@
+"""Unit tests for listing detail routes."""
+
+# pylint: disable=redefined-outer-name
+
 import pytest
 
 import app as app_module
@@ -7,14 +11,16 @@ from app.routes import listing as listing_routes
 
 @pytest.fixture
 def client():
+    """Create a Flask test client."""
     app = create_app()
     app.config["TESTING"] = True
 
-    with app.test_client() as client:
-        yield client
+    with app.test_client() as test_client:
+        yield test_client
 
 
 def fake_listing():
+    """Return a fake listing detail record."""
     return {
         "id": 1,
         "title": "Casio Calculator",
@@ -25,19 +31,24 @@ def fake_listing():
         "image_url": "[\"https://example.com/calculator.jpg\"]",
         "images": [
             "https://example.com/calculator.jpg",
-            "https://example.com/calculator-2.jpg"
+            "https://example.com/calculator-2.jpg",
         ],
         "image": "https://example.com/calculator.jpg",
         "listing_date": "2026-06-04 10:00:00",
         "last_modified_timestamp": "2026-06-04 10:00:00",
         "seller_display_name": "Felicia",
         "seller_email": "felicia@mymail.nyp.edu.sg",
-        "seller_contact_number": "91234567"
+        "seller_contact_number": "91234567",
     }
 
 
 def test_api_get_listing_detail_success(client, monkeypatch):
-    monkeypatch.setattr(listing_routes, "get_listing_by_id", lambda listing_id: fake_listing())
+    """Return listing detail JSON when the listing exists."""
+    monkeypatch.setattr(
+        listing_routes,
+        "get_listing_by_id",
+        lambda listing_id: fake_listing(),
+    )
 
     response = client.get("/api/listings/1")
 
@@ -57,7 +68,12 @@ def test_api_get_listing_detail_success(client, monkeypatch):
 
 
 def test_api_get_listing_detail_not_found(client, monkeypatch):
-    monkeypatch.setattr(listing_routes, "get_listing_by_id", lambda listing_id: None)
+    """Return 404 when listing detail is unavailable."""
+    monkeypatch.setattr(
+        listing_routes,
+        "get_listing_by_id",
+        lambda listing_id: None,
+    )
 
     response = client.get("/api/listings/999999")
 
@@ -69,7 +85,12 @@ def test_api_get_listing_detail_not_found(client, monkeypatch):
 
 
 def test_listing_detail_page_success(client, monkeypatch):
-    monkeypatch.setattr(app_module, "get_listing_by_id", lambda listing_id: fake_listing())
+    """Render listing detail page when listing exists."""
+    monkeypatch.setattr(
+        app_module,
+        "get_listing_by_id",
+        lambda listing_id: fake_listing(),
+    )
 
     response = client.get("/listing/1")
 
@@ -85,7 +106,12 @@ def test_listing_detail_page_success(client, monkeypatch):
 
 
 def test_listing_detail_page_not_found(client, monkeypatch):
-    monkeypatch.setattr(app_module, "get_listing_by_id", lambda listing_id: None)
+    """Render 404 page when listing does not exist."""
+    monkeypatch.setattr(
+        app_module,
+        "get_listing_by_id",
+        lambda listing_id: None,
+    )
 
     response = client.get("/listing/999999")
 

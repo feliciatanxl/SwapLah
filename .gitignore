@@ -1,10 +1,35 @@
+# Virtual environments
 .venv/
+venv/
+env/
+
+# Environment variables / secrets
 .env
-*.db
-.pytest_cache/
+*.env
+
+# Python cache
 __pycache__/
-*.pyc
-.coverage
-htmlcov/
-coverage.xml
+*.py[cod]
+*$py.class
+
+# Pytest / coverage
 .pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+reports/
+
+# Databases
+*.db
+swaplah.db
+
+# IDE / OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
