@@ -51,21 +51,20 @@
                 <p class="text-muted mb-0">{{ listing.description }}</p>
 
                 <div class="owner-actions mt-4">
-    {% if session.get('user_id') == listing.seller_id %}
-    <a href="{{ url_for('edit_listing', listing_id=listing.id) }}" class="btn btn-outline-dark">
-        <i class="bi bi-pencil"></i> Edit Listing
-    </a>
+                    {% if session.get('user_id') == listing.seller_id %}
+                    <a href="{{ url_for('edit_listing', listing_id=listing.id) }}" class="btn btn-outline-dark">
+                        <i class="bi bi-pencil"></i> Edit Listing
+                    </a>
 
-    <button class="btn btn-outline-dark">
-        <i class="bi bi-inbox"></i> View Offers
-    </button>
+                    <button class="btn btn-outline-dark">
+                        <i class="bi bi-inbox"></i> View Offers
+                    </button>
 
-    <button class="btn btn-outline-danger" data-bs-toggle="modal"
-        data-bs-target="#deleteListingModal">
-        <i class="bi bi-archive"></i> Delete Listing
-    </button>
-    {% endif %}
-</div>
+                    <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteListingModal">
+                        <i class="bi bi-archive"></i> Delete Listing
+                    </button>
+                    {% endif %}
+                </div>
             </div>
         </div>
 
@@ -105,7 +104,8 @@
                 <label for="cash_offer_amount" class="form-label">Cash offer</label>
                 <div class="input-group mb-3">
                     <span class="input-group-text">$</span>
-                    <input id="cash_offer_amount" type="number" class="form-control" placeholder="20" min="0" step="0.01">
+                    <input id="cash_offer_amount" type="number" class="form-control" placeholder="20" min="0"
+                        step="0.01">
                 </div>
                 <button id="submit-cash-btn" type="button" class="btn btn-accent w-100 mb-3">
                     <i class="bi bi-cash-coin"></i> Submit Cash Offer
@@ -141,11 +141,14 @@
                 <h5 class="modal-title">Delete listing?</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">This placeholder represents a future soft-delete action. The listing should be
-                hidden from active browse results but kept in the database.</div>
+            <div class="modal-body">
+                Are you sure you want to delete this listing? It will be hidden from buyers but kept in the database.
+            </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-dark" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-danger">Soft-delete Listing</button>
+                <button type="button" class="btn btn-danger" id="confirm-delete-btn">
+                    Soft-delete Listing
+                </button>
             </div>
         </div>
     </div>
@@ -180,124 +183,154 @@
 {% endif %}
 
 <script>
-document.addEventListener("DOMContentLoaded", function () {
-    // ── Image slider ────────────────────────────────────────────────────────
-    const images = document.querySelectorAll(".detail-slider-image");
-    const prevBtn = document.querySelector(".detail-slider-left");
-    const nextBtn = document.querySelector(".detail-slider-right");
-    const counter = document.querySelector(".detail-current-image-number");
-    let currentIndex = 0;
+    document.addEventListener("DOMContentLoaded", function () {
+        // ── Image slider ────────────────────────────────────────────────────────
+        const images = document.querySelectorAll(".detail-slider-image");
+        const prevBtn = document.querySelector(".detail-slider-left");
+        const nextBtn = document.querySelector(".detail-slider-right");
+        const counter = document.querySelector(".detail-current-image-number");
+        let currentIndex = 0;
 
-    function showImage(index) {
-        images.forEach(function (img) { img.classList.remove("active"); });
-        images[index].classList.add("active");
-        if (counter) counter.textContent = index + 1;
-    }
+        function showImage(index) {
+            images.forEach(function (img) { img.classList.remove("active"); });
+            images[index].classList.add("active");
+            if (counter) counter.textContent = index + 1;
+        }
 
-    if (prevBtn) {
-        prevBtn.addEventListener("click", function () {
-            currentIndex = (currentIndex - 1 + images.length) % images.length;
-            showImage(currentIndex);
-        });
-    }
-    if (nextBtn) {
-        nextBtn.addEventListener("click", function () {
-            currentIndex = (currentIndex + 1) % images.length;
-            showImage(currentIndex);
-        });
-    }
+        if (prevBtn) {
+            prevBtn.addEventListener("click", function () {
+                currentIndex = (currentIndex - 1 + images.length) % images.length;
+                showImage(currentIndex);
+            });
+        }
+        if (nextBtn) {
+            nextBtn.addEventListener("click", function () {
+                currentIndex = (currentIndex + 1) % images.length;
+                showImage(currentIndex);
+            });
+        }
 
-    // ── Offer helpers ────────────────────────────────────────────────────────
-    const LISTING_ID = Number("{{ listing.id }}");
-    const feedback = document.getElementById("offer-feedback");
+        // ── Offer helpers ────────────────────────────────────────────────────────
+        const LISTING_ID = Number("{{ listing.id }}");
+        const feedback = document.getElementById("offer-feedback");
 
-    function showFeedback(message, isError) {
-        feedback.textContent = message;
-        feedback.className = "alert mb-3 " + (isError ? "alert-danger" : "alert-success");
-        feedback.classList.remove("d-none");
-        feedback.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }
+        const deleteBtn = document.getElementById("confirm-delete-btn");
 
-    async function postOffer(payload) {
-        const res = await fetch("/api/offers", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Something went wrong.");
-        return data;
-    }
+        if (deleteBtn) {
+            deleteBtn.addEventListener("click", async function () {
+                deleteBtn.disabled = true;
+                deleteBtn.textContent = "Deleting...";
 
-    // ── Cash offer ───────────────────────────────────────────────────────────
-    const cashBtn = document.getElementById("submit-cash-btn");
-    if (cashBtn) {
-        cashBtn.addEventListener("click", async function () {
-            const price = parseFloat(document.getElementById("cash_offer_amount").value);
-            if (isNaN(price) || price < 0) {
-                showFeedback("Please enter a valid cash amount.", true);
-                return;
-            }
-            cashBtn.disabled = true;
-            try {
-                const data = await postOffer({
-                    listingId: LISTING_ID,
-                    offerType: "cash",
-                    proposedPrice: price,
-                });
-                showFeedback(data.message || "Cash offer submitted!", false);
-                document.getElementById("cash_offer_amount").value = "";
-            } catch (err) {
-                showFeedback(err.message, true);
-            } finally {
-                cashBtn.disabled = false;
-            }
-        });
-    }
+                try {
+                    const res = await fetch(`/api/listings/${LISTING_ID}`, {
+                        method: "DELETE",
+                        headers: {
+                            "Content-Type": "application/json"
+                        }
+                    });
 
-    // ── Swap dropdown — populate from user's own listings ───────────────────
-    const swapSelect = document.getElementById("swap_listing_id");
-    if (swapSelect) {
-        fetch("/api/my-listings")
-            .then(function (r) { return r.json(); })
-            .then(function (listings) {
-                listings.forEach(function (l) {
-                    if (l.id === LISTING_ID) return;
-                    const opt = document.createElement("option");
-                    opt.value = l.id;
-                    opt.textContent = l.title;
-                    swapSelect.appendChild(opt);
-                });
-            })
-            .catch(function () {});
-    }
+                    const data = await res.json();
 
-    // ── Swap offer ───────────────────────────────────────────────────────────
-    const swapBtn = document.getElementById("submit-swap-btn");
-    if (swapBtn) {
-        swapBtn.addEventListener("click", async function () {
-            const swapId = parseInt(swapSelect.value, 10);
-            if (!swapId) {
-                showFeedback("Please select one of your listings to swap.", true);
-                return;
-            }
-            swapBtn.disabled = true;
-            try {
-                const data = await postOffer({
-                    listingId: LISTING_ID,
-                    offerType: "swap",
-                    swapListingId: swapId,
-                });
-                showFeedback(data.message || "Swap offer submitted!", false);
-                swapSelect.value = "";
-                document.getElementById("offer_message").value = "";
-            } catch (err) {
-                showFeedback(err.message, true);
-            } finally {
-                swapBtn.disabled = false;
-            }
-        });
-    }
-});
+                    if (!res.ok) {
+                        throw new Error(data.error || "Failed to delete listing.");
+                    }
+
+                    window.location.href = "{{ url_for('index') }}";
+                } catch (err) {
+                    alert(err.message);
+                    deleteBtn.disabled = false;
+                    deleteBtn.textContent = "Soft-delete Listing";
+                }
+            });
+        }
+
+        function showFeedback(message, isError) {
+            feedback.textContent = message;
+            feedback.className = "alert mb-3 " + (isError ? "alert-danger" : "alert-success");
+            feedback.classList.remove("d-none");
+            feedback.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
+
+        async function postOffer(payload) {
+            const res = await fetch("/api/offers", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Something went wrong.");
+            return data;
+        }
+
+        // ── Cash offer ───────────────────────────────────────────────────────────
+        const cashBtn = document.getElementById("submit-cash-btn");
+        if (cashBtn) {
+            cashBtn.addEventListener("click", async function () {
+                const price = parseFloat(document.getElementById("cash_offer_amount").value);
+                if (isNaN(price) || price < 0) {
+                    showFeedback("Please enter a valid cash amount.", true);
+                    return;
+                }
+                cashBtn.disabled = true;
+                try {
+                    const data = await postOffer({
+                        listingId: LISTING_ID,
+                        offerType: "cash",
+                        proposedPrice: price,
+                    });
+                    showFeedback(data.message || "Cash offer submitted!", false);
+                    document.getElementById("cash_offer_amount").value = "";
+                } catch (err) {
+                    showFeedback(err.message, true);
+                } finally {
+                    cashBtn.disabled = false;
+                }
+            });
+        }
+
+        // ── Swap dropdown — populate from user's own listings ───────────────────
+        const swapSelect = document.getElementById("swap_listing_id");
+        if (swapSelect) {
+            fetch("/api/my-listings")
+                .then(function (r) { return r.json(); })
+                .then(function (listings) {
+                    listings.forEach(function (l) {
+                        if (l.id === LISTING_ID) return;
+                        const opt = document.createElement("option");
+                        opt.value = l.id;
+                        opt.textContent = l.title;
+                        swapSelect.appendChild(opt);
+                    });
+                })
+                .catch(function () { });
+        }
+
+        // ── Swap offer ───────────────────────────────────────────────────────────
+        const swapBtn = document.getElementById("submit-swap-btn");
+        if (swapBtn) {
+            swapBtn.addEventListener("click", async function () {
+                const swapId = parseInt(swapSelect.value, 10);
+                if (!swapId) {
+                    showFeedback("Please select one of your listings to swap.", true);
+                    return;
+                }
+                swapBtn.disabled = true;
+                try {
+                    const data = await postOffer({
+                        listingId: LISTING_ID,
+                        offerType: "swap",
+                        swapListingId: swapId,
+                    });
+                    showFeedback(data.message || "Swap offer submitted!", false);
+                    swapSelect.value = "";
+                    document.getElementById("offer_message").value = "";
+                } catch (err) {
+                    showFeedback(err.message, true);
+                } finally {
+                    swapBtn.disabled = false;
+                }
+            });
+        }
+    });
 </script>
 {% endblock %}
