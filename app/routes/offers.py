@@ -201,3 +201,21 @@ def api_accept_offer(offer_id):
         "message": "Offer accepted successfully.",
         "offer": _format_offer(updated_offer),
     }), 200
+
+
+# ---------------------------------------------------------------------------
+# PATCH /api/offers/<id>/reject  —  seller rejects an offer
+# ---------------------------------------------------------------------------
+
+@offers_bp.route("/api/offers/<int:offer_id>/reject", methods=["PATCH"])
+def api_reject_offer(offer_id):
+    """Reject a pending offer owned by the logged-in seller."""
+    error = _check_offer_access(offer_id)
+    if error:
+        return error
+
+    updated_offer = db_module.reject_offer(offer_id)
+    return jsonify({
+        "message": "Offer rejected successfully.",
+        "offer": _format_offer(updated_offer),
+    }), 200
