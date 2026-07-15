@@ -176,6 +176,7 @@ Pipeline stages:
 - `api-test`: Newman/Postman API tests.
 - `security`: GitLab SAST, dependency scanning, secret detection, CycloneDX SBOM, security gate.
 - `build`: reproducible source archive.
+- `deploy`: publishes the verified build archive to GitLab Generic Package Registry.
 
 ## SBOM
 
@@ -216,4 +217,22 @@ The archive includes application Python files, templates, static assets, Postman
 
 ## Deployment
 
-No active deploy job is configured because this repository does not contain a verified deployment target, deployment configuration, or credential documentation. Deployment remains manual or future work. A real deployment would need documented GitLab variables such as host, username, private key or token, target path, and production `SECRET_KEY`.
+The `deploy-package` job publishes `dist/swaplah-build.zip` from the `build-archive` job to GitLab Generic Package Registry. The package name is `swaplah`, the package version is the commit short SHA, and the uploaded filename remains `swaplah-build.zip`.
+
+The upload URL is built from GitLab predefined CI variables:
+
+```text
+${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/swaplah/${CI_COMMIT_SHORT_SHA}/swaplah-build.zip
+```
+
+Default-branch pipelines deploy automatically after the required earlier stages and `build-archive` pass. Merge request and feature-branch pipelines show `deploy-package` as a manual job, and the pipeline is not blocked when that manual job is not started. Tag pipelines do not deploy because this project does not define a tag-release process.
+
+The deploy job authenticates with `CI_JOB_TOKEN` using the `JOB-TOKEN` request header. No real secret, password, token, project ID, or project URL is stored in the repository.
+
+Find the package in GitLab at:
+
+```text
+GitLab -> Deploy -> Package Registry
+```
+
+This deployment does not provide a live hosted Flask URL. Live hosting would require a real hosting target such as a VM, container platform, or cloud service, plus its deployment configuration and required CI/CD variables.

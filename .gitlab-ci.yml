@@ -7,6 +7,7 @@ stages:
   - api-test
   - security
   - build
+  - deploy
 
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
@@ -190,7 +191,7 @@ newman-api-tests:
 include:
   - template: Security/SAST.gitlab-ci.yml
   - template: Security/Secret-Detection.gitlab-ci.yml
-  - template: Security/Dependency-Scanning.gitlab-ci.yml
+  - template: Jobs/Dependency-Scanning.gitlab-ci.yml
 
 semgrep-sast:
   stage: security
@@ -202,6 +203,15 @@ secret_detection:
 
 gemnasium-python-dependency_scanning:
   stage: security
+  variables:
+    PIP_REQUIREMENTS_FILE: "requirements.txt"
+  artifacts:
+    when: always
+    reports:
+      dependency_scanning: gl-dependency-scanning-report.json
+    paths:
+      - gl-dependency-scanning-report.json
+      - gl-sbom-*.cdx.json
   allow_failure: false
 
 cyclonedx-sbom:
@@ -229,6 +239,7 @@ security-gate:
     - job: secret_detection
       artifacts: true
   script:
+    - find . -maxdepth 4 -type f -print | sort
     - python scripts/security_gate.py
   allow_failure: false
 
@@ -243,3 +254,30 @@ build-archive:
     paths:
       - dist/swaplah-build.zip
   allow_failure: false
+
+deploy-package:
+  stage: deploy
+  image: curlimages/curl:8.10.1
+  needs:
+    - job: build-archive
+      artifacts: true
+  script:
+    - test -f dist/swaplah-build.zip
+    - >
+      curl
+      --fail
+      --show-error
+      --location
+      --header "JOB-TOKEN: ${CI_JOB_TOKEN}"
+      --upload-file dist/swaplah-build.zip
+      "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/swaplah/${CI_COMMIT_SHORT_SHA}/swaplah-build.zip"
+  rules:
+    - if: '$CI_COMMIT_TAG'
+      when: never
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: manual
+      allow_failure: true
+    - if: '$CI_COMMIT_BRANCH'
+      when: manual
+      allow_failure: true
