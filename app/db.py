@@ -579,18 +579,37 @@ def _create_transaction_for_offer(conn, offer):
     )
 
 
+def reject_offer(offer_id):
+    """Mark a single offer as Rejected and return the updated offer."""
+    conn = get_db_connection()
+    conn.execute("UPDATE offers SET status = 'Rejected' WHERE id = ?", (offer_id,))
+    conn.commit()
+    offer = conn.execute("SELECT * FROM offers WHERE id = ?", (offer_id,)).fetchone()
+    conn.close()
+    return dict(offer)
+
+
 def accept_offer(offer_id):
     """
     Accept a pending offer.
 
-    Marks the offer Accepted, marks the listing as Sold (no longer available
-    for new offers), and records a transaction for the accepted offer.
+    Marks the offer Accepted, auto-rejects other pending offers on the same
+    listing, marks the listing as Sold (no longer available for new offers),
+    and records a transaction for the accepted offer.
     """
     conn = get_db_connection()
     offer = conn.execute("SELECT * FROM offers WHERE id = ?", (offer_id,)).fetchone()
     offer = dict(offer)
 
     conn.execute("UPDATE offers SET status = 'Accepted' WHERE id = ?", (offer_id,))
+    conn.execute(
+        """
+        UPDATE offers
+        SET status = 'Rejected'
+        WHERE listing_id = ? AND id != ? AND status = 'Pending'
+        """,
+        (offer["listing_id"], offer_id),
+    )
     conn.execute(
         "UPDATE listings SET status = 'Sold' WHERE id = ?",
         (offer["listing_id"],),
