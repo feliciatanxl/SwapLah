@@ -24,24 +24,17 @@ class EditListingPage(BasePage):
         self.find(self.TITLE)
         return self
 
-    def update_listing(
-        self,
-        title,
-        description,
-        price,
-        category,
-        condition,
-    ):
+    def update_listing(self, fields):
         """Update listing fields and submit the edit form."""
-        self.enter_text(self.TITLE, title, clear=True)
-        self.enter_text(self.DESCRIPTION, description, clear=True)
+        self.enter_text(self.TITLE, fields["title"], clear=True)
+        self.enter_text(self.DESCRIPTION, fields["description"], clear=True)
 
         # Keep the test on the normal numeric-price flow.
         self.safe_click(self.PRICE_TYPE_SET)
-        self.enter_text(self.PRICE, price, clear=True)
+        self.enter_text(self.PRICE, fields["price"], clear=True)
 
-        Select(self.find(self.CATEGORY)).select_by_visible_text(category)
-        Select(self.find(self.CONDITION)).select_by_visible_text(condition)
+        Select(self.find(self.CATEGORY)).select_by_visible_text(fields["category"])
+        Select(self.find(self.CONDITION)).select_by_visible_text(fields["condition"])
 
         # Existing listing images are loaded by JavaScript into this hidden input.
         self.wait.until(
