@@ -239,6 +239,90 @@ def test_get_listing_detail_returns_404_for_missing_listing(client):
     assert response.get_json()["error"] == "Listing not found or unavailable."
 
 
+def test_get_my_listings_returns_only_authenticated_users_active_listings(client):
+    """GET /api/my-listings returns only active listings owned by the session user."""
+    seller_id = seed_user(
+        student_id="S55555555",
+        email="mine@mymail.nyp.edu.sg",
+        display_name="Mine",
+    )
+    other_seller_id = seed_user(
+        student_id="S66666666",
+        email="otherlistings@mymail.nyp.edu.sg",
+        display_name="Other Listings",
+    )
+    own_listing = seed_listing(seller_id=seller_id, title="My Active Listing")
+    seed_listing(seller_id=other_seller_id, title="Other User Listing")
+    seed_listing(seller_id=seller_id, title="My Deleted Listing", status="Deleted")
+    login_as(client, seller_id)
+
+    response = client.get("/api/my-listings")
+
+    assert response.status_code == 200
+    assert response.get_json() == [
+        {"id": own_listing["id"], "title": "My Active Listing"},
+    ]
+
+
+def test_get_my_listings_returns_empty_list_for_user_without_listings(client):
+    """GET /api/my-listings returns an empty list for a user without active listings."""
+    seller_id = seed_user(
+        student_id="S77777777",
+        email="empty@mymail.nyp.edu.sg",
+        display_name="Empty",
+    )
+    login_as(client, seller_id)
+
+    response = client.get("/api/my-listings")
+
+    assert response.status_code == 200
+    assert response.get_json() == []
+
+
+def test_get_my_listings_rejects_unauthenticated_user(client):
+    """GET /api/my-listings requires an authenticated user."""
+    response = client.get("/api/my-listings")
+
+    assert response.status_code == 401
+    assert response.get_json()["error"] == "Not logged in."
+
+
+def test_get_my_listings_excludes_soft_deleted_listings(client):
+    """GET /api/my-listings excludes soft-deleted listings from active choices."""
+    seller_id = seed_user(
+        student_id="S88888888",
+        email="deleted@mymail.nyp.edu.sg",
+        display_name="Deleted",
+    )
+    seed_listing(seller_id=seller_id, title="Deleted Personal Listing", status="Deleted")
+    login_as(client, seller_id)
+
+    response = client.get("/api/my-listings")
+
+    assert response.status_code == 200
+    assert response.get_json() == []
+
+
+def test_get_my_listings_does_not_expose_sensitive_account_data(client):
+    """GET /api/my-listings returns only the fields required by the swap dropdown."""
+    seller_id = seed_user(
+        student_id="S99999999",
+        email="private@mymail.nyp.edu.sg",
+        display_name="Private",
+    )
+    seed_listing(seller_id=seller_id, title="Minimal Listing")
+    login_as(client, seller_id)
+
+    response = client.get("/api/my-listings")
+
+    assert response.status_code == 200
+
+    [listing] = response.get_json()
+    assert set(listing) == {"id", "title"}
+    assert "private@mymail.nyp.edu.sg" not in response.get_data(as_text=True)
+    assert "91234567" not in response.get_data(as_text=True)
+
+
 def test_create_listing_success_for_logged_in_seller(client):
     """POST /api/listings creates a listing for a logged-in seller."""
     seller_id = seed_user()

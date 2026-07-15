@@ -500,9 +500,17 @@ def get_listing_owner(listing_id):
 
 
 def get_listings_by_seller(seller_id):
-    """Return all listings belonging to seller_id for swap dropdown."""
+    """Return active listings belonging to seller_id for swap dropdown."""
     conn = get_db_connection()
-    rows = conn.execute("SELECT id, title FROM listings WHERE seller_id = ?", (seller_id,)).fetchall()
+    rows = conn.execute(
+        """
+        SELECT id, title
+        FROM listings
+        WHERE seller_id = ?
+        AND status = 'Active'
+        """,
+        (seller_id,),
+    ).fetchall()
     conn.close()
     return [dict(row) for row in rows]
 

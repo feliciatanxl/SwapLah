@@ -5,7 +5,7 @@
 **Team:** Team 2 — SwapLah  
 **Team members:** TAN XIU LI, FELICIA; TAN YU EN, CHARLISA; ELIJAH ONG; LEOVALAN LUCIO RICHARD; LUCAS WONG SI JIE  
 **Date created:** 12 Jun 2026  
-**Last updated:** 6 Jul 2026  
+**Last updated:** 15 Jul 2026
 **GitLab project:** https://gitlab.com/nyp-sg/pet/it2112/26s1/it2112-03/assignment/team_2/swaplah
 
 ---
@@ -82,30 +82,31 @@ The following items are included in Sprint 2 testing:
 | Unit tests | 10–15+ | pytest | test | Verify individual listing helper functions and database functions. |
 | API / Route tests | 10–15+ | pytest + Flask test client | test | Verify HTTP route behaviour from the outside. |
 | UI smoke / flow tests | 3 Sprint 2 Selenium flows | Selenium WebDriver + headless Chrome | test | Verify complete listing-related user flows in a browser. |
-| Static analysis | All `.py` files | pylint >= 7.0 | lint | Detect style, structure, and code quality issues. |
-| Complexity check | All application functions | radon | lint | Confirm functions are maintainable and testable. |
-| Coverage check | Application logic | pytest-cov | test | Confirm at least 60% application logic coverage. |
+| Static analysis | All `.py` files | pylint >= 10.0 | validate | Detect style, structure, and code quality issues. |
+| Complexity check | All application functions | radon | validate | Confirm functions are maintainable and testable. |
+| Coverage check | Application logic | pytest-cov | test | Confirm at least 75% unit coverage for the current A-band gate and at least 60% for the assignment minimum. |
 
 ### 3.2 Static Testing
 
 - **Tool:** pylint
-- **Threshold:** score must be `>= 7.0/10`
+- **Threshold:** score must be `10.0/10`
 - **Purpose:** Detect syntax problems, unused imports, naming issues, overly long functions, and poor code structure before dynamic tests run.
-- **Pipeline stage:** lint
+- **Pipeline stage:** validate
 
 ### 3.3 Complexity Testing
 
 - **Tool:** radon
 - **Threshold:** cyclomatic complexity per function should not exceed 10.
 - **Purpose:** Identify functions that are difficult to test or should be refactored.
-- **Pipeline stage:** lint
+- **Pipeline stage:** validate
 - **Rule:** If a function has complexity above 10, it is treated as high risk and should be refactored or covered with additional tests before merge.
 
 ### 3.4 Dynamic Testing
 
 - **Tools:** pytest, pytest-cov, Flask test client, Selenium WebDriver
-- **Minimum coverage required:** `>= 60%` application logic coverage
-- **Team stretch target:** `>= 70%` where possible
+- **Assignment minimum coverage:** `>= 60%` application logic coverage
+- **A-band / current pipeline threshold:** `>= 75%` unit coverage
+- **Actual final unit coverage:** 77%
 - **Unit test design:** white-box testing, because developers know the internal branches and validation logic.
 - **API / route test design:** black-box testing, because tests verify request/response behaviour against the user story and acceptance criteria.
 - **Selenium test design:** browser-based end-to-end testing for complete user flows.
@@ -188,8 +189,8 @@ Complexity values are numeric for implemented Python functions. Items marked **N
 | UI automation | Selenium WebDriver |
 | Browser for Selenium | Headless Chrome / Chromium |
 | CI/CD platform | GitLab CI/CD |
-| CI image | python:3.11-slim |
-| Dependencies | Installed from `requirements.txt` |
+| CI image | python:3.11-bookworm |
+| Dependencies | Installed from `requirements-dev.txt` for development, testing, quality, and CI checks |
 | Browser for manual verification | Chrome / Edge / Firefox |
 
 ### Test Isolation Rule
@@ -213,21 +214,21 @@ Testing can begin when:
 - Selenium Page Object Model files are added under `tests/ui/selenium/pages/` when UI flows are automated.
 - Flask app can run locally in development mode.
 - Test database setup is available.
-- pylint validate stage passes with score `>= 7.0`.
+- pylint validate stage passes with score `10.0/10`.
 
 ### 6.2 Exit Criteria — Verification
 
 Sprint 2 verification is complete when:
 
-- [x] All implemented unit tests pass with 0 failures.
-- [x] All implemented API / route tests pass with 0 failures.
+- [x] All implemented unit tests pass with 0 failures: 77 passed.
+- [x] All implemented API / route tests pass with 0 failures: 70 passed.
 - [x] UI listing creation flow test passes.
 - [x] Search/filter Selenium UI flow test passes.
 - [x] Soft-delete Selenium UI flow test passes.
-- [x] Test coverage is at least 60%.
-- [x] pylint score is at least 7.0/10.
-- [x] radon complexity check shows no implemented function exceeds complexity 10.
-- [x] GitLab pipeline is green on the Merge Request.
+- [x] Test coverage is at least 75% for the current A-band gate and at least 60% for the assignment minimum: 77%.
+- [x] pylint score is 10.00/10 against the 10.0 target.
+- [x] radon complexity check shows no implemented function exceeds complexity 10; highest is B(7).
+- [ ] GitLab pipeline is green on the Merge Request (user-reported, not repository-verifiable locally).
 - [x] No new SAST or secret detection issues are introduced.
 - [x] No generated files such as `.env`, `.coverage`, `.venv`, `__pycache__`, or `swaplah.db` are committed.
 
@@ -235,10 +236,10 @@ Sprint 2 verification is complete when:
 
 Sprint 2 validation is complete when:
 
-- [x] Product Owner / Tutor acceptance criteria are verified through issue checklist, MR evidence, and test results.
+- [ ] Product Owner / Tutor acceptance criteria are verified through issue checklist, MR evidence, and test results.
 - [x] All Sprint 2 test cases are updated to Passing.
 - [x] Sprint 2 work items are closed and moved to Done only after MRs are merged and checklists are complete.
-- [x] At least one teammate reviews and approves the Merge Request.
+- [ ] At least one teammate reviews and approves the Merge Request.
 - [x] Related GitLab issue is moved to Done after the MR is merged and the issue checklist is complete.
 
 ### 6.4 Suspension and Resumption Criteria
@@ -329,10 +330,10 @@ Before merging any Sprint 2 Merge Request, the following regression checks must 
 | Regression Area | Command / Method | Expected Result |
 | --- | --- | --- |
 | Full automated test suite | `python -m pytest -q` | All implemented tests pass. |
-| Unit coverage | `python -m pytest tests/unit --cov=app --cov-fail-under=60` | Coverage is at least 60%. |
+| Unit coverage | `python -m pytest tests/unit --cov=app --cov-report=term-missing` | Coverage is at least 75% for the current A-band gate and at least 60% for the assignment minimum. |
 | UI tests | `python -m pytest tests/ui` | Flask UI smoke tests and Selenium UI tests pass. |
 | Sprint 2 Selenium listing tests | `python -m pytest tests/ui/selenium/test_listing_creation_selenium.py tests/ui/selenium/test_listing_search_filter_selenium.py tests/ui/selenium/test_soft_delete_listing_selenium.py` | Sprint 2 listing UI flows pass in headless browser. |
-| Linting | `python -m pylint app tests --fail-under=7.0` | Score is at least 7.0/10. |
+| Linting | `python -m pylint app tests scripts` | Score is 10.00/10 against the 10.0 target. |
 | Complexity | `python -m radon cc app/ -s` | No implemented function exceeds complexity 10. |
 | Manual create listing flow | Browser test | Seller can create a valid listing. |
 | Manual browse listing flow | Browser test | Buyer can browse active listings. |
@@ -401,21 +402,21 @@ Before merging any Sprint 2 Merge Request, the following regression checks must 
 ### Verification
 
 - [x] Code committed through a feature branch and Merge Request.
-- [x] Merge Request reviewed and approved by at least one teammate.
-- [x] Code passes pylint with score `>= 7.0`.
+- [ ] Merge Request reviewed and approved by at least one teammate.
+- [x] Code passes pylint with score `10.00/10` against the 10.0 target.
 - [x] Cyclomatic complexity for implemented functions does not exceed 10.
 - [x] All implemented unit tests pass.
 - [x] All implemented API / route tests pass.
 - [x] UI listing creation flow test passes.
 - [x] Search/filter Selenium UI flow test passes.
 - [x] Soft-delete Selenium UI flow test passes.
-- [x] Test coverage is at least 60%.
-- [x] GitLab pipeline is green on the Merge Request.
+- [x] Test coverage is at least 75% for the current A-band gate and at least 60% for the assignment minimum.
+- [ ] GitLab pipeline is green on the Merge Request (user-reported, not repository-verifiable locally).
 - [x] No new linting, SAST, or secret detection issues are introduced.
 
 ### Validation
 
-- [x] Implemented acceptance criteria are confirmed with Product Owner / Tutor.
+- [ ] Implemented acceptance criteria are confirmed with Product Owner / Tutor.
 - [x] All Sprint 2 test cases are updated to Passing.
 - [x] Related GitLab issues are moved to Done after the MRs are merged and the issue checklists are complete.
 - [x] Sprint 2 board shows Sprint 2 work items as Closed / Done.
@@ -442,3 +443,29 @@ The test plan was also updated to include Selenium UI evidence for Sprint 2 item
 - Selenium test items were mapped only to Sprint 2 item-listing user flows.
 - Search, filter, clear filter, and soft-delete items were changed from `Pending / Not Run` to `Pass` only after the related GitLab work items were closed and moved to Done.
 - The plan was structured using the Lesson 7 test plan format and expanded with regression testing, DoD, Selenium/POM evidence, and AI prompt/refinement evidence for final submission.
+
+---
+
+## 15. Final Repository Evidence Update
+
+Evidence captured on 15 Jul 2026 from the current repository:
+
+| Evidence item | Final value |
+| --- | --- |
+| Full pytest suite | 159 passed |
+| Unit tests | 77 passed |
+| Unit coverage | 77% |
+| API tests | 70 passed |
+| Flask UI tests | 2 passed |
+| Selenium tests | 10 passed |
+| Pylint target and result | Target 10.0; result 10.00/10 |
+| Highest cyclomatic complexity | B(7), `_common_error` in `app/routes/offers.py` |
+| Longest application function | 38 lines, `_register_simple_page_routes` in `app/__init__.py` |
+| Code-quality gate | Passed |
+| Development dependencies | `requirements-dev.txt` |
+| Selenium pipeline job name | `selenium-ui-tests` |
+| Pipeline stages | validate, test, ui-test, api-test, security, build, deploy |
+
+Current pipeline jobs in `.gitlab-ci.yml`: `pylint-application`, `code-quality-gate`, `pytest-unit-tests`, `pytest-api-tests`, `selenium-ui-tests`, `newman-api-tests`, `semgrep-sast`, `secret_detection`, `gemnasium-python-dependency_scanning`, `cyclonedx-sbom`, `security-gate`, `build-archive`, and `deploy-package`.
+
+The final evidence preserves the historical refinement explanation above: earlier Pending / Not Run labels were changed only after repository tests and sprint evidence were available. This cleanup does not reopen or modify GitLab sprint history.

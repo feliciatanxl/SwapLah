@@ -40,6 +40,16 @@ Safe local setup:
 
 GitLab CI sets a test-only `SECRET_KEY` for automated checks. Production or deployment environments must provide their own secret through protected CI/CD variables or hosting configuration.
 
+Manual GitLab setup for CI:
+
+1. Go to `GitLab -> Settings -> CI/CD -> Variables`.
+2. Add a variable with key `SECRET_KEY`.
+3. Enter a non-empty test/deployment value in GitLab only; do not paste the value into repository files or documentation.
+4. Set the visibility/protection options according to the branch and merge-request pipeline policy used by the project.
+5. Save the variable before running feature-branch or merge-request pipelines.
+
+Pytest receives its test-only key from `tests/conftest.py`. Newman and the Flask server used by the `newman-api-tests` job receive `SECRET_KEY` from the GitLab CI/CD variable environment.
+
 ## Database
 
 The SQLite database file is `swaplah.db` for local development. Tables are created automatically by `init_db()` when the Flask app starts. Local database files are ignored by Git.

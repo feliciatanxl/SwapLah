@@ -12,9 +12,8 @@ stages:
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
   PYTHONPATH: "$CI_PROJECT_DIR"
-  PYLINT_FAIL_UNDER: "7.0"
+  PYLINT_FAIL_UNDER: "10.0"
   UNIT_COVERAGE_MIN: "75"
-  SECRET_KEY: "ci-test-only-secret-key"
 
 cache:
   key:

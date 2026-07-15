@@ -25,3 +25,11 @@ def test_health_endpoint_returns_ok(client):
 
     assert response.status_code == 200
     assert response.get_json() == {"status": "ok"}
+
+
+def test_health_endpoint_rejects_post(client):
+    """POST /api/health is not allowed and does not report healthy status."""
+    response = client.post("/api/health")
+
+    assert response.status_code == 405
+    assert response.get_json(silent=True) != {"status": "ok"}
