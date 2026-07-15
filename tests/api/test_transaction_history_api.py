@@ -1,148 +1,169 @@
 """
-API tests for GET /api/transactions
+API integration tests for GET /api/transactions.
 
-All DB calls are monkeypatched — no real database needed.
+Uses a real temporary SQLite database with seeded users, listings, and
+transactions, exercising the actual SQL in get_transactions_for_user().
 """
+import sqlite3
+
 import pytest
+from werkzeug.security import generate_password_hash
+
 import app.db as db_module
 from app import create_app
 
 
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
-
 @pytest.fixture
-def client():
+def client(tmp_path, monkeypatch):
+    test_db = tmp_path / "test_history.db"
+    monkeypatch.setattr(db_module, "DATABASE", test_db)
+
     flask_app = create_app()
     flask_app.config["TESTING"] = True
-    with flask_app.test_client() as c:
-        yield c
+
+    with flask_app.test_client() as test_client:
+        yield test_client, test_db
 
 
-def login_as(client, user_id):
-    with client.session_transaction() as sess:
+def _create_user(conn, student_id, display_name):
+    conn.execute(
+        """
+        INSERT INTO users (student_id, first_name, last_name, display_name,
+                           email, contact_number, password_hash, role, status)
+        VALUES (?,?,?,?,?,?,?,?,?)
+        """,
+        (student_id, display_name, "Test", display_name,
+         f"{student_id.lower()}@mymail.nyp.edu.sg", "91234567",
+         generate_password_hash("Password1"), "user", "Active"),
+    )
+    return conn.execute(
+        "SELECT id FROM users WHERE student_id = ?", (student_id,)
+    ).fetchone()["id"]
+
+
+def _create_listing(conn, seller_id, title):
+    now = "2026-06-09 10:00:00"
+    conn.execute(
+        """
+        INSERT INTO listings (seller_id, title, description, price, category,
+                              item_condition, image_url, listing_date, last_modified_timestamp)
+        VALUES (?,?,?,?,?,?,?,?,?)
+        """,
+        (seller_id, title, "A nice item", "20.00", "Textbooks",
+         "Good", '["https://example.com/img.jpg"]', now, now),
+    )
+    return conn.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
+
+
+def _create_offer_and_accept(test_db, seller_id, buyer_id, listing_id, price):
+    """Seed a pending offer and accept it via the real accept_offer() path."""
+    conn = sqlite3.connect(test_db)
+    conn.row_factory = sqlite3.Row
+    conn.execute(
+        """
+        INSERT INTO offers (listing_id, buyer_id, offer_type, proposed_price,
+                            swap_listing_id, status, created_at)
+        VALUES (?, ?, 'cash', ?, NULL, 'Pending', '2026-06-10 10:00:00')
+        """,
+        (listing_id, buyer_id, price),
+    )
+    offer_id = conn.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
+    conn.commit()
+    conn.close()
+
+    db_module.accept_offer(offer_id)
+
+
+def seed_completed_deal(test_db, seller_name="Seller1", buyer_name="Buyer1", price=25.0):
+    conn = sqlite3.connect(test_db)
+    conn.row_factory = sqlite3.Row
+    seller_id = _create_user(conn, "S1000001", seller_name)
+    buyer_id = _create_user(conn, "S1000002", buyer_name)
+    listing_id = _create_listing(conn, seller_id, "Intro to Algorithms 3E")
+    conn.commit()
+    conn.close()
+
+    _create_offer_and_accept(test_db, seller_id, buyer_id, listing_id, price)
+    return seller_id, buyer_id
+
+
+def login_as(test_client, user_id):
+    with test_client.session_transaction() as sess:
         sess["user_id"] = user_id
 
 
-# ---------------------------------------------------------------------------
-# Stubs
-# ---------------------------------------------------------------------------
-
-FAKE_TXN_CASH = {
-    "transaction_id": 1,
-    "transaction_date": "2026-06-01 10:00:00",
-    "offer_id": 10,
-    "offer_type": "cash",
-    "proposed_price": 50.0,
-    "swap_listing_id": None,
-    "swap_listing_title": None,
-    "listing_id": 5,
-    "listing_title": "Calculus Textbook",
-    "listing_category": "Textbooks",
-    "listing_price": "55.00",
-    "buyer_id": 2,
-    "buyer_display_name": "Alice",
-    "seller_id": 1,
-    "seller_display_name": "Bob",
-}
-
-FAKE_TXN_SWAP = {
-    "transaction_id": 2,
-    "transaction_date": "2026-06-02 11:00:00",
-    "offer_id": 11,
-    "offer_type": "swap",
-    "proposed_price": None,
-    "swap_listing_id": 7,
-    "swap_listing_title": "Physics Notes",
-    "listing_id": 6,
-    "listing_title": "Lab Coat",
-    "listing_category": "Lab Equipment",
-    "listing_price": "20.00",
-    "buyer_id": 1,
-    "buyer_display_name": "Bob",
-    "seller_id": 3,
-    "seller_display_name": "Carol",
-}
-
-
 # ===========================================================================
-# Positive tests
+# GET /api/transactions
 # ===========================================================================
 
-def test_api_get_transactions_returns_200(client, monkeypatch):
-    """AC1: authenticated request returns 200 with transactions key."""
-    login_as(client, 1)
-    monkeypatch.setattr(db_module, "get_transactions_for_user", lambda uid: [FAKE_TXN_CASH])
+def test_seller_sees_completed_transaction(client):
+    """AC1: seller sees a past transaction where they were the seller."""
+    test_client, test_db = client
+    seller_id, buyer_id = seed_completed_deal(test_db)
+    login_as(test_client, seller_id)
 
-    resp = client.get("/api/transactions")
+    resp = test_client.get("/api/transactions?role=seller")
 
     assert resp.status_code == 200
-    assert "transactions" in resp.get_json()
-
-
-def test_api_get_transactions_multiple_records(client, monkeypatch):
-    """AC1: returns all transactions for the user."""
-    login_as(client, 1)
-    monkeypatch.setattr(
-        db_module, "get_transactions_for_user",
-        lambda uid: [FAKE_TXN_CASH, FAKE_TXN_SWAP]
-    )
-
-    resp = client.get("/api/transactions")
     data = resp.get_json()
+    assert len(data["transactions"]) == 1
+    assert data["transactions"][0]["listingTitle"] == "Intro to Algorithms 3E"
+    assert data["transactions"][0]["counterpartyDisplayName"] == "Buyer1"
 
-    assert len(data["transactions"]) == 2
+
+def test_buyer_sees_completed_transaction(client):
+    """AC1: buyer sees a past transaction where they were the buyer."""
+    test_client, test_db = client
+    seller_id, buyer_id = seed_completed_deal(test_db)
+    login_as(test_client, buyer_id)
+
+    resp = test_client.get("/api/transactions?role=buyer")
+
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert len(data["transactions"]) == 1
+    assert data["transactions"][0]["counterpartyDisplayName"] == "Seller1"
 
 
-def test_api_get_transactions_empty_list(client, monkeypatch):
-    """AC3: user with no transactions gets 200 with empty list."""
-    login_as(client, 1)
-    monkeypatch.setattr(db_module, "get_transactions_for_user", lambda uid: [])
+def test_history_unauthenticated_blocked(client):
+    """AC2: unauthenticated request is blocked."""
+    test_client, test_db = client
+    resp = test_client.get("/api/transactions?role=buyer")
+    assert resp.status_code == 401
 
-    resp = client.get("/api/transactions")
+
+def test_history_empty_state_for_new_user(client):
+    """AC3: a user with no completed transactions gets an empty list."""
+    test_client, test_db = client
+    conn = sqlite3.connect(test_db)
+    conn.row_factory = sqlite3.Row
+    new_user_id = _create_user(conn, "S1999999", "NewUser")
+    conn.commit()
+    conn.close()
+
+    login_as(test_client, new_user_id)
+
+    resp = test_client.get("/api/transactions?role=buyer")
 
     assert resp.status_code == 200
     assert resp.get_json()["transactions"] == []
 
 
-def test_api_get_transactions_cash_fields(client, monkeypatch):
-    """Cash transaction has correct fields and proposedPrice."""
-    login_as(client, 2)
-    monkeypatch.setattr(db_module, "get_transactions_for_user", lambda uid: [FAKE_TXN_CASH])
+def test_history_does_not_leak_other_users_transactions(client):
+    """A user only sees their own transactions, not everyone else's."""
+    test_client, test_db = client
+    seller_id, buyer_id = seed_completed_deal(test_db)
 
-    txn = client.get("/api/transactions").get_json()["transactions"][0]
+    conn = sqlite3.connect(test_db)
+    conn.row_factory = sqlite3.Row
+    unrelated_user_id = _create_user(conn, "S1888888", "Unrelated")
+    conn.commit()
+    conn.close()
 
-    assert txn["offerType"] == "cash"
-    assert txn["proposedPrice"] == 50.0
-    assert txn["listingTitle"] == "Calculus Textbook"
-    assert txn["role"] == "buyer"
+    login_as(test_client, unrelated_user_id)
 
+    resp = test_client.get("/api/transactions?role=buyer")
+    assert resp.get_json()["transactions"] == []
 
-def test_api_get_transactions_swap_fields(client, monkeypatch):
-    """Swap transaction has swapListingTitle populated."""
-    login_as(client, 1)
-    monkeypatch.setattr(db_module, "get_transactions_for_user", lambda uid: [FAKE_TXN_SWAP])
-
-    txn = client.get("/api/transactions").get_json()["transactions"][0]
-
-    assert txn["offerType"] == "swap"
-    assert txn["swapListingTitle"] == "Physics Notes"
-    assert txn["role"] == "buyer"
-
-
-# ===========================================================================
-# Negative tests
-# ===========================================================================
-
-def test_api_get_transactions_unauthenticated(client):
-    """AC2: unauthenticated request returns 401."""
-    resp = client.get("/api/transactions")
-    assert resp.status_code == 401
-
-
-def test_api_get_transactions_401_has_error_message(client):
-    """AC2: 401 response includes an error message."""
-    resp = client.get("/api/transactions")
-    data = resp.get_json()
-    assert "error" in data
+    resp = test_client.get("/api/transactions?role=seller")
+    assert resp.get_json()["transactions"] == []

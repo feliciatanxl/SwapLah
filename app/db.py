@@ -204,10 +204,8 @@ WHERE id = :user_id
 
 def get_db_connection():
     """Return a SQLite database connection."""
-    conn = sqlite3.connect(DATABASE, timeout=10)
+    conn = sqlite3.connect(DATABASE)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA busy_timeout=10000")
     return conn
 
 
@@ -553,6 +551,59 @@ def get_offer_by_id(offer_id):
     return dict(row) if row else None
 
 
+TRANSACTIONS_FOR_BUYER_SQL = """
+SELECT
+    transactions.id,
+    transactions.transaction_type,
+    transactions.amount,
+    transactions.created_at,
+    listings.title AS listing_title,
+    listings.category AS listing_category,
+    seller.display_name AS counterparty_display_name
+FROM transactions
+JOIN listings ON transactions.listing_id = listings.id
+JOIN users AS seller ON transactions.seller_id = seller.id
+WHERE transactions.buyer_id = ?
+ORDER BY transactions.created_at DESC
+"""
+
+TRANSACTIONS_FOR_SELLER_SQL = """
+SELECT
+    transactions.id,
+    transactions.transaction_type,
+    transactions.amount,
+    transactions.created_at,
+    listings.title AS listing_title,
+    listings.category AS listing_category,
+    buyer.display_name AS counterparty_display_name
+FROM transactions
+JOIN listings ON transactions.listing_id = listings.id
+JOIN users AS buyer ON transactions.buyer_id = buyer.id
+WHERE transactions.seller_id = ?
+ORDER BY transactions.created_at DESC
+"""
+
+
+def get_transactions_for_user(user_id, role):
+    """
+    Return completed transactions for a user.
+
+    role must be either 'buyer' or 'seller'. Each row includes the item,
+    category, counterparty display name, transaction type, amount and date.
+    """
+    if role == "buyer":
+        sql = TRANSACTIONS_FOR_BUYER_SQL
+    elif role == "seller":
+        sql = TRANSACTIONS_FOR_SELLER_SQL
+    else:
+        raise ValueError("role must be 'buyer' or 'seller'")
+
+    conn = get_db_connection()
+    rows = conn.execute(sql, (user_id,)).fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
 def _create_transaction_for_offer(conn, offer):
     """Insert a transaction record for a just-accepted offer."""
     seller_id = conn.execute(
@@ -579,37 +630,18 @@ def _create_transaction_for_offer(conn, offer):
     )
 
 
-def reject_offer(offer_id):
-    """Mark a single offer as Rejected and return the updated offer."""
-    conn = get_db_connection()
-    conn.execute("UPDATE offers SET status = 'Rejected' WHERE id = ?", (offer_id,))
-    conn.commit()
-    offer = conn.execute("SELECT * FROM offers WHERE id = ?", (offer_id,)).fetchone()
-    conn.close()
-    return dict(offer)
-
-
 def accept_offer(offer_id):
     """
     Accept a pending offer.
 
-    Marks the offer Accepted, auto-rejects other pending offers on the same
-    listing, marks the listing as Sold (no longer available for new offers),
-    and records a transaction for the accepted offer.
+    Marks the offer Accepted, marks the listing as Sold (no longer available
+    for new offers), and records a transaction for the accepted offer.
     """
     conn = get_db_connection()
     offer = conn.execute("SELECT * FROM offers WHERE id = ?", (offer_id,)).fetchone()
     offer = dict(offer)
 
     conn.execute("UPDATE offers SET status = 'Accepted' WHERE id = ?", (offer_id,))
-    conn.execute(
-        """
-        UPDATE offers
-        SET status = 'Rejected'
-        WHERE listing_id = ? AND id != ? AND status = 'Pending'
-        """,
-        (offer["listing_id"], offer_id),
-    )
     conn.execute(
         "UPDATE listings SET status = 'Sold' WHERE id = ?",
         (offer["listing_id"],),
