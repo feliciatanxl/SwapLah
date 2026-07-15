@@ -1,11 +1,7 @@
-"""Routes for creating cash and swap offers (POST /api/offers)."""
+"""Routes for creating, viewing, and managing offers."""
 from flask import Blueprint, jsonify, request, session
 
-from app.db import (
-    create_offer,
-    get_active_listing_by_buyer,
-    get_listing_owner,
-)
+import app.db as db_module
 
 offers_bp = Blueprint("offers", __name__)
 
@@ -27,7 +23,7 @@ def _common_error(data):
     if data.get("offerType", "").strip().lower() not in ("cash", "swap"):
         return {"error": "offerType must be 'cash' or 'swap'."}, 400
 
-    seller_id = get_listing_owner(data["listingId"])
+    seller_id = db_module.get_listing_owner(data["listingId"])
     if seller_id is None:
         return {"error": "Listing not found."}, 404
     if seller_id == session.get("user_id"):
@@ -54,7 +50,7 @@ def _validate_cash_price(raw_price):
 
 def _format_offer(offer):
     """Serialise an offer row dict to a JSON-safe dict."""
-    return {
+    formatted = {
         "id": offer["id"],
         "listingId": offer["listing_id"],
         "buyerId": offer["buyer_id"],
@@ -65,9 +61,42 @@ def _format_offer(offer):
         "createdAt": offer["created_at"],
     }
 
+    if "listing_title" in offer:
+        formatted["listingTitle"] = offer["listing_title"]
+        formatted["listingCategory"] = offer["listing_category"]
+        formatted["listingPrice"] = offer["listing_price"]
+        formatted["buyerDisplayName"] = offer["buyer_display_name"]
+        formatted["swapListingTitle"] = offer.get("swap_listing_title")
+
+    return formatted
+
+
+def _check_offer_access(offer_id):
+    """
+    Shared validation for accept/reject: auth, existence, ownership, status.
+
+    Returns a Flask (body, status) response tuple on failure, or None
+    when the caller may proceed.
+    """
+    if not session.get("user_id"):
+        return jsonify({"error": "You must be logged in to manage offers."}), 401
+
+    offer = db_module.get_offer_by_id(offer_id)
+    if offer is None:
+        return jsonify({"error": "Offer not found."}), 404
+
+    seller_id = db_module.get_listing_owner(offer["listing_id"])
+    if seller_id != session.get("user_id"):
+        return jsonify({"error": "You do not have permission to manage this offer."}), 403
+
+    if offer["status"] != "Pending":
+        return jsonify({"error": f"Offer has already been {offer['status'].lower()}."}), 409
+
+    return None
+
 
 # ---------------------------------------------------------------------------
-# Route
+# POST /api/offers  —  submit an offer (existing)
 # ---------------------------------------------------------------------------
 
 @offers_bp.route("/api/offers", methods=["GET", "POST"])
@@ -106,7 +135,7 @@ def _handle_cash_offer(data, listing_id, buyer_id):
     if err:
         return jsonify(err[0]), err[1]
 
-    offer = create_offer(
+    offer = db_module.create_offer(
         listing_id=listing_id,
         buyer_id=buyer_id,
         offer_type="cash",
@@ -124,12 +153,12 @@ def _handle_swap_offer(data, listing_id, buyer_id):
     if not swap_listing_id:
         return jsonify({"error": "swapListingId is required for a swap offer."}), 400
 
-    if not get_active_listing_by_buyer(swap_listing_id, buyer_id):
+    if not db_module.get_active_listing_by_buyer(swap_listing_id, buyer_id):
         return jsonify({
             "error": "The selected swap item was not found in your active listings."
         }), 403
 
-    offer = create_offer(
+    offer = db_module.create_offer(
         listing_id=listing_id,
         buyer_id=buyer_id,
         offer_type="swap",
@@ -139,3 +168,36 @@ def _handle_swap_offer(data, listing_id, buyer_id):
         "message": "Swap offer submitted successfully.",
         "offer": _format_offer(offer),
     }), 201
+
+
+# ---------------------------------------------------------------------------
+# GET /api/offers/received  —  seller views pending offers on their listings
+# ---------------------------------------------------------------------------
+
+@offers_bp.route("/api/offers/received", methods=["GET"])
+def api_get_received_offers():
+    """Return all offers received on listings owned by the logged-in seller."""
+    if not session.get("user_id"):
+        return jsonify({"error": "You must be logged in to view your offers."}), 401
+
+    seller_id = session["user_id"]
+    offers = db_module.get_offers_for_seller(seller_id)
+    return jsonify({"offers": [_format_offer(offer) for offer in offers]}), 200
+
+
+# ---------------------------------------------------------------------------
+# PATCH /api/offers/<id>/accept  —  seller accepts an offer
+# ---------------------------------------------------------------------------
+
+@offers_bp.route("/api/offers/<int:offer_id>/accept", methods=["PATCH"])
+def api_accept_offer(offer_id):
+    """Accept a pending offer owned by the logged-in seller."""
+    error = _check_offer_access(offer_id)
+    if error:
+        return error
+
+    updated_offer = db_module.accept_offer(offer_id)
+    return jsonify({
+        "message": "Offer accepted successfully.",
+        "offer": _format_offer(updated_offer),
+    }), 200

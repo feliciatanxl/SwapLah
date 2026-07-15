@@ -3,7 +3,6 @@ Unit tests for:
   GET  /api/offers/received
   PATCH /api/offers/<id>/accept
 
-
 All DB calls are monkeypatched — no real database needed.
 """
 import pytest

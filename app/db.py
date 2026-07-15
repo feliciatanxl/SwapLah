@@ -55,6 +55,48 @@ CREATE TABLE IF NOT EXISTS offers (
 )
 """
 
+CREATE_TRANSACTIONS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS transactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    offer_id INTEGER NOT NULL,
+    listing_id INTEGER NOT NULL,
+    seller_id INTEGER NOT NULL,
+    buyer_id INTEGER NOT NULL,
+    transaction_type TEXT NOT NULL,
+    amount REAL,
+    swap_listing_id INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (offer_id) REFERENCES offers (id),
+    FOREIGN KEY (listing_id) REFERENCES listings (id),
+    FOREIGN KEY (seller_id) REFERENCES users (id),
+    FOREIGN KEY (buyer_id) REFERENCES users (id),
+    FOREIGN KEY (swap_listing_id) REFERENCES listings (id)
+)
+"""
+
+OFFERS_FOR_SELLER_SQL = """
+SELECT
+    offers.id,
+    offers.listing_id,
+    offers.buyer_id,
+    offers.offer_type,
+    offers.proposed_price,
+    offers.swap_listing_id,
+    offers.status,
+    offers.created_at,
+    listings.title AS listing_title,
+    listings.category AS listing_category,
+    listings.price AS listing_price,
+    buyer.display_name AS buyer_display_name,
+    swap_listing.title AS swap_listing_title
+FROM offers
+JOIN listings ON offers.listing_id = listings.id
+JOIN users AS buyer ON offers.buyer_id = buyer.id
+LEFT JOIN listings AS swap_listing ON offers.swap_listing_id = swap_listing.id
+WHERE listings.seller_id = ?
+ORDER BY offers.created_at DESC
+"""
+
 INSERT_LISTING_SQL = """
 INSERT INTO listings (
     seller_id, title, description, price, category, item_condition,
@@ -162,8 +204,10 @@ WHERE id = :user_id
 
 def get_db_connection():
     """Return a SQLite database connection."""
-    conn = sqlite3.connect(DATABASE)
+    conn = sqlite3.connect(DATABASE, timeout=10)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=10000")
     return conn
 
 
@@ -179,6 +223,7 @@ def init_db():
     conn.execute(CREATE_LISTINGS_TABLE_SQL)
     ensure_listing_status_column(conn)
     conn.execute(CREATE_OFFERS_TABLE_SQL)
+    conn.execute(CREATE_TRANSACTIONS_TABLE_SQL)
     conn.commit()
     conn.close()
 
@@ -490,3 +535,69 @@ def create_offer(listing_id, buyer_id, offer_type, proposed_price=None, swap_lis
     offer = conn.execute("SELECT * FROM offers WHERE id = ?", (cursor.lastrowid,)).fetchone()
     conn.close()
     return dict(offer)
+
+
+def get_offers_for_seller(seller_id):
+    """Return all offers received on listings owned by seller_id, newest first."""
+    conn = get_db_connection()
+    rows = conn.execute(OFFERS_FOR_SELLER_SQL, (seller_id,)).fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
+def get_offer_by_id(offer_id):
+    """Return a single offer by ID as a dict, or None if it doesn't exist."""
+    conn = get_db_connection()
+    row = conn.execute("SELECT * FROM offers WHERE id = ?", (offer_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def _create_transaction_for_offer(conn, offer):
+    """Insert a transaction record for a just-accepted offer."""
+    seller_id = conn.execute(
+        "SELECT seller_id FROM listings WHERE id = ?", (offer["listing_id"],)
+    ).fetchone()["seller_id"]
+
+    conn.execute(
+        """
+        INSERT INTO transactions (
+            offer_id, listing_id, seller_id, buyer_id,
+            transaction_type, amount, swap_listing_id
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            offer["id"],
+            offer["listing_id"],
+            seller_id,
+            offer["buyer_id"],
+            offer["offer_type"],
+            offer["proposed_price"],
+            offer["swap_listing_id"],
+        ),
+    )
+
+
+def accept_offer(offer_id):
+    """
+    Accept a pending offer.
+
+    Marks the offer Accepted, marks the listing as Sold (no longer available
+    for new offers), and records a transaction for the accepted offer.
+    """
+    conn = get_db_connection()
+    offer = conn.execute("SELECT * FROM offers WHERE id = ?", (offer_id,)).fetchone()
+    offer = dict(offer)
+
+    conn.execute("UPDATE offers SET status = 'Accepted' WHERE id = ?", (offer_id,))
+    conn.execute(
+        "UPDATE listings SET status = 'Sold' WHERE id = ?",
+        (offer["listing_id"],),
+    )
+    _create_transaction_for_offer(conn, offer)
+
+    conn.commit()
+    updated_offer = conn.execute("SELECT * FROM offers WHERE id = ?", (offer_id,)).fetchone()
+    conn.close()
+    return dict(updated_offer)
