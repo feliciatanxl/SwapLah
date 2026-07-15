@@ -69,6 +69,19 @@ def _format_offer(offer):
     return formatted
 
 
+def _format_transaction(transaction):
+    """Serialise a transaction row dict to a JSON-safe dict."""
+    return {
+        "id": transaction["id"],
+        "listingTitle": transaction["listing_title"],
+        "listingCategory": transaction["listing_category"],
+        "counterpartyDisplayName": transaction["counterparty_display_name"],
+        "transactionType": transaction["transaction_type"],
+        "amount": transaction["amount"],
+        "createdAt": transaction["created_at"],
+    }
+
+
 def _check_offer_access(offer_id):
     """
     Shared validation for accept/reject: auth, existence, ownership, status.
@@ -79,11 +92,11 @@ def _check_offer_access(offer_id):
     if not session.get("user_id"):
         return jsonify({"error": "You must be logged in to manage offers."}), 401
 
-    offer = db_module.get_offer_by_id(offer_id)
+    offer = get_offer_by_id(offer_id)
     if offer is None:
         return jsonify({"error": "Offer not found."}), 404
 
-    seller_id = db_module.get_listing_owner(offer["listing_id"])
+    seller_id = get_listing_owner(offer["listing_id"])
     if seller_id != session.get("user_id"):
         return jsonify({"error": "You do not have permission to manage this offer."}), 403
 
@@ -93,33 +106,13 @@ def _check_offer_access(offer_id):
     return None
 
 
-def _format_received_offer(offer):
-    return {
-        "id": offer["id"],
-        "listingId": offer["listing_id"],
-        "buyerId": offer["buyer_id"],
-        "offerType": offer["offer_type"],
-        "proposedPrice": offer["proposed_price"],
-        "swapListingId": offer["swap_listing_id"],
-        "status": offer["status"],
-        "createdAt": offer["created_at"],
-        "listingTitle": offer["listing_title"],
-        "listingCategory": offer["listing_category"],
-        "listingPrice": offer["listing_price"],
-        "buyerDisplayName": offer["buyer_display_name"],
-        "swapListingTitle": offer["swap_listing_title"],
-    }
-
-
 # ---------------------------------------------------------------------------
 # Routes — submit offer
 # ---------------------------------------------------------------------------
 
 @offers_bp.route("/api/offers", methods=["GET", "POST"])
 def api_create_offer():
-    if request.method == "GET":
-        return jsonify({"error": "This endpoint only accepts POST requests."}), 405
-
+    """
     Accepts JSON:
       listingId      (int)    required
       offerType      (str)    'cash' or 'swap'
@@ -192,7 +185,7 @@ def api_get_received_offers():
         return jsonify({"error": "You must be logged in to view your offers."}), 401
 
     seller_id = session["user_id"]
-    offers = db_module.get_offers_for_seller(seller_id)
+    offers = get_offers_for_seller(seller_id)
     return jsonify({"offers": [_format_offer(offer) for offer in offers]}), 200
 
 
@@ -207,15 +200,15 @@ def api_accept_offer(offer_id):
     if error:
         return error
 
-    updated_offer = db_module.accept_offer(offer_id)
+    updated = accept_offer(offer_id)
     return jsonify({
         "message": "Offer accepted successfully.",
-        "offer": _format_offer(updated_offer),
+        "offer": _format_offer(updated),
     }), 200
 
 
 # ---------------------------------------------------------------------------
-# Routes — transaction history
+# PATCH /api/offers/<id>/reject  —  seller rejects an offer
 # ---------------------------------------------------------------------------
 
 @offers_bp.route("/api/offers/<int:offer_id>/reject", methods=["PATCH"])
@@ -225,8 +218,35 @@ def api_reject_offer(offer_id):
     if error:
         return error
 
-    updated_offer = db_module.reject_offer(offer_id)
+    updated = reject_offer(offer_id)
     return jsonify({
         "message": "Offer rejected successfully.",
-        "offer": _format_offer(updated_offer),
+        "offer": _format_offer(updated),
+    }), 200
+
+
+# ---------------------------------------------------------------------------
+# GET /api/transactions  —  view completed transaction history
+# ---------------------------------------------------------------------------
+
+@offers_bp.route("/api/transactions", methods=["GET"])
+def api_get_transactions():
+    """
+    Return the logged-in user's completed transactions.
+
+    Query string `role` selects buyer or seller history (defaults to buyer).
+    """
+    if not session.get("user_id"):
+        return jsonify({"error": "You must be logged in to view your transaction history."}), 401
+
+    role = request.args.get("role", "buyer").lower()
+    if role not in ("buyer", "seller"):
+        return jsonify({"error": "role must be 'buyer' or 'seller'."}), 400
+
+    user_id = session["user_id"]
+    transactions = get_transactions_for_user(user_id, role)
+
+    return jsonify({
+        "role": role,
+        "transactions": [_format_transaction(t) for t in transactions],
     }), 200
