@@ -1,168 +1,237 @@
 {% extends "base.html" %}
 {% block content %}
 
-<section class="offers-page">
-    <div class="offers-topbar">
+<section class="page-shell">
+    <div class="page-heading">
         <div>
-            <h1 class="offers-title">Offers <span class="offers-title-icon">💘</span></h1>
-            <p class="offers-subtitle">Manage all incoming and outgoing offers in one place.</p>
+            <h1 class="section-title">Pending Offers</h1>
+            <p class="section-subtitle">Review cash and swap offers grouped by listing.</p>
         </div>
-        <span class="pending-pill">3 pending</span>
+        <span class="pending-pill" id="pending-count">Loading…</span>
     </div>
 
-    <ul class="nav nav-pills mb-4 gap-3 border-0" id="offersTab" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link offers-tab active" id="received-tab" data-bs-toggle="pill" data-bs-target="#received" type="button" role="tab" aria-selected="true" style="border-radius: 999px; padding: 10px 24px; font-weight: 600; display: flex; align-items: center; gap: 8px; color: #4b5563; background: #f3edf7; border: 1px solid #e5e7eb;">
-                <i class="bi bi-inbox fs-5"></i> Received (3)
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link offers-tab" id="sent-tab" data-bs-toggle="pill" data-bs-target="#sent" type="button" role="tab" aria-selected="false" style="border-radius: 999px; padding: 10px 24px; font-weight: 600; display: flex; align-items: center; gap: 8px; color: #4b5563; background: #f3edf7; border: 1px solid #e5e7eb;">
-                <i class="bi bi-send fs-5"></i> Sent (2)
-            </button>
-        </li>
-    </ul>
+    <div id="flash-area"></div>
 
-    <!-- CSS Override to make Bootstrap tabs work nicely with custom active state -->
-    <style>
-        .nav-pills .nav-link.offers-tab.active {
-            background: #8b5cf6 !important;
-            color: white !important;
-            border-color: #8b5cf6 !important;
-            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
-        }
-        .nav-pills .nav-link.offers-tab {
-            transition: all 0.2s ease;
-        }
-    </style>
-
-    <div class="tab-content" id="offersTabContent">
-        <!-- RECEIVED TAB -->
-        <div class="tab-pane fade show active" id="received" role="tabpanel" aria-labelledby="received-tab">
-            <div class="offer-list">
-                <div class="offer-card">
-                    <div class="offer-main">
-                        <img src="{{ url_for('static', filename='images/calc.jpg') }}" alt="Calculator" class="offer-image">
-                        <div class="offer-content">
-                            <div class="offer-meta">
-                                <span class="offer-type swap"><i class="bi bi-arrow-left-right"></i> Swap offer</span>
-                                <span class="offer-time">1h ago</span>
-                            </div>
-                            <h4 class="offer-item-title">Casio FX-991EX Scientific Calc</h4>
-                            <div class="offer-message">
-                                Offers to swap with: <strong>TI-84 Plus CE Graphing Calculator</strong>
-                            </div>
-                            <div class="offer-user">
-                                <span class="offer-avatar">D</span>
-                                <span>Daniel W. <i class="bi bi-star-fill text-warning"></i> 4.8</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="offer-actions">
-                        <button class="btn-accept"><i class="bi bi-check-lg"></i> Accept</button>
-                        <button class="btn-reject"><i class="bi bi-x-lg"></i> Reject</button>
-                    </div>
-                </div>
-
-                <div class="offer-card">
-                    <div class="offer-main">
-                        <img src="{{ url_for('static', filename='images/lamp.jpg') }}" alt="Lamp" class="offer-image">
-                        <div class="offer-content">
-                            <div class="offer-meta">
-                                <span class="offer-type price"><i class="bi bi-cash-coin"></i> Price offer</span>
-                                <span class="offer-time">3h ago</span>
-                            </div>
-                            <h4 class="offer-item-title">Minimalist LED Desk Lamp</h4>
-                            <div class="offer-message">
-                                Offer amount: <strong class="text-purple">\$12</strong> (listed at \$15)
-                            </div>
-                            <div class="offer-user">
-                                <span class="offer-avatar">M</span>
-                                <span>Mei Ling <i class="bi bi-star-fill text-warning"></i> 4.6</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="offer-actions">
-                        <button class="btn-accept"><i class="bi bi-check-lg"></i> Accept</button>
-                        <button class="btn-reject"><i class="bi bi-x-lg"></i> Reject</button>
-                    </div>
-                </div>
-
-                <div class="offer-card">
-                    <div class="offer-main">
-                        <img src="{{ url_for('static', filename='images/calc.jpg') }}" alt="Calculator" class="offer-image">
-                        <div class="offer-content">
-                            <div class="offer-meta">
-                                <span class="offer-type price"><i class="bi bi-cash-coin"></i> Price offer</span>
-                                <span class="offer-time">5h ago</span>
-                            </div>
-                            <h4 class="offer-item-title">Casio FX-991EX Scientific Calc</h4>
-                            <div class="offer-message">
-                                Offer amount: <strong class="text-purple">\$18</strong> (listed at Swap Only)
-                            </div>
-                            <div class="offer-user">
-                                <span class="offer-avatar">K</span>
-                                <span>Karthik V. <i class="bi bi-star-fill text-warning"></i> 5.0</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="offer-actions">
-                        <button class="btn-accept"><i class="bi bi-check-lg"></i> Accept</button>
-                        <button class="btn-reject"><i class="bi bi-x-lg"></i> Reject</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- SENT TAB -->
-        <div class="tab-pane fade" id="sent" role="tabpanel" aria-labelledby="sent-tab">
-            <div class="d-flex flex-column gap-3 mb-4">
-                
-                <!-- Sent Item 1 -->
-                <div class="card p-4" style="border-radius: 20px; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.03);">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <div class="d-flex gap-2 mb-2">
-                                <span class="badge" style="background: #fff4e5; color: #f97316; border-radius: 8px; padding: 6px 12px; font-weight: 600;"><i class="bi bi-fire"></i> Price</span>
-                                <span class="badge" style="background: #fef3c7; color: #b45309; border-radius: 8px; padding: 6px 12px; font-weight: 600;">Pending</span>
-                            </div>
-                            <h5 class="fw-bold mb-1 fs-6">Sony WH-1000XM4 Headphones</h5>
-                            <p class="text-muted mb-0 small">To Sarah K. <span class="mx-1">·</span> Offer: $150</p>
-                        </div>
-                        <button class="btn btn-light rounded-pill px-4 fw-bold text-dark" style="border: 1px solid #e5e7eb; font-size: 0.9rem;">View details</button>
-                    </div>
-                </div>
-
-                <!-- Sent Item 2 -->
-                <div class="card p-4" style="border-radius: 20px; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.03);">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <div class="d-flex gap-2 mb-2">
-                                <span class="badge" style="background: #e0e7ff; color: #4f46e5; border-radius: 8px; padding: 6px 12px; font-weight: 600;"><i class="bi bi-arrow-left-right"></i> Swap</span>
-                                <span class="badge" style="background: #dcfce7; color: #16a34a; border-radius: 8px; padding: 6px 12px; font-weight: 600;">Accepted</span>
-                            </div>
-                            <h5 class="fw-bold mb-1 fs-6">MacBook Air M1 — Barely Used</h5>
-                            <p class="text-muted mb-0 small">To Jian Wei <span class="mx-1">·</span> Offer: iPad Air 4 + $200</p>
-                        </div>
-                        <button class="btn btn-light rounded-pill px-4 fw-bold text-dark" style="border: 1px solid #e5e7eb; font-size: 0.9rem;">View details</button>
-                    </div>
-                </div>
-            </div>
+    <div id="offers-container">
+        <div class="empty-state mt-4" id="loading-state">
+            <i class="bi bi-hourglass-split"></i>
+            <strong>Loading offers…</strong>
         </div>
     </div>
 
-    <!-- Tip Card -->
-    <div class="card p-4 border-0 mt-2" style="border-radius: 24px; background: linear-gradient(90deg, #f5f3ff, #fdf2f8, #fef3c7);">
-        <div class="d-flex align-items-center gap-3">
-            <div class="bg-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 48px; height: 48px; flex-shrink: 0;">
-                <i class="bi bi-arrow-left-right text-purple fs-4"></i>
-            </div>
-            <div>
-                <h6 class="fw-bold mb-1 text-dark fs-6">Tip: Counter-offers boost deal rates by 40% <i class="bi bi-graph-up-arrow text-primary"></i></h6>
-                <p class="text-muted mb-0 small">Negotiate respectfully — meet halfway and seal the deal.</p>
-            </div>
-        </div>
+    <div class="empty-state mt-4 d-none" id="empty-state">
+        <i class="bi bi-inbox"></i>
+        <strong>No offers yet</strong>
+        <span>When buyers make offers on your listings, they will appear here.</span>
     </div>
 </section>
+
+<!-- Accept modal -->
+<div class="modal fade" id="acceptOfferModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content confirm-modal">
+            <div class="modal-header">
+                <h5 class="modal-title">Accept offer?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Accepting this offer will mark it as <strong>Accepted</strong> and automatically
+                reject all other pending offers for the same listing.
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-dark" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-accent" id="confirmAcceptBtn">Accept Offer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reject modal -->
+<div class="modal fade" id="rejectOfferModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content confirm-modal">
+            <div class="modal-header">
+                <h5 class="modal-title">Reject offer?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">This will mark the offer as <strong>Rejected</strong>. Other pending offers remain unchanged.</div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-dark" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-danger" id="confirmRejectBtn">Reject Offer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let pendingOfferId = null;
+
+function showFlash(message, type = "success") {
+    const area = document.getElementById("flash-area");
+    area.innerHTML = `<div class="alert alert-${type} alert-dismissible fade show" role="alert">
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>`;
+}
+
+function timeAgo(isoStr) {
+    const diff = Math.floor((Date.now() - new Date(isoStr + "Z").getTime()) / 1000);
+    if (diff < 60) return "just now";
+    if (diff < 3600) return Math.floor(diff / 60) + "m ago";
+    if (diff < 86400) return Math.floor(diff / 3600) + "h ago";
+    return Math.floor(diff / 86400) + "d ago";
+}
+
+function renderOffers(offers) {
+    const container = document.getElementById("offers-container");
+    document.getElementById("loading-state").classList.add("d-none");
+
+    const pending = offers.filter(o => o.status === "Pending");
+    document.getElementById("pending-count").textContent =
+        pending.length + (pending.length === 1 ? " pending" : " pending");
+
+    if (offers.length === 0) {
+        container.innerHTML = "";
+        document.getElementById("empty-state").classList.remove("d-none");
+        return;
+    }
+
+    // Group by listing
+    const groups = {};
+    for (const o of offers) {
+        if (!groups[o.listingId]) {
+            groups[o.listingId] = {
+                title: o.listingTitle,
+                category: o.listingCategory,
+                price: o.listingPrice,
+                offers: []
+            };
+        }
+        groups[o.listingId].offers.push(o);
+    }
+
+    let html = "";
+    for (const [listingId, group] of Object.entries(groups)) {
+        const pendingCount = group.offers.filter(o => o.status === "Pending").length;
+        html += `
+        <div class="listing-offer-group" id="group-${listingId}">
+            <div class="group-header">
+                <div>
+                    <span class="condition-tag">${escHtml(group.category)}</span>
+                    <h5>${escHtml(group.title)}</h5>
+                    <p class="text-muted mb-0">Listed at $${escHtml(group.price)} · ${pendingCount} pending offer${pendingCount !== 1 ? "s" : ""}</p>
+                </div>
+                <a href="/listing/${listingId}" class="btn btn-sm btn-outline-dark">View listing</a>
+            </div>
+            <div class="offer-list">
+                ${group.offers.map(renderOfferCard).join("")}
+            </div>
+        </div>`;
+    }
+    container.innerHTML = html;
+}
+
+function renderOfferCard(o) {
+    const isMuted = o.status !== "Pending";
+    const statusClass = o.status === "Pending" ? "bg-soft-yellow text-yellow"
+                      : o.status === "Accepted" ? "bg-soft-green text-green"
+                      : "bg-soft-pink text-pink";
+    const typeIcon = o.offerType === "swap"
+        ? `<span class="offer-type swap"><i class="bi bi-arrow-left-right"></i> Swap offer</span>`
+        : `<span class="offer-type price"><i class="bi bi-cash-coin"></i> Cash offer</span>`;
+    const offerDetail = o.offerType === "swap"
+        ? `Offers: <strong>${escHtml(o.swapListingTitle || "Unknown item")}</strong>`
+        : `Offer amount: <strong>$${o.proposedPrice}</strong>`;
+    const avatar = escHtml((o.buyerDisplayName || "?")[0].toUpperCase());
+    const actions = o.status === "Pending"
+        ? `<button class="btn btn-accept" onclick="openAccept(${o.id})"><i class="bi bi-check-lg"></i> Accept</button>
+           <button class="btn btn-reject" onclick="openReject(${o.id})"><i class="bi bi-x-lg"></i> Reject</button>`
+        : `<button class="btn btn-outline-dark" disabled>${escHtml(o.status)}</button>`;
+
+    return `
+    <article class="offer-card ${isMuted ? "is-muted" : ""}" id="offer-${o.id}">
+        <div class="offer-main">
+            <div class="offer-content">
+                <div class="offer-meta">
+                    ${typeIcon}
+                    <span class="status-badge ${statusClass}">${escHtml(o.status)}</span>
+                    <span class="offer-time">${timeAgo(o.createdAt)}</span>
+                </div>
+                <h4 class="offer-item-title">${escHtml(o.buyerDisplayName)}</h4>
+                <div class="offer-message">${offerDetail}</div>
+                <div class="offer-user"><span class="offer-avatar">${avatar}</span></div>
+            </div>
+        </div>
+        <div class="offer-actions">${actions}</div>
+    </article>`;
+}
+
+function escHtml(str) {
+    return String(str ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+function openAccept(offerId) {
+    pendingOfferId = offerId;
+    new bootstrap.Modal(document.getElementById("acceptOfferModal")).show();
+}
+
+function openReject(offerId) {
+    pendingOfferId = offerId;
+    new bootstrap.Modal(document.getElementById("rejectOfferModal")).show();
+}
+
+document.getElementById("confirmAcceptBtn").addEventListener("click", async () => {
+    if (!pendingOfferId) return;
+    bootstrap.Modal.getInstance(document.getElementById("acceptOfferModal")).hide();
+    try {
+        const res = await fetch(`/api/offers/${pendingOfferId}/accept`, { method: "PATCH" });
+        const data = await res.json();
+        if (res.ok) {
+            showFlash(data.message || "Offer accepted.");
+            loadOffers();
+        } else {
+            showFlash(data.error || "Failed to accept offer.", "danger");
+        }
+    } catch {
+        showFlash("Network error. Please try again.", "danger");
+    }
+    pendingOfferId = null;
+});
+
+document.getElementById("confirmRejectBtn").addEventListener("click", async () => {
+    if (!pendingOfferId) return;
+    bootstrap.Modal.getInstance(document.getElementById("rejectOfferModal")).hide();
+    try {
+        const res = await fetch(`/api/offers/${pendingOfferId}/reject`, { method: "PATCH" });
+        const data = await res.json();
+        if (res.ok) {
+            showFlash(data.message || "Offer rejected.", "warning");
+            loadOffers();
+        } else {
+            showFlash(data.error || "Failed to reject offer.", "danger");
+        }
+    } catch {
+        showFlash("Network error. Please try again.", "danger");
+    }
+    pendingOfferId = null;
+});
+
+async function loadOffers() {
+    try {
+        const res = await fetch("/api/offers/received");
+        if (res.status === 401) {
+            window.location.href = "/login";
+            return;
+        }
+        const data = await res.json();
+        renderOffers(data.offers || []);
+    } catch {
+        document.getElementById("loading-state").innerHTML =
+            `<strong class="text-danger">Failed to load offers. Please refresh.</strong>`;
+    }
+}
+
+loadOffers();
+</script>
 
 {% endblock %}

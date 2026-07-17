@@ -1,305 +1,429 @@
 {% extends "base.html" %}
 {% block content %}
 
-<section class="hero-banner mb-5">
-    <div class="hero-badge">NYP students only</div>
-    <h1 class="hero-title">
-        Buy, sell & swap with your
-        <span>campus crew.</span>
-    </h1>
-    <p class="hero-text">
-        Textbooks too pricey? Last sem's lab coat just collecting dust?
-        Trade it on SwapLah — the trusted marketplace built for poly students.
-    </p>
 
-    <div class="d-flex flex-wrap gap-3 mb-4">
-        <a href="{{ url_for('index') }}" class="btn hero-btn-primary">Start browsing</a>
-        <a href="{{ url_for('sell') }}" class="btn hero-btn-secondary">+ List your item</a>
+
+<section class="hero-section">
+    <div class="hero-inner">
+        <div class="hero-content">
+            <div class="trust-badge"><i class="bi bi-shield-check text-success"></i> NYP Verified Students Only</div>
+            <h1 class="hero-title">
+                Buy, Sell & Swap Safely<br>
+                <span>Within Your Campus</span>
+            </h1>
+            <p class="hero-text">
+                NYP's trusted marketplace for pre-owned textbooks, electronics, lab equipment, and more.
+                Trade securely with fellow students.
+            </p>
+
+            <form class="hero-search" method="get" action="{{ url_for('index') }}#latest-listings">
+                <div class="position-relative flex-grow-1">
+                    <i class="bi bi-search"></i>
+                    <input type="search" name="search" class="form-control"
+                        placeholder="Search for textbooks, laptops..." value="{{ request.args.get('search', '') }}">
+                </div>
+                <button class="btn btn-accent px-4" type="submit">
+                    <i class="bi bi-search"></i>
+                </button>
+            </form>
+
+            <div class="d-flex flex-wrap gap-3">
+                <a href="#latest-listings" class="btn btn-accent px-4 py-3">Browse Listings <i
+                        class="bi bi-arrow-right ms-1"></i></a>
+                <a href="{{ url_for('sell') }}" class="btn btn-outline-light-soft px-4 py-3"><i
+                        class="bi bi-stars me-1"></i> List an Item</a>
+            </div>
+        </div>
     </div>
+    <div class="hero-curve"></div>
+</section>
 
-    <div class="hero-stats">
-        <span>2,400+ active students</span>
-        <span>81 deals this week</span>
+<section class="section-band pt-0">
+    <div class="container-xl">
+        <div class="section-header">
+            <h2 class="section-title">Shop by Category</h2>
+            <a href="#latest-listings" class="section-link">View all <i class="bi bi-chevron-right"></i></a>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-6 col-sm-4 col-lg">
+                <div class="category-card category-card-active">
+                    <div class="category-icon"><i class="bi bi-grid"></i></div>
+                    <div>
+                        <h6>All</h6>
+                        <p>811 items</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-sm-4 col-lg">
+                <div class="category-card">
+                    <div class="category-icon"><i class="bi bi-book"></i></div>
+                    <div>
+                        <h6>Textbooks</h6>
+                        <p>234 items</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-sm-4 col-lg">
+                <div class="category-card">
+                    <div class="category-icon"><i class="bi bi-laptop"></i></div>
+                    <div>
+                        <h6>Electronics</h6>
+                        <p>187 items</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-sm-4 col-lg">
+                <div class="category-card">
+                    <div class="category-icon"><i class="bi bi-prescription2"></i></div>
+                    <div>
+                        <h6>Lab Equipment</h6>
+                        <p>92 items</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-sm-4 col-lg">
+                <div class="category-card">
+                    <div class="category-icon"><i class="bi bi-pencil"></i></div>
+                    <div>
+                        <h6>Stationery</h6>
+                        <p>78 items</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-sm-4 col-lg">
+                <div class="category-card">
+                    <div class="category-icon"><i class="bi bi-gift"></i></div>
+                    <div>
+                        <h6>Free Items</h6>
+                        <p>64 items</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-sm-4 col-lg">
+                <div class="category-card">
+                    <div class="category-icon"><i class="bi bi-arrow-left-right"></i></div>
+                    <div>
+                        <h6>Swap Only</h6>
+                        <p>41 items</p>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </section>
 
-<section class="mb-5">
-    <div class="section-header">
-        <h2 class="section-title">Browse by category</h2>
-        <a href="#" class="section-link">See all</a>
+<section class="section-band section-muted" id="latest-listings">
+    <div class="container-xl">
+        <div class="section-header">
+            <div>
+                <h2 class="section-title">Latest Listings</h2>
+                <p class="section-subtitle">Fresh items from your campus community</p>
+            </div>
+        </div>
+
+        <form class="market-filter-bar mb-4" method="get" action="{{ url_for('index') }}#latest-listings">
+            <input id="search" name="search" class="form-control filter-search"
+                placeholder="Search title or description" value="{{ request.args.get('search', '') }}">
+            <select id="category" name="category" class="form-select">
+                <option value="">All categories</option>
+                <option value="Textbooks" {% if request.args.get('category')=='Textbooks' %}selected{% endif %}>
+                    Textbooks</option>
+                <option value="Electronics" {% if request.args.get('category')=='Electronics' %}selected{% endif %}>
+                    Electronics</option>
+                <option value="Lab Equipment" {% if request.args.get('category')=='Lab Equipment' %}selected{% endif %}>
+                    Lab Equipment</option>
+            </select>
+            <select id="condition" name="condition" class="form-select">
+                <option value="">All conditions</option>
+                <option value="New" {% if request.args.get('condition')=='New' %}selected{% endif %}>New</option>
+                <option value="Like New" {% if request.args.get('condition')=='Like New' %}selected{% endif %}>Like New
+                </option>
+                <option value="Good" {% if request.args.get('condition')=='Good' %}selected{% endif %}>Good</option>
+                <option value="Fair" {% if request.args.get('condition')=='Fair' %}selected{% endif %}>Fair</option>
+            </select>
+            <button class="btn btn-accent" type="submit">Apply</button>
+            <a class="btn btn-outline-dark" href="{{ url_for('index') }}#latest-listings">
+                Clear filters
+            </a>
+            {% if request.args.get('category') or request.args.get('condition') %}
+            <div class="filter-pills active-filter-row">
+                {% if request.args.get('category') %}
+                <a class="filter-pill text-decoration-none" aria-label="Clear category filter" href="{{ url_for(
+            'index',
+            search=request.args.get('search', ''),
+            condition=request.args.get('condition', '')
+        ) }}#latest-listings">
+                    {{ request.args.get('category') }} <i class="bi bi-x"></i>
+                </a>
+                {% endif %}
+
+                {% if request.args.get('condition') %}
+                <a class="filter-pill text-decoration-none" aria-label="Clear condition filter" href="{{ url_for(
+            'index',
+            search=request.args.get('search', ''),
+            category=request.args.get('category', '')
+        ) }}#latest-listings">
+                    {{ request.args.get('condition') }} <i class="bi bi-x"></i>
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+
+        </form>
+
+        <div class="row g-4">
+            {% for item in listings %}
+            <div class="col-12 col-sm-6 col-lg-4">
+                <div class="listing-card listing-clickable"
+                    data-detail-url="{{ url_for('listing_detail', listing_id=item.id) }}">
+
+                    <div class="listing-image-wrap listing-card-slider" data-slider="true">
+                        {% for image in item.images %}
+                        <img src="{{ image }}" alt="{{ item.title }}"
+                            class="listing-slider-image {% if loop.first %}active{% endif %}">
+
+                        {% endfor %}
+
+                        {% if item.images|length > 1 %}
+                        <button type="button" class="listing-slider-arrow listing-slider-left">
+                            <i class="bi bi-chevron-left"></i>
+                        </button>
+
+                        <button type="button" class="listing-slider-arrow listing-slider-right">
+                            <i class="bi bi-chevron-right"></i>
+                        </button>
+
+                        <span class="listing-image-counter">
+                            <span class="current-image-number">1</span> / {{ item.images|length }}
+                        </span>
+                        {% endif %}
+
+                        {% if item.badge %}
+                        <span class="listing-badge {{ item.badge_class }}">{{ item.badge }}</span>
+                        {% endif %}
+
+                        <span class="wishlist-btn"><i class="bi bi-heart"></i></span>
+                        <span class="location-badge"><i class="bi bi-geo-alt"></i> NYP Campus</span>
+                    </div>
+
+                    <div class="listing-body">
+                        <h5>
+                            <a href="{{ url_for('listing_detail', listing_id=item.id) }}">{{ item.title }}</a>
+                        </h5>
+
+                        <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+                            <span class="condition-tag">{{ item.category }}</span>
+                            <span class="condition-tag">{{ item.condition }}</span>
+                        </div>
+
+                        <div class="price-row mb-2">
+                            <span class="price">{{ item.price }}</span>
+                        </div>
+
+                        <div class="seller-row">
+                            <span>
+                                <span class="avatar-mini me-1">{{ item.seller[0] if item.seller else "S" }}</span>
+                                {{ item.seller or "Student Seller" }}
+                            </span>
+                            <span><i class="bi bi-star-fill text-warning"></i> New</span>
+                        </div>
+
+                        <div class="time-row">
+                            <i class="bi bi-clock"></i> {{ item.listing_date }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% else %}
+            <div class="col-12">
+                <p class="text-center text-muted mb-0">
+                    {% if request.args.get('search') or request.args.get('category') or request.args.get('condition') %}
+                    No matching listings found.
+                    {% else %}
+                    No active listings available.
+                    {% endif %}
+                </p>
+            </div>
+            {% endfor %}
+
+
+        </div>
+
+
+        {% if total_pages > 1 %}
+        <nav class="pagination-wrap" aria-label="Listings pagination">
+            <ul class="pagination justify-content-center mb-2">
+
+                {% if page > 1 %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('index',page=page-1,
+       search=request.args.get('search', ''),
+       category=request.args.get('category', ''),
+       condition=request.args.get('condition', '')
+   ) }}#latest-listings">
+                        Previous
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">Previous</span>
+                </li>
+                {% endif %}
+
+                {% for p in range(1, total_pages + 1) %}
+                <li class="page-item {% if p == page %}active{% endif %}">
+                    <a class="page-link" href="{{ url_for(
+       'index',
+       page=p,
+       search=request.args.get('search', ''),
+       category=request.args.get('category', ''),
+       condition=request.args.get('condition', '')
+   ) }}#latest-listings">
+                        {{ p }}
+                    </a>
+                </li>
+                {% endfor %}
+
+                {% if page < total_pages %} <li class="page-item">
+                    <a class="page-link" href="{{ url_for(
+       'index',
+       page=page+1,
+       search=request.args.get('search', ''),
+       category=request.args.get('category', ''),
+       condition=request.args.get('condition', '')
+   ) }}#latest-listings">
+                        Next
+                    </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">Next</span>
+                    </li>
+                    {% endif %}
+
+            </ul>
+            <p class="pagination-text">
+                Showing {{ showing_start }}-{{ showing_end }} of {{ total_listings }} active listings
+            </p>
+        </nav>
+        {% else %}
+        <p class="pagination-text text-center">
+            Showing {{ total_listings }} active listings
+        </p>
+        {% endif %}
     </div>
+</section>
 
-    <div class="row g-3">
-        <div class="col-6 col-md-4 col-lg">
-            <div class="category-card category-card-active">
-                <div class="category-icon text-white"><i class="bi bi-tag-fill"></i></div>
-                <h6>All</h6>
-                <p>811 items</p>
-            </div>
+<section class="section-band section-secondary">
+    <div class="container-xl">
+        <div class="text-center mb-4">
+            <h2 class="section-title">Why Students Trust SwapLah</h2>
+            <p class="section-subtitle mx-auto" style="max-width: 560px;">Built specifically for NYP students. Safety
+                and trust at every step.</p>
         </div>
-
-        <div class="col-6 col-md-4 col-lg">
-            <div class="category-card">
-                <div class="category-icon text-warning"><i class="bi bi-book"></i></div>
-                <h6>Textbooks</h6>
-                <p>234 items</p>
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="trust-card">
+                    <div class="trust-icon mb-3"><i class="bi bi-envelope-check"></i></div>
+                    <h5 class="fw-bold">NYP Email Verification</h5>
+                    <p class="text-muted mb-0">Only verified NYP email addresses can register. Just your fellow
+                        students.</p>
+                </div>
             </div>
-        </div>
-
-        <div class="col-6 col-md-4 col-lg">
-            <div class="category-card">
-                <div class="category-icon text-info"><i class="bi bi-laptop"></i></div>
-                <h6>Electronics</h6>
-                <p>187 items</p>
+            <div class="col-md-4">
+                <div class="trust-card">
+                    <div class="trust-icon mb-3 text-success bg-soft-green"><i class="bi bi-shield-check"></i></div>
+                    <h5 class="fw-bold">Secure Student Community</h5>
+                    <p class="text-muted mb-0">Trade confidently with student profiles, ratings, and campus meetup
+                        norms.</p>
+                </div>
             </div>
-        </div>
-
-        <div class="col-6 col-md-4 col-lg">
-            <div class="category-card">
-                <div class="category-icon text-success"><i class="bi bi-droplet"></i></div>
-                <h6>Lab Equip</h6>
-                <p>92 items</p>
-            </div>
-        </div>
-
-        <div class="col-6 col-md-4 col-lg">
-            <div class="category-card">
-                <div class="category-icon text-danger"><i class="bi bi-shop"></i></div>
-                <h6>Clothing</h6>
-                <p>156 items</p>
-            </div>
-        </div>
-
-        <div class="col-6 col-md-4 col-lg">
-            <div class="category-card">
-                <div class="category-icon text-purple"><i class="bi bi-pencil"></i></div>
-                <h6>Stationery</h6>
-                <p>78 items</p>
-            </div>
-        </div>
-
-        <div class="col-6 col-md-4 col-lg">
-            <div class="category-card">
-                <div class="category-icon text-warning"><i class="bi bi-stars"></i></div>
-                <h6>Others</h6>
-                <p>64 items</p>
+            <div class="col-md-4">
+                <div class="trust-card">
+                    <div class="trust-icon mb-3 text-danger bg-soft-pink"><i class="bi bi-flag"></i></div>
+                    <h5 class="fw-bold">Report & Moderation</h5>
+                    <p class="text-muted mb-0">Suspicious listings can be reported quickly for admin review.</p>
+                </div>
             </div>
         </div>
     </div>
 </section>
 
-<section>
-    <div class="section-header align-items-center flex-wrap">
-        <div class="d-flex align-items-center gap-3 flex-wrap">
-            <h2 class="section-title mb-0">Fresh drops</h2>
-            <span class="updated-badge">Updated just now</span>
+<section class="section-band cta-band">
+    <div class="container-xl">
+        <h2 class="section-title text-white mb-2">Ready to declutter or find a deal?</h2>
+        <p class="mb-4">Join hundreds of NYP students already buying, selling, and swapping on SwapLah.</p>
+        <div class="d-flex flex-wrap justify-content-center gap-3">
+            <a href="{{ url_for('sell') }}" class="btn btn-accent px-4 py-3">Get Started Free</a>
+            <a href="#latest-listings" class="btn btn-outline-light-soft px-4 py-3">Browse Listings</a>
         </div>
-
-        <div class="filter-pills">
-            <button class="filter-pill active">All</button>
-            <button class="filter-pill">New</button>
-            <button class="filter-pill">Like New</button>
-            <button class="filter-pill">Good</button>
-            <button class="filter-pill">Fair</button>
-            <button class="filter-pill filter-more">More filters</button>
-        </div>
-    </div>
-
-    <div class="row g-4">
-        <div class="col-12 col-md-6 col-lg-3">
-            <div class="listing-card">
-                <div class="listing-image-wrap">
-                    <img src="{{ url_for('static', filename='images/book.jpg') }}" alt="Book">
-                    <span class="listing-badge badge-hot">Hot</span>
-                    <span class="wishlist-btn">♡</span>
-                    <span class="location-badge">Block L</span>
-                </div>
-                <div class="listing-body">
-                    <h5><a href="{{ url_for('listing_detail', listing_id=1) }}">Calculus: Early Transcendentals 9E</a></h5>
-                    <div class="price-row">
-                        <span class="price">\$25</span>
-                        <span class="condition-tag">Good</span>
-                    </div>
-                    <div class="seller-row">
-                        <span>Aisah T.</span>
-                        <span>⭐ 4.9</span>
-                    </div>
-                    <div class="time-row">2h ago</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-12 col-md-6 col-lg-3">
-            <div class="listing-card">
-                <div class="listing-image-wrap">
-                    <img src="{{ url_for('static', filename='images/laptop.jpg') }}" alt="Laptop">
-                    <span class="listing-badge badge-verified">Verified</span>
-                    <span class="wishlist-btn">♡</span>
-                    <span class="location-badge">Block A</span>
-                </div>
-                <div class="listing-body">
-                    <h5><a href="{{ url_for('listing_detail', listing_id=2) }}">MacBook Air M1 — Barely Used</a></h5>
-                    <div class="price-row">
-                        <span class="price">\$680</span>
-                        <span class="condition-tag">Like New</span>
-                    </div>
-                    <div class="seller-row">
-                        <span>Jian Wei</span>
-                        <span>⭐ 5</span>
-                    </div>
-                    <div class="time-row">5h ago</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-12 col-md-6 col-lg-3">
-            <div class="listing-card">
-                <div class="listing-image-wrap">
-                    <img src="{{ url_for('static', filename='images/calc.jpg') }}" alt="Calculator">
-                    <span class="listing-badge badge-swap">Swap</span>
-                    <span class="wishlist-btn">♡</span>
-                    <span class="location-badge">Block B</span>
-                </div>
-                <div class="listing-body">
-                    <h5><a href="{{ url_for('listing_detail', listing_id=3) }}">Casio FX-991EX Scientific Calc</a></h5>
-                    <div class="price-row">
-                        <span class="price text-purple">Swap Only</span>
-                        <span class="condition-tag">Good</span>
-                    </div>
-                    <div class="seller-row">
-                        <span>Priya R.</span>
-                        <span>⭐ 4.7</span>
-                    </div>
-                    <div class="time-row">1d ago</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-12 col-md-6 col-lg-3">
-            <div class="listing-card">
-                <div class="listing-image-wrap">
-                    <img src="{{ url_for('static', filename='images/shoes.jpg') }}" alt="Shoes">
-                    <span class="wishlist-btn">♡</span>
-                    <span class="location-badge">Block C</span>
-                </div>
-                <div class="listing-body">
-                    <h5><a href="{{ url_for('listing_detail', listing_id=4) }}">Nike Air Force 1 — Size US9</a></h5>
-                    <div class="price-row">
-                        <span class="price">\$45</span>
-                        <span class="condition-tag">Good</span>
-                    </div>
-                    <div class="seller-row">
-                        <span>Marcus L.</span>
-                        <span>⭐ 4.6</span>
-                    </div>
-                    <div class="time-row">3h ago</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-12 col-md-6 col-lg-3">
-            <div class="listing-card">
-                <div class="listing-image-wrap">
-                    <img src="{{ url_for('static', filename='images/headphones.jpg') }}" alt="Headphones">
-                    <span class="listing-badge badge-hot">Hot</span>
-                    <span class="wishlist-btn">♡</span>
-                    <span class="location-badge">Block D</span>
-                </div>
-                <div class="listing-body">
-                    <h5><a href="{{ url_for('listing_detail', listing_id=5) }}">Sony WH-1000XM4 Headphones</a></h5>
-                    <div class="price-row">
-                        <span class="price">\$180</span>
-                        <span class="condition-tag">Like New</span>
-                    </div>
-                    <div class="seller-row">
-                        <span>Sarah K.</span>
-                        <span>⭐ 4.8</span>
-                    </div>
-                    <div class="time-row">6h ago</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-12 col-md-6 col-lg-3">
-            <div class="listing-card">
-                <div class="listing-image-wrap">
-                    <img src="{{ url_for('static', filename='images/books-stack.jpg') }}" alt="Lab coat">
-                    <span class="listing-badge badge-free">Free</span>
-                    <span class="wishlist-btn">♡</span>
-                    <span class="location-badge">Block E</span>
-                </div>
-                <div class="listing-body">
-                    <h5><a href="{{ url_for('listing_detail', listing_id=6) }}">Lab Coat + Safety Goggles Set</a></h5>
-                    <div class="price-row">
-                        <span class="price text-success">Free</span>
-                        <span class="condition-tag">Good</span>
-                    </div>
-                    <div class="seller-row">
-                        <span>Hafiz M.</span>
-                        <span>⭐ 5</span>
-                    </div>
-                    <div class="time-row">1d ago</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-12 col-md-6 col-lg-3">
-            <div class="listing-card">
-                <div class="listing-image-wrap">
-                    <img src="{{ url_for('static', filename='images/jacket.jpg') }}" alt="Jacket">
-                    <span class="wishlist-btn">♡</span>
-                    <span class="location-badge">Block F</span>
-                </div>
-                <div class="listing-body">
-                    <h5><a href="{{ url_for('listing_detail', listing_id=7) }}">Vintage Denim Jacket — Unisex</a></h5>
-                    <div class="price-row">
-                        <span class="price">\$30</span>
-                        <span class="condition-tag">Good</span>
-                    </div>
-                    <div class="seller-row">
-                        <span>Zoe T.</span>
-                        <span>⭐ 4.5</span>
-                    </div>
-                    <div class="time-row">8h ago</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-12 col-md-6 col-lg-3">
-            <div class="listing-card">
-                <div class="listing-image-wrap">
-                    <img src="{{ url_for('static', filename='images/lamp.jpg') }}" alt="Lamp">
-                    <span class="wishlist-btn">♡</span>
-                    <span class="location-badge">Hostel</span>
-                </div>
-                <div class="listing-body">
-                    <h5><a href="{{ url_for('listing_detail', listing_id=8) }}">Minimalist LED Desk Lamp</a></h5>
-                    <div class="price-row">
-                        <span class="price">\$15</span>
-                        <span class="condition-tag">Like New</span>
-                    </div>
-                    <div class="seller-row">
-                        <span>Ryan C.</span>
-                        <span>⭐ 4.9</span>
-                    </div>
-                    <div class="time-row">12h ago</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="pagination-wrap">
-        <div class="custom-pagination">
-            <span class="page-arrow">‹</span>
-            <span class="page-number active">1</span>
-            <span class="page-number">2</span>
-            <span class="page-number">3</span>
-            <span class="page-number">…</span>
-            <span class="page-number">12</span>
-            <span class="page-arrow">›</span>
-        </div>
-        <p class="pagination-text">Showing 1–10 of 81 items</p>
     </div>
 </section>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const sliders = document.querySelectorAll(".listing-card-slider");
+
+        sliders.forEach(function (slider) {
+            const images = slider.querySelectorAll(".listing-slider-image");
+            const prevBtn = slider.querySelector(".listing-slider-left");
+            const nextBtn = slider.querySelector(".listing-slider-right");
+            const counter = slider.querySelector(".current-image-number");
+
+            let currentIndex = 0;
+
+            function showImage(index) {
+                images.forEach(function (image) {
+                    image.classList.remove("active");
+                });
+
+                images[index].classList.add("active");
+
+                if (counter) {
+                    counter.textContent = index + 1;
+                }
+            }
+
+            if (prevBtn) {
+                prevBtn.addEventListener("click", function (event) {
+                    event.stopPropagation();
+                    currentIndex--;
+
+                    if (currentIndex < 0) {
+                        currentIndex = images.length - 1;
+                    }
+
+                    showImage(currentIndex);
+                });
+            }
+
+            if (nextBtn) {
+                nextBtn.addEventListener("click", function (event) {
+                    event.stopPropagation();
+                    currentIndex++;
+
+                    if (currentIndex >= images.length) {
+                        currentIndex = 0;
+                    }
+
+                    showImage(currentIndex);
+                });
+            }
+        });
+        const listingCards = document.querySelectorAll(".listing-clickable");
+
+        listingCards.forEach(function (card) {
+            card.addEventListener("click", function (event) {
+                if (event.target.closest("button, a, .wishlist-btn")) {
+                    return;
+                }
+
+                window.location.href = card.dataset.detailUrl;
+            });
+        });
+
+    });
+</script>
 
 {% endblock %}
