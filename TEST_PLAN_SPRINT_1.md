@@ -5,7 +5,7 @@
 **Team:** Team 2 — SwapLah
 **Team members:** Felicia, Charlisa, Lucas, Lucio, Elijah
 **Date created:** 12 Jun 2026
-**Last updated:** 4 Jul 2026
+**Last updated:** 15 Jul 2026
 **GitLab project:** `https://gitlab.com/nyp-sg/pet/it2112/26s1/it2112-03/assignment/team_2/swaplah`
 
 ---
@@ -68,29 +68,30 @@ This Sprint adds and verifies the following features:
 | API / Route tests |                     10–15 | pytest + Flask test client | test           |
 | UI smoke tests    |                       1–2 | pytest / Flask test client | test           |
 | Sprint 1 Selenium E2E tests |              5 | Selenium WebDriver + Page Object Model + headless Chrome | test |
-| Static analysis   |           All `.py` files | pylint >= 7.0              | lint           |
-| Complexity check  | All application functions | radon                      | lint           |
+| Static analysis   |           All `.py` files | pylint >= 10.0             | validate       |
+| Complexity check  | All application functions | radon                      | validate       |
 | Coverage check    |         Application logic | pytest-cov                 | test           |
 
 ### Static Testing
 
 * **Tool:** pylint
-* **Threshold:** >= 7.0/10
+* **Threshold:** 10.0/10
 * **Purpose:** Ensure Python code follows the agreed code quality standard
-* **Stage:** lint / validate, before dynamic tests
+* **Stage:** validate, before dynamic tests
 
 ### Complexity Testing
 
 * **Tool:** radon
 * **Threshold:** Cyclomatic complexity per function should not exceed 10
 * **Purpose:** Identify overly complex functions that should be refactored
-* **Stage:** lint / validate
+* **Stage:** validate
 
 ### Dynamic Testing
 
 * **Tool:** pytest + pytest-cov + Selenium WebDriver
-* **Minimum coverage required:** >= 60% application logic coverage
-* **Team target coverage:** >= 70% where possible
+* **Assignment minimum coverage:** >= 60% application logic coverage
+* **A-band / current pipeline threshold:** >= 75% unit coverage
+* **Actual final unit coverage:** 77%
 * **Sprint 1 UI automation target:** >= 5 Selenium UI scripts running in a headless browser
 * **Sprint 1 Selenium evidence:** 5 Selenium E2E tests for registration, login/logout/protected access, profile update, session timeout, and suspended login rejection
 * **Test design:** White-box testing for unit tests, black-box testing for route/API tests, and browser-based end-to-end testing for Sprint 1 UI flows
@@ -139,7 +140,7 @@ This Sprint adds and verifies the following features:
 * **Static analysis:** pylint
 * **Complexity analysis:** radon
 * **CI/CD platform:** GitLab CI/CD
-* **Dependencies:** installed from `requirements.txt`
+* **Dependencies:** installed from `requirements-dev.txt` for development, testing, quality, and CI checks
 * **Browser:** Chrome / Edge / Firefox for manual checks; headless Chrome / Chromium for Selenium CI tests
 
 ### Test Isolation Rule
@@ -161,7 +162,7 @@ Testing can begin when:
 * Sprint 1 Selenium page object classes are added under `tests/ui/selenium/pages/` when UI flows are automated.
 * Feature acceptance criteria are written in the related GitLab issue.
 * Related issue has Sprint 1 milestone, labels, priority, and story points.
-* pylint validate stage passes with score >= 7.0.
+* pylint validate stage passes with score 10.0/10.
 
 ### Exit Criteria — Verification
 
@@ -170,10 +171,10 @@ Sprint 1 verification is complete when:
 * [ ] All unit tests pass with 0 failures.
 * [ ] All API / route tests pass with 0 failures.
 * [ ] UI smoke tests and Sprint 1 Selenium headless browser tests pass.
-* [ ] Test coverage is at least 60%.
-* [ ] pylint score is at least 7.0/10.
+* [ ] Test coverage is at least 75% for the current A-band gate and at least 60% for the assignment minimum.
+* [ ] pylint score is 10.00/10 against the 10.0 target.
 * [ ] radon complexity check shows function complexity does not exceed 10.
-* [ ] GitLab pipeline is green on the Merge Request, including `ui_testing_job`.
+* [ ] GitLab pipeline is green on the Merge Request, including `selenium-ui-tests`.
 * [ ] No generated files such as `.env`, `.coverage`, `.venv`, `__pycache__`, or `swaplah.db` are committed.
 
 ### Exit Criteria — Validation
@@ -222,7 +223,7 @@ Sprint 1 validation is complete when:
 
 ## 8. Sprint 1 Selenium UI Test Cases
 
-The Sprint 1 Selenium UI tests are stored under `tests/ui/selenium/` and use the Page Object Model pattern with page classes stored under `tests/ui/selenium/pages/`. These tests run in headless Chrome / Chromium through the GitLab `ui_testing_job`.
+The Sprint 1 Selenium UI tests are stored under `tests/ui/selenium/` and use the Page Object Model pattern with page classes stored under `tests/ui/selenium/pages/`. These tests run in headless Chrome / Chromium through the GitLab `selenium-ui-tests` job.
 
 This section only documents Sprint 1 account-management and authentication flows. Item listing, offer, review, and reporting flows are outside this Sprint 1 test plan.
 
@@ -251,8 +252,8 @@ Before merging any Sprint 1 Merge Request, the following regression checks must 
 | Regression Area             | Command / Method                                            | Expected Result                                    |
 | --------------------------- | ----------------------------------------------------------- | -------------------------------------------------- |
 | Full automated test suite   | `python -m pytest -q`                                       | All tests pass                                     |
-| Unit coverage               | `python -m pytest tests/unit --cov=app --cov-fail-under=60` | Coverage is at least 60%                           |
-| Linting                     | `python -m pylint app/ --fail-under=7.0`                    | Score is at least 7.0                              |
+| Unit coverage               | `python -m pytest tests/unit --cov=app --cov-report=term-missing` | Coverage is at least 75% for the current A-band gate and at least 60% for the assignment minimum |
+| Linting                     | `python -m pylint app tests scripts`                        | Score is 10.00/10 against the 10.0 target          |
 | Complexity                  | `python -m radon cc app/ -s`                                | No function exceeds complexity 10                  |
 | Manual registration flow    | Browser test                                                | User can register with valid NYP email             |
 | Manual login flow           | Browser test                                                | Registered active user can log in successfully     |
@@ -276,7 +277,7 @@ Before merging any Sprint 1 Merge Request, the following regression checks must 
 | Session timeout is not enforced correctly           | Medium      | High   | Add timeout logic and tests simulating inactivity                    |
 | Profile update changes Email or Student ID          | Low         | High   | Keep Email and Student ID read-only and exclude them from update SQL |
 | Test data affects real database                     | Medium      | Medium | Use isolated test database fixtures                                  |
-| Pipeline fails due to missing dependency            | Medium      | Medium | Install dependencies from `requirements.txt` in CI                   |
+| Pipeline fails due to missing dependency            | Medium      | Medium | Install development dependencies from `requirements-dev.txt` in CI    |
 | Code quality fails due to long or complex functions | Medium      | Medium | Refactor route logic into helper functions where needed              |
 
 ---
@@ -298,13 +299,13 @@ Before merging any Sprint 1 Merge Request, the following regression checks must 
 
 ### Verification
 
-* [ ] Code passes pylint with score >= 7.0.
-* [ ] Cyclomatic complexity per function does not exceed 10.
-* [ ] All unit tests pass.
-* [ ] All API / route tests pass.
-* [ ] UI smoke tests and Sprint 1 Selenium headless browser tests pass.
-* [ ] Test coverage is at least 60%.
-* [ ] Pipeline is green on the Merge Request, including lint, unit, API, UI/Selenium, and security jobs.
+* [x] Code passes pylint with score 10.00/10 against the 10.0 target.
+* [x] Cyclomatic complexity per function does not exceed 10.
+* [x] All unit tests pass: 77 passed.
+* [x] All API / route tests pass: 70 passed.
+* [x] UI smoke tests and Sprint 1 Selenium headless browser tests pass.
+* [x] Test coverage is at least 75% for the current A-band gate and at least 60% for the assignment minimum.
+* [ ] Pipeline is green on the Merge Request, including validate, test, ui-test, api-test, security, build, and deploy jobs (user-reported, not repository-verifiable locally).
 
 ### Validation
 
@@ -323,6 +324,30 @@ Before merging any Sprint 1 Merge Request, the following regression checks must 
 
 ### Refinement Made
 
-The AI-generated test plan was reviewed and refined to match the actual Sprint 1 GitLab issues used by the SwapLah team: #1, #2, #3, #16, #17, #18, and #19. The test cases were adjusted to match the team’s acceptance criteria and implementation status. Test cases that were already implemented were marked as Pass, while incomplete Sprint 1 items were marked as Pending / Not Run to avoid overstating the project progress. The coverage threshold was also adjusted to 60% to match the Assignment 1 requirement, while keeping 70% as a team target where possible.
+The AI-generated test plan was reviewed and refined to match the actual Sprint 1 GitLab issues used by the SwapLah team: #1, #2, #3, #16, #17, #18, and #19. The test cases were adjusted to match the team’s acceptance criteria and implementation status. Earlier drafts used Pending / Not Run for items that had not yet been verified; this final update removes outdated wording that implied current Sprint 1 repository tests were still pending. The plan now distinguishes the 60% assignment minimum from the 75% A-band/current pipeline threshold.
 The test plan was later updated after Sprint 1 Selenium UI automation was added. The UI testing scope was expanded from simple Flask smoke tests to include 5 Sprint 1 Selenium end-to-end tests running in a headless browser. The Selenium tests were also refactored using the Page Object Model pattern, where shared locators and page actions are stored under `tests/ui/selenium/pages/`. This update was made to align the Sprint 1 test plan with the actual authentication and account-management UI test evidence.
+
+---
+
+## 14. Final Repository Evidence Update
+
+Evidence captured on 15 Jul 2026 from the current repository:
+
+| Evidence item | Final value |
+| --- | --- |
+| Full pytest suite | 159 passed |
+| Unit tests | 77 passed |
+| Unit coverage | 77% |
+| API tests | 70 passed |
+| Flask UI tests | 2 passed |
+| Selenium tests | 10 passed |
+| Pylint target and result | Target 10.0; result 10.00/10 |
+| Highest cyclomatic complexity | B(7), `_common_error` in `app/routes/offers.py` |
+| Longest application function | 38 lines, `_register_simple_page_routes` in `app/__init__.py` |
+| Code-quality gate | Passed |
+| Development dependencies | `requirements-dev.txt` |
+| Selenium pipeline job name | `selenium-ui-tests` |
+| Pipeline stages | validate, test, ui-test, api-test, security, build, deploy |
+
+Current pipeline jobs in `.gitlab-ci.yml`: `pylint-application`, `code-quality-gate`, `pytest-unit-tests`, `pytest-api-tests`, `selenium-ui-tests`, `newman-api-tests`, `semgrep-sast`, `secret_detection`, `gemnasium-python-dependency_scanning`, `cyclonedx-sbom`, `security-gate`, `build-archive`, and `deploy-package`.
 

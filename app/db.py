@@ -97,6 +97,19 @@ WHERE listings.seller_id = ?
 ORDER BY offers.created_at DESC
 """
 
+CREATE_REVIEWS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS reviews (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    reviewed_user_id INTEGER NOT NULL,
+    reviewer_id INTEGER,
+    rating INTEGER NOT NULL,
+    comment TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (reviewed_user_id) REFERENCES users (id),
+    FOREIGN KEY (reviewer_id) REFERENCES users (id)
+)
+"""
+
 INSERT_LISTING_SQL = """
 INSERT INTO listings (
     seller_id, title, description, price, category, item_condition,
@@ -224,6 +237,7 @@ def init_db():
     ensure_listing_status_column(conn)
     conn.execute(CREATE_OFFERS_TABLE_SQL)
     conn.execute(CREATE_TRANSACTIONS_TABLE_SQL)
+    conn.execute(CREATE_REVIEWS_TABLE_SQL)
     conn.commit()
     conn.close()
 
@@ -392,15 +406,11 @@ def soft_delete_listing(listing_id, seller_id):
 
     return dict(deleted_listing), None
 
-def search_active_listings(keyword="", category="", condition=""):
-    """Return active listings matching search, category, and condition filters."""
-    conn = get_db_connection()
-    search = keyword.strip()
-    category = category.strip()
-    condition = condition.strip()
-
+def _active_listing_search_filters(keyword="", category="", condition=""):
+    """Return SQL clauses and parameters for active listing filters."""
     clauses = ["listings.status = 'Active'"]
     params = []
+    search = keyword.strip()
 
     if search:
         pattern = f"%{search}%"
@@ -422,30 +432,68 @@ def search_active_listings(keyword="", category="", condition=""):
         clauses.append("listings.item_condition = ?")
         params.append(condition)
 
-    where_clause = " AND ".join(clauses)
+    return " AND ".join(clauses), params
 
+
+def _active_listing_search_sql(where_clause):
+    """Return the active listing search SQL with the supplied WHERE clause."""
+    return f"""
+    SELECT
+        listings.id,
+        listings.title,
+        listings.description,
+        listings.price,
+        listings.category,
+        listings.item_condition AS condition,
+        listings.image_url,
+        listings.listing_date,
+        users.display_name AS seller
+    FROM listings
+    LEFT JOIN users ON listings.seller_id = users.id
+    WHERE {where_clause}
+    ORDER BY listings.listing_date DESC
+    """
+
+
+def search_active_listings(keyword="", category="", condition=""):
+    """Return active listings matching search, category, and condition filters."""
+    conn = get_db_connection()
+    where_clause, params = _active_listing_search_filters(
+        keyword,
+        category.strip(),
+        condition.strip(),
+    )
     rows = conn.execute(
-        f"""
-        SELECT
-            listings.id,
-            listings.title,
-            listings.description,
-            listings.price,
-            listings.category,
-            listings.item_condition AS condition,
-            listings.image_url,
-            listings.listing_date,
-            users.display_name AS seller
-        FROM listings
-        LEFT JOIN users ON listings.seller_id = users.id
-        WHERE {where_clause}
-        ORDER BY listings.listing_date DESC
-        """,
+        _active_listing_search_sql(where_clause),
         params,
     ).fetchall()
 
     conn.close()
     return [_attach_images(dict(row)) for row in rows]
+
+
+def get_reviews_for_user(user_id):
+    """Return public reviews for a user, newest first."""
+    conn = get_db_connection()
+    rows = conn.execute(
+        """
+        SELECT
+            reviews.id,
+            reviews.reviewed_user_id,
+            reviews.reviewer_id,
+            reviews.rating,
+            reviews.comment,
+            reviews.created_at,
+            users.display_name AS reviewer_display_name
+        FROM reviews
+        LEFT JOIN users ON reviews.reviewer_id = users.id
+        WHERE reviews.reviewed_user_id = ?
+        ORDER BY reviews.created_at DESC, reviews.id DESC
+        """,
+        (user_id,),
+    ).fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
 
 def get_user_by_id(user_id):
     """Retrieve one user by ID using a parameterized query."""
@@ -497,9 +545,17 @@ def get_listing_owner(listing_id):
 
 
 def get_listings_by_seller(seller_id):
-    """Return all listings belonging to seller_id for swap dropdown."""
+    """Return active listings belonging to seller_id for swap dropdown."""
     conn = get_db_connection()
-    rows = conn.execute("SELECT id, title FROM listings WHERE seller_id = ?", (seller_id,)).fetchall()
+    rows = conn.execute(
+        """
+        SELECT id, title
+        FROM listings
+        WHERE seller_id = ?
+        AND status = 'Active'
+        """,
+        (seller_id,),
+    ).fetchall()
     conn.close()
     return [dict(row) for row in rows]
 

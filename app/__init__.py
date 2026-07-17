@@ -4,12 +4,15 @@ import math
 import os
 import re
 import time
+from functools import wraps
 
 from flask import Flask, flash, jsonify, redirect, render_template, request, session, url_for
+from dotenv import load_dotenv
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.db import (
     search_active_listings,
+    get_reviews_for_user,
     get_db_connection,
     get_listing_by_id,
     get_listings_by_seller,
@@ -37,11 +40,67 @@ PUBLIC_ENDPOINTS = {
     "static",
     "listings.api_get_active_listings",
     "listings.api_get_listing_detail",
+    "api_health",
+    "api_user_reviews",
 }
 
 def _is_suspended_user(user):
     """Return True if the user account is suspended."""
     return user["status"] == "Suspended"
+
+
+def _load_secret_key():
+    """Return the required Flask secret key from the environment."""
+    secret_key = os.getenv("SECRET_KEY")
+
+    if not secret_key:
+        raise RuntimeError("SECRET_KEY environment variable is required.")
+
+    return secret_key
+
+
+def _is_admin_user(user):
+    """Return True when a user has the admin role and is active."""
+    return user is not None and user["role"] == "admin" and user["status"] == "Active"
+
+
+def _admin_denied_response():
+    """Return the standard response for a logged-in non-admin user."""
+    return "Forbidden", 403
+
+
+def admin_required(view_func):
+    """Require an active admin account for an admin route."""
+
+    @wraps(view_func)
+    def wrapper(*args, **kwargs):
+        authorization_response = _require_admin_response()
+
+        if authorization_response:
+            return authorization_response
+
+        return view_func(*args, **kwargs)
+
+    return wrapper
+
+
+def _require_admin_response():
+    """Return an authorization response when the current user is not an admin."""
+    user_id = session.get("user_id")
+
+    if not user_id:
+        flash("Please log in as an administrator.", "danger")
+        return redirect(url_for("login"))
+
+    if not _is_admin_user(get_user_by_id(user_id)):
+        return _admin_denied_response()
+
+    return None
+
+
+def _is_admin_path(path):
+    """Return True for the admin page and all admin subpaths."""
+    return path == "/admin" or path.startswith("/admin/")
 
 def _handle_login():
     """Process POST login form and return a redirect or re-rendered login page."""
@@ -108,6 +167,7 @@ def _get_registration_form_data():
 def _create_user_account(form_data):
     """Create a user account from validated registration form data."""
     password_hash = generate_password_hash(form_data["password"])
+    conn = None
 
     try:
         conn = get_db_connection()
@@ -130,10 +190,12 @@ def _create_user_account(form_data):
             ),
         )
         conn.commit()
-        conn.close()
     except Exception:  # noqa: BLE001
         flash("Email or Student ID already exists.", "danger")
         return render_template("register.html")
+    finally:
+        if conn is not None:
+            conn.close()
 
     flash("Account created successfully. Please log in.", "success")
     return redirect(url_for("login"))
@@ -156,6 +218,40 @@ def _paginate_listings(page, search="", category="", condition="", per_page=10):
         "total_pages": total_pages,
         "total_listings": total_listings,
     }
+
+
+def _render_index_page(page, search, category, condition):
+    """Render homepage with paginated listing data."""
+    pagination = _paginate_listings(page, search, category, condition)
+    return render_template(
+        "index.html",
+        listings=pagination["listings"],
+        page=pagination["page"],
+        total_pages=pagination["total_pages"],
+        total_listings=pagination["total_listings"],
+        search=search,
+        category=category,
+        condition=condition,
+    )
+
+
+def _render_listing_detail_page(listing_id):
+    """Render the listing detail page or a not-found response."""
+    listing = get_listing_by_id(listing_id)
+
+    if listing is None:
+        return render_template(
+            "listing_detail.html",
+            listing=None,
+            error_message="This listing does not exist or is no longer available.",
+        ), 404
+
+    return render_template(
+        "listing_detail.html",
+        listing=listing,
+        listing_id=listing_id,
+        error_message=None,
+    )
 
 
 def _get_logged_in_user_or_redirect(message):
@@ -224,6 +320,17 @@ def _register_session_timeout(app):
         return _check_session_timeout()
 
 
+def _register_admin_path_guard(app):
+    """Protect /admin and all /admin/* paths before routing."""
+
+    @app.before_request
+    def enforce_admin_path_guard():
+        if not _is_admin_path(request.path) or request.endpoint == "admin":
+            return None
+
+        return _require_admin_response()
+
+
 def _get_profile_form_data():
     """Return cleaned edit profile form data."""
     return {
@@ -281,6 +388,19 @@ def _save_profile_update(form_data):
 def _register_main_routes(app):
     """Register homepage and simple listing page routes."""
 
+    @app.route("/api/health")
+    def api_health():
+        """Return application health status."""
+        return jsonify({"status": "ok"}), 200
+
+    @app.route("/api/users/<int:user_id>/reviews")
+    def api_user_reviews(user_id):
+        """Return public reviews for one user."""
+        if get_user_by_id(user_id) is None:
+            return jsonify({"error": "User not found."}), 404
+
+        return jsonify({"reviews": get_reviews_for_user(user_id)}), 200
+
     @app.route("/")
     def index():
         """Render homepage with paginated listings."""
@@ -288,38 +408,12 @@ def _register_main_routes(app):
         search = request.args.get("search", "").strip()
         category = request.args.get("category", "").strip()
         condition = request.args.get("condition", "").strip()
-
-        pagination = _paginate_listings(page, search, category, condition)
-
-        return render_template(
-            "index.html",
-            listings=pagination["listings"],
-            page=pagination["page"],
-            total_pages=pagination["total_pages"],
-            total_listings=pagination["total_listings"],
-            search=search,
-            category=category,
-            condition=condition,
-        )
+        return _render_index_page(page, search, category, condition)
 
     @app.route("/listing/<int:listing_id>")
     def listing_detail(listing_id):
         """Render listing detail page."""
-        listing = get_listing_by_id(listing_id)
-
-        if listing is None:
-            return render_template(
-                "listing_detail.html",
-                listing=None,
-                error_message="This listing does not exist or is no longer available.",
-            ), 404
-
-        return render_template(
-            "listing_detail.html",
-            listing=listing,
-            listing_id=listing_id,
-            error_message=None,
-        )
+        return _render_listing_detail_page(listing_id)
 
 
 def _register_listing_owner_routes(app):
@@ -459,6 +553,7 @@ def _register_simple_page_routes(app):
         return render_template("sell.html")
 
     @app.route("/admin")
+    @admin_required
     def admin():
         """Render admin page."""
         return render_template("admin.html")
@@ -466,8 +561,9 @@ def _register_simple_page_routes(app):
 
 def create_app():
     """Create and configure the Flask application."""
+    load_dotenv()
     app = Flask(__name__)
-    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-key")
+    app.config["SECRET_KEY"] = _load_secret_key()
     init_db()
 
     _register_main_routes(app)
@@ -476,6 +572,7 @@ def create_app():
     _register_auth_routes(app)
     _register_simple_page_routes(app)
     _register_session_timeout(app)
+    _register_admin_path_guard(app)
 
     app.register_blueprint(listings_bp)
     app.register_blueprint(offers_bp)

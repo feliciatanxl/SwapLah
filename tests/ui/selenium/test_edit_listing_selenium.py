@@ -35,11 +35,13 @@ def test_seller_can_edit_own_listing_end_to_end(
     edit_page = EditListingPage(browser, live_server)
     edit_page.open_edit_listing(listing["id"])
     edit_page.update_listing(
-        title=updated_title,
-        description=updated_description,
-        price="28.50",
-        category="Textbooks",
-        condition="Like New",
+        {
+            "title": updated_title,
+            "description": updated_description,
+            "price": "28.50",
+            "category": "Textbooks",
+            "condition": "Like New",
+        }
     )
 
     detail_page = ListingDetailPage(browser, live_server)
