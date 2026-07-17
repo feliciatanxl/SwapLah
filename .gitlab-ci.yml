@@ -6,6 +6,7 @@ stages:
   - ui-test
   - api-test
   - security
+  - security-gate
   - build
   - deploy
 
@@ -228,18 +229,23 @@ cyclonedx-sbom:
   allow_failure: false
 
 security-gate:
-  stage: security
-  extends: .python_setup
+  stage: security-gate
+  image: python:3.11-slim
+
   needs:
     - job: semgrep-sast
       artifacts: true
+
     - job: gemnasium-python-dependency_scanning
       artifacts: true
+
     - job: secret_detection
       artifacts: true
+
   script:
-    - find . -maxdepth 4 -type f -print | sort
+    - echo "Checking GitLab security reports..."
     - python scripts/security_gate.py
+
   allow_failure: false
 
 build-archive:
