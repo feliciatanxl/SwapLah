@@ -1,137 +1,149 @@
-"""Fail CI when GitLab security reports contain blocking findings."""
+"""Fail the GitLab pipeline when security findings are detected."""
 
 from __future__ import annotations
 
 import json
 import sys
-from dataclasses import dataclass
 from pathlib import Path
-
-JSON_REPORT_GLOB = "*.json"
-BLOCKING_SEVERITIES = {"High", "Critical"}
+from typing import Any
 
 
-@dataclass(frozen=True)
-class ReportSpec:
-    """Expected GitLab security report metadata."""
-
-    name: str
-    scan_types: tuple[str, ...]
-    expected_paths: tuple[Path, ...]
-
-
-SECURITY_REPORTS = (
-    ReportSpec("SAST", ("sast",), (Path("gl-sast-report.json"),)),
-    ReportSpec(
-        "Dependency scanning",
-        ("dependency_scanning",),
-        (Path("gl-dependency-scanning-report.json"),),
+SECURITY_REPORTS = {
+    "SAST": Path("gl-sast-report.json"),
+    "Dependency Scanning": Path(
+        "gl-dependency-scanning-report.json"
     ),
-    ReportSpec(
-        "Secret detection",
-        ("secret_detection",),
-        (Path("gl-secret-detection-report.json"),),
+    "Secret Detection": Path(
+        "gl-secret-detection-report.json"
     ),
-)
+}
 
 
-def _read_json(path):
-    """Return parsed JSON from a report path."""
-    return json.loads(path.read_text(encoding="utf-8"))
+def load_findings(
+    report_name: str,
+    report_path: Path,
+) -> list[dict[str, Any]]:
+    """Load vulnerabilities from one GitLab security report."""
 
+    if not report_path.is_file():
+        raise RuntimeError(
+            f"{report_name} report is missing: {report_path}"
+        )
 
-def _report_scan_type(report):
-    """Return the GitLab security report scan type, if present."""
-    scan = report.get("scan", {})
+    try:
+        with report_path.open(
+            "r",
+            encoding="utf-8",
+        ) as report_file:
+            report = json.load(report_file)
+    except json.JSONDecodeError as error:
+        raise RuntimeError(
+            f"{report_name} report contains invalid JSON: {error}"
+        ) from error
+    except OSError as error:
+        raise RuntimeError(
+            f"{report_name} report could not be read: {error}"
+        ) from error
 
-    if isinstance(scan, dict):
-        return scan.get("type")
+    findings = report.get("vulnerabilities")
 
-    return None
-
-
-def _is_security_report(report, spec):
-    """Return True when a parsed report matches the expected security type."""
-    return _report_scan_type(report) in spec.scan_types
-
-
-def _discover_report(spec):
-    """Find and load the expected GitLab security report."""
-    for path in spec.expected_paths:
-        if path.exists():
-            report = _read_json(path)
-
-            if _is_security_report(report, spec):
-                return path, report
-
-            print(f"Ignoring {path}: scan.type is not one of {spec.scan_types}.")
-
-    for path in sorted(Path(".").glob(JSON_REPORT_GLOB)):
-        if path in spec.expected_paths:
-            continue
-
-        try:
-            report = _read_json(path)
-        except json.JSONDecodeError:
-            continue
-
-        if _is_security_report(report, spec):
-            return path, report
-
-    expected = ", ".join(str(path) for path in spec.expected_paths)
-    print(
-        f"Missing expected {spec.name} report. Expected {expected} "
-        f"or a GitLab report with scan.type in {spec.scan_types}."
-    )
-    return None, None
-
-
-def _finding_label(vulnerability):
-    """Return a readable vulnerability label."""
-    name = vulnerability.get("name") or vulnerability.get("message") or "Unnamed finding"
-    severity = vulnerability.get("severity", "Unknown")
-    location = vulnerability.get("location", {})
-    dependency = location.get("dependency", {})
-    file_path = location.get("file") or dependency.get("package", {}).get("name")
-    return f"{severity}: {name}" + (f" ({file_path})" if file_path else "")
-
-
-def _blocking_findings(report_name, report):
-    """Return blocking findings from one parsed report."""
-    findings = []
-
-    for vulnerability in report.get("vulnerabilities", []):
-        severity = vulnerability.get("severity")
-
-        if report_name == "Secret detection" or severity in BLOCKING_SEVERITIES:
-            findings.append(_finding_label(vulnerability))
+    if not isinstance(findings, list):
+        raise RuntimeError(
+            f"{report_name} report does not contain a valid "
+            "'vulnerabilities' list."
+        )
 
     return findings
 
 
-def main():
-    """Inspect GitLab security reports and return a process exit code."""
-    failed = False
+def describe_finding(
+    report_name: str,
+    finding: dict[str, Any],
+) -> str:
+    """Return a safe finding description without printing secret values."""
 
-    for spec in SECURITY_REPORTS:
-        path, report = _discover_report(spec)
+    name = finding.get("name", "Unnamed security finding")
+    severity = finding.get("severity", "Unknown")
 
-        if report is None:
-            failed = True
+    location = finding.get("location", {})
+    file_path = location.get("file", "unknown location")
+    start_line = location.get("start_line")
+
+    if start_line is not None:
+        location_text = f"{file_path}:{start_line}"
+    else:
+        location_text = str(file_path)
+
+    return (
+        f"[{report_name}] "
+        f"{severity} - {name} - {location_text}"
+    )
+
+
+def main() -> int:
+    """Check all reports and return a failing exit code if necessary."""
+
+    all_findings: list[tuple[str, dict[str, Any]]] = []
+    report_errors: list[str] = []
+
+    print("=" * 65)
+    print("GitLab Security Gate")
+    print("=" * 65)
+
+    for report_name, report_path in SECURITY_REPORTS.items():
+        try:
+            findings = load_findings(
+                report_name,
+                report_path,
+            )
+        except RuntimeError as error:
+            report_errors.append(str(error))
+            print(f"{report_name}: ERROR")
             continue
 
-        print(f"Loaded {spec.name} report: {path}")
-        findings = _blocking_findings(spec.name, report)
+        print(
+            f"{report_name}: "
+            f"{len(findings)} finding(s)"
+        )
 
         for finding in findings:
-            print(f"Blocking {spec.name} finding: {finding}")
+            all_findings.append(
+                (report_name, finding)
+            )
 
-        failed = failed or bool(findings)
+    if report_errors:
+        print("\nSECURITY GATE BLOCKED")
+        print("One or more security reports could not be verified:")
 
-    if failed:
+        for error in report_errors:
+            print(f"- {error}")
+
+        # Fail closed when a report is unavailable or invalid.
         return 1
 
-    print("Security gate passed.")
+    if all_findings:
+        print("\nDetected security findings:")
+
+        for report_name, finding in all_findings:
+            print(
+                "- "
+                + describe_finding(
+                    report_name,
+                    finding,
+                )
+            )
+
+        print("\nSECURITY GATE FAILED")
+        print(
+            f"{len(all_findings)} security finding(s) detected."
+        )
+        print("Build and deployment are blocked.")
+
+        return 1
+
+    print("\nSECURITY GATE PASSED")
+    print("No security findings were detected.")
+
     return 0
 
 
