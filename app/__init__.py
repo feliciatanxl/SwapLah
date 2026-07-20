@@ -20,11 +20,13 @@ from app.db import (
     get_user_by_id,
     init_db,
     update_user_account,
+    get_all_reports, 
 )
 import app.db as db_module  # noqa: F401 — exposes db functions for monkeypatching in tests
 from app.routes.listing import listings_bp
 from app.routes.offers import offers_bp
 from app.routes.history import history_bp
+from app.routes.admin import admin_bp  
 
 SESSION_TIMEOUT_SECONDS = 30 * 60
 # SESSION_TIMEOUT_SECONDS = 10
@@ -415,6 +417,14 @@ def _register_main_routes(app):
         """Render listing detail page."""
         return _render_listing_detail_page(listing_id)
 
+    # Add API endpoint for reports
+    @app.route("/api/admin/reports")
+    @admin_required
+    def api_admin_reports():
+        """Return all reports for the admin dashboard."""
+        reports = get_all_reports()
+        return jsonify({"reports": reports}), 200
+
 
 def _register_listing_owner_routes(app):
     """Register listing owner page routes."""
@@ -574,8 +584,10 @@ def create_app():
     _register_session_timeout(app)
     _register_admin_path_guard(app)
 
+    # Register blueprints
     app.register_blueprint(listings_bp)
     app.register_blueprint(offers_bp)
     app.register_blueprint(history_bp)
+    app.register_blueprint(admin_bp) 
 
     return app
