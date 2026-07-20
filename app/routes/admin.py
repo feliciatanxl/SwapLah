@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, render_template
-from app import admin_required
+from app.auth import admin_required
 from app.db import admin_delete_reported_listing, get_report_by_id, get_all_reports
 
 admin_bp = Blueprint("admin", __name__)
