@@ -13,7 +13,7 @@
     <div class="row g-3 my-4">
         <div class="col-md-3"><div class="stats-card"><small class="stats-label">Total Users</small><h2 class="stats-value">2,412</h2></div></div>
         <div class="col-md-3"><div class="stats-card"><small class="stats-label">Active Listings</small><h2 class="stats-value">811</h2></div></div>
-        <div class="col-md-3"><div class="stats-card bg-soft-yellow"><small class="stats-label text-yellow">Reports Pending</small><h2 class="stats-value">3</h2></div></div>
+        <div class="col-md-3"><div class="stats-card bg-soft-yellow"><small class="stats-label text-yellow">Reports Pending</small><h2 class="stats-value">{{ reports|selectattr('status', 'equalto', 'Pending')|list|length }}</h2></div></div>
         <div class="col-md-3"><div class="stats-card bg-soft-pink"><small class="stats-label text-pink">Suspended Users</small><h2 class="stats-value">1</h2></div></div>
     </div>
 
@@ -35,33 +35,50 @@
                 <table class="table align-middle mb-0">
                     <thead><tr><th>Listing</th><th>Reporter</th><th>Reason</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
                     <tbody>
-                        <tr>
-                            <td><strong>Fake Apple AirPods Pro</strong><br><small class="text-muted">Electronics</small></td>
-                            <td>user_2103</td>
-                            <td>Suspected counterfeit</td>
-                            <td><span class="status-badge bg-soft-yellow text-yellow">Pending</span></td>
-                            <td class="text-end">
-                                <button class="btn btn-sm btn-outline-dark" data-bs-toggle="modal" data-bs-target="#dismissReportModal">Dismiss</button>
-                                <button class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteListingModal">Soft-delete</button>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td><strong>Calculus Solutions Manual</strong><br><small class="text-muted">Textbooks</small></td>
-                            <td>user_1188</td>
-                            <td>Copyright violation</td>
-                            <td><span class="status-badge bg-soft-yellow text-yellow">Pending</span></td>
-                            <td class="text-end">
-                                <button class="btn btn-sm btn-outline-dark" data-bs-toggle="modal" data-bs-target="#dismissReportModal">Dismiss</button>
-                                <button class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteListingModal">Soft-delete</button>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td><strong>Random spam post</strong><br><small class="text-muted">Other</small></td>
-                            <td>user_4421</td>
-                            <td>Spam</td>
-                            <td><span class="status-badge bg-soft-green text-green">Dismissed</span></td>
-                            <td class="text-end"><button class="btn btn-sm btn-outline-dark">Reopen</button></td>
-                        </tr>
+                        {% if reports %}
+                            {% for report in reports %}
+                            <tr>
+                                <td>
+                                    <strong>{{ report.listing_title }}</strong>
+                                    <br><small class="text-muted">{{ report.listing_category }}</small>
+                                </td>
+                                <td>{{ report.reporter_display_name }}</td>
+                                <td>
+                                    <strong>{{ report.reason }}</strong>
+                                    {% if report.description %}
+                                        <br><small class="text-muted">{{ report.description }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if report.status == 'Pending' %}
+                                        <span class="status-badge bg-soft-yellow text-yellow">Pending</span>
+                                    {% elif report.status == 'Resolved' %}
+                                        <span class="status-badge bg-soft-green text-green">Resolved</span>
+                                    {% else %}
+                                        <span class="status-badge bg-soft-gray text-gray">{{ report.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    {% if report.status == 'Pending' %}
+                                        <button class="btn btn-sm btn-outline-dark" data-bs-toggle="modal" data-bs-target="#dismissReportModal">Dismiss</button>
+                                        <button class="btn btn-sm btn-danger" 
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#deleteListingModal"
+                                                data-report-id="{{ report.id }}"
+                                                data-listing-title="{{ report.listing_title }}">Soft-delete</button>
+                                    {% else %}
+                                        <span class="text-muted">Resolved</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center py-4">
+                                    <p class="text-muted mb-0">No reports found.</p>
+                                </td>
+                            </tr>
+                        {% endif %}
                     </tbody>
                 </table>
             </div>
@@ -100,6 +117,7 @@
     </div>
 </section>
 
+<!-- Dismiss Report Modal -->
 <div class="modal fade" id="dismissReportModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content confirm-modal">
@@ -116,6 +134,7 @@
     </div>
 </div>
 
+<!-- Delete Listing Modal -->
 <div class="modal fade" id="deleteListingModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content confirm-modal">
@@ -123,15 +142,21 @@
                 <h5 class="modal-title">Soft-delete listing?</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">This should hide the reported listing from browse results without deleting the database record later.</div>
+            <div class="modal-body">
+                <p>Are you sure you want to soft-delete the listing:</p>
+                <p><strong id="deleteListingTitle"></strong></p>
+                <p class="text-danger">This will hide the listing from all users.</p>
+                <input type="hidden" id="deleteReportId">
+            </div>
             <div class="modal-footer">
                 <button class="btn btn-outline-dark" data-bs-dismiss="modal">Cancel</button>
-                <button class="btn btn-danger">Soft-delete Listing</button>
+                <button class="btn btn-danger" id="confirmDeleteListing">Soft-delete Listing</button>
             </div>
         </div>
     </div>
 </div>
 
+<!-- Toggle User Modal -->
 <div class="modal fade" id="toggleUserModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content confirm-modal">
@@ -147,5 +172,69 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle delete listing button in modal
+    const deleteModal = document.getElementById('deleteListingModal');
+    if (deleteModal) {
+        deleteModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            const reportId = button.getAttribute('data-report-id');
+            const listingTitle = button.getAttribute('data-listing-title');
+            
+            document.getElementById('deleteReportId').value = reportId;
+            document.getElementById('deleteListingTitle').textContent = listingTitle || 'Unknown Listing';
+        });
+    }
+    
+    // Handle confirm delete
+    document.getElementById('confirmDeleteListing').addEventListener('click', function() {
+        const reportId = document.getElementById('deleteReportId').value;
+        const button = this;
+        
+        button.disabled = true;
+        button.textContent = 'Processing...';
+        
+        fetch(`/admin/reports/${reportId}/delete-listing`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('deleteListingModal'));
+                modal.hide();
+                
+                // Reload the page to refresh the reports table
+                window.location.reload();
+            } else {
+                alert('Error: ' + (data.error || 'Failed to delete listing'));
+            }
+        })
+        .catch(error => {
+            alert('Error: ' + error.message);
+        })
+        .finally(() => {
+            button.disabled = false;
+            button.textContent = 'Soft-delete Listing';
+        });
+    });
+});
+
+// Search/filter functionality
+document.getElementById('admin_report_search').addEventListener('keyup', function() {
+    const search = this.value.toLowerCase();
+    const rows = document.querySelectorAll('#reports-panel tbody tr');
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(search) ? '' : 'none';
+    });
+});
+</script>
 
 {% endblock %}
