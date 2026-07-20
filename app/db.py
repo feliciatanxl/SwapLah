@@ -767,20 +767,90 @@ def accept_offer(offer_id):
     return dict(updated_offer)
 
 def create_report(listing_id, reporter_id, reason, description=None):
-    """Create a new report for a listing."""
+    """
+    Create a new report for a listing with validation.
+    
+    Args:
+        listing_id (int): ID of the listing being reported
+        reporter_id (int): ID of the user submitting the report
+        reason (str): Reason for reporting (must be from allowed list)
+        description (str): Detailed description of the issue (optional but should have min length)
+    
+    Returns:
+        dict: The created report data
+    
+    Raises:
+        ValueError: If listing doesn't exist, is deleted, or validation fails
+    """
+    # Validate listing exists and is not deleted
+    listing = get_listing_by_id(listing_id)
+    if not listing:
+        raise ValueError("Listing not found")
+    
+    # Check if listing is deleted (get_listing_by_id only returns active ones)
+    # We need to check the raw listing for status
+    conn = get_db_connection()
+    raw_listing = conn.execute(
+        "SELECT id, status FROM listings WHERE id = ?", 
+        (listing_id,)
+    ).fetchone()
+    conn.close()
+    
+    if not raw_listing:
+        raise ValueError("Listing not found")
+    if raw_listing["status"] == "Deleted":
+        raise ValueError("Listing is already deleted")
+    
+    # Validate reason is from allowed list
+    allowed_reasons = [
+        "Counterfeit",
+        "Prohibited item", 
+        "Spam",
+        "Inappropriate content",
+        "Other",
+        "Suspected counterfeit",  # Keep existing options for backward compatibility
+        "Copyright violation",
+        "Unsafe or inappropriate"
+    ]
+    if reason not in allowed_reasons:
+        raise ValueError(f"Reason must be one of: {', '.join(allowed_reasons)}")
+    
+    # Validate description if provided
+    if description is not None:
+        if len(description.strip()) < 10:
+            raise ValueError("Description must be at least 10 characters")
+    else:
+        description = ""  # Set empty string if None
+    
+    conn = get_db_connection()
     try:
-        conn = get_db_connection()
-        conn.execute(
+        # Check if user has already reported this listing
+        existing = conn.execute(
+            "SELECT id FROM reports WHERE listing_id = ? AND reporter_id = ?",
+            (listing_id, reporter_id)
+        ).fetchone()
+        if existing:
+            raise ValueError("You have already reported this listing")
+        
+        # Insert the report
+        cursor = conn.execute(
             CREATE_REPORT_SQL,
-            (listing_id, reporter_id, reason, description)
+            (listing_id, reporter_id, reason, description.strip())
         )
         conn.commit()
+        report_id = cursor.lastrowid
+        
+        # Fetch the created report with details
+        report = conn.execute(GET_REPORT_BY_ID_SQL, (report_id,)).fetchone()
         conn.close()
-        return True, None
+        return dict(report)
+        
     except sqlite3.IntegrityError:
-        return False, "integrity_error"
-    except Exception:
-        return False, "database_error"
+        conn.close()
+        raise ValueError("Database integrity error")
+    except Exception as e:
+        conn.close()
+        raise e
 
 
 def get_report_by_id(report_id):
