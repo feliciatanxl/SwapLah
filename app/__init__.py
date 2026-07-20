@@ -9,6 +9,7 @@ from functools import wraps
 from flask import Flask, flash, jsonify, redirect, render_template, request, session, url_for
 from dotenv import load_dotenv
 from werkzeug.security import check_password_hash, generate_password_hash
+from app.auth import admin_required, _require_admin_response
 
 from app.db import (
     search_active_listings,
@@ -61,44 +62,9 @@ def _load_secret_key():
     return secret_key
 
 
-def _is_admin_user(user):
-    """Return True when a user has the admin role and is active."""
-    return user is not None and user["role"] == "admin" and user["status"] == "Active"
-
-
 def _admin_denied_response():
     """Return the standard response for a logged-in non-admin user."""
     return "Forbidden", 403
-
-
-def admin_required(view_func):
-    """Require an active admin account for an admin route."""
-
-    @wraps(view_func)
-    def wrapper(*args, **kwargs):
-        authorization_response = _require_admin_response()
-
-        if authorization_response:
-            return authorization_response
-
-        return view_func(*args, **kwargs)
-
-    return wrapper
-
-
-def _require_admin_response():
-    """Return an authorization response when the current user is not an admin."""
-    user_id = session.get("user_id")
-
-    if not user_id:
-        flash("Please log in as an administrator.", "danger")
-        return redirect(url_for("login"))
-
-    if not _is_admin_user(get_user_by_id(user_id)):
-        return _admin_denied_response()
-
-    return None
-
 
 def _is_admin_path(path):
     """Return True for the admin page and all admin subpaths."""
