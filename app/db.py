@@ -116,6 +116,20 @@ CREATE TABLE IF NOT EXISTS reviews (
     FOREIGN KEY (reviewer_id) REFERENCES users (id)
 )
 """
+CREATE_REPORTS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    listing_id INTEGER NOT NULL,
+    reporter_id INTEGER NOT NULL,
+    reason TEXT NOT NULL,
+    description TEXT,
+    status TEXT NOT NULL DEFAULT 'Pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (listing_id) REFERENCES listings (id),
+    FOREIGN KEY (reporter_id) REFERENCES users (id)
+)
+"""
+
 
 INSERT_LISTING_SQL = """
 INSERT INTO listings (
@@ -220,7 +234,28 @@ SET first_name = :first_name,
     contact_number = :contact_number
 WHERE id = :user_id
 """
+CREATE_REPORT_SQL = """
+INSERT INTO reports (listing_id, reporter_id, reason, description)
+VALUES (?, ?, ?, ?)
+"""
 
+GET_REPORT_BY_ID_SQL = """
+SELECT r.*, l.title, l.status as listing_status, l.seller_id
+FROM reports r
+JOIN listings l ON r.listing_id = l.id
+WHERE r.id = ?
+"""
+
+ADMIN_DELETE_REPORTED_LISTING_SQL = """
+UPDATE listings 
+SET status = 'Deleted', 
+    last_modified_timestamp = ? 
+WHERE id = ? AND status = 'Active'
+"""
+
+RESOLVE_REPORT_SQL = """
+UPDATE reports SET status = 'Resolved' WHERE id = ?
+"""
 
 def get_db_connection():
     """Return a SQLite database connection."""
@@ -245,6 +280,7 @@ def init_db():
     conn.execute(CREATE_OFFERS_TABLE_SQL)
     conn.execute(CREATE_TRANSACTIONS_TABLE_SQL)
     conn.execute(CREATE_REVIEWS_TABLE_SQL)
+    conn.execute(CREATE_REPORTS_TABLE_SQL) 
     conn.commit()
     conn.close()
 
@@ -887,3 +923,126 @@ def accept_offer(offer_id):
     updated_offer = conn.execute("SELECT * FROM offers WHERE id = ?", (offer_id,)).fetchone()
     conn.close()
     return dict(updated_offer)
+
+def create_report(listing_id, reporter_id, reason, description=None):
+    """Create a new report for a listing."""
+    try:
+        conn = get_db_connection()
+        conn.execute(
+            CREATE_REPORT_SQL,
+            (listing_id, reporter_id, reason, description)
+        )
+        conn.commit()
+        conn.close()
+        return True, None
+    except sqlite3.IntegrityError:
+        return False, "integrity_error"
+    except Exception:
+        return False, "database_error"
+
+
+def get_report_by_id(report_id):
+    """Get report by ID with its listing details."""
+    conn = get_db_connection()
+    row = conn.execute(GET_REPORT_BY_ID_SQL, (report_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def admin_delete_reported_listing(report_id):
+    """
+    Admin soft-deletes the listing linked to a report.
+    Marks the report as 'Resolved'.
+    Returns (success_bool, error_code_string).
+    """
+    conn = None
+    try:
+        conn = get_db_connection()
+        
+        # Get the report and verify it exists and is pending
+        report = conn.execute(
+            "SELECT id, listing_id, status FROM reports WHERE id = ?",
+            (report_id,)
+        ).fetchone()
+        
+        if not report:
+            return False, "not_found"
+        
+        if report["status"] != "Pending":
+            return False, "not_found"
+        
+        listing_id = report["listing_id"]
+        
+        # Check if listing exists and is active
+        listing = conn.execute(
+            "SELECT id, status FROM listings WHERE id = ?",
+            (listing_id,)
+        ).fetchone()
+        
+        if not listing or listing["status"] != "Active":
+            return False, "not_found"
+        
+        # Soft delete the listing
+        conn.execute(
+            ADMIN_DELETE_REPORTED_LISTING_SQL,
+            (_now(), listing_id)
+        )
+        
+        # Mark report as Resolved
+        conn.execute(
+            RESOLVE_REPORT_SQL,
+            (report_id,)
+        )
+        
+        conn.commit()
+        return True, None
+        
+    except Exception:
+        if conn:
+            conn.rollback()
+        return False, "database_error"
+    finally:
+        if conn:
+            conn.close()
+
+GET_ALL_REPORTS_SQL = """
+SELECT 
+    r.id,
+    r.listing_id,
+    r.reporter_id,
+    r.reason,
+    r.description,
+    r.status,
+    r.created_at,
+    l.title AS listing_title,
+    l.category AS listing_category,
+    u.display_name AS reporter_display_name
+FROM reports r
+JOIN listings l ON r.listing_id = l.id
+JOIN users u ON r.reporter_id = u.id
+ORDER BY r.created_at DESC
+"""
+
+
+def get_all_reports():
+    """Get all reports with listing and reporter details."""
+    conn = get_db_connection()
+    rows = conn.execute("""
+        SELECT 
+            r.id,
+            r.listing_id,
+            r.reporter_id,
+            r.reason,
+            r.description,
+            r.status,
+            r.created_at,
+            l.title as listing_title,
+            l.status as listing_status,
+            u.display_name as reporter_name
+        FROM reports r
+        JOIN listings l ON r.listing_id = l.id
+        JOIN users u ON r.reporter_id = u.id
+        ORDER BY r.created_at DESC
+    """).fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
