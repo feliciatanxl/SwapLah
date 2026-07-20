@@ -30,7 +30,9 @@ import app.db as db_module  # noqa: F401 — exposes db functions for monkeypatc
 from app.routes.listing import listings_bp
 from app.routes.offers import offers_bp
 from app.routes.history import history_bp
-from app.routes.admin import admin_bp  
+from app.routes.admin import admin_bp
+from app.routes.reports import reports_bp
+
 
 SESSION_TIMEOUT_SECONDS = 30 * 60
 # SESSION_TIMEOUT_SECONDS = 10
@@ -611,5 +613,6 @@ def create_app():
     app.register_blueprint(offers_bp)
     app.register_blueprint(history_bp)
     app.register_blueprint(admin_bp) 
+    app.register_blueprint(reports_bp)
 
     return app
