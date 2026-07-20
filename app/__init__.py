@@ -9,7 +9,7 @@ from functools import wraps
 from flask import Flask, flash, jsonify, redirect, render_template, request, session, url_for
 from dotenv import load_dotenv
 from werkzeug.security import check_password_hash, generate_password_hash
-from app.auth import admin_required , _require_admin_response
+from app.auth import admin_required, _require_admin_response
 
 from app.db import (
     get_active_listings_by_seller,
@@ -68,9 +68,9 @@ def _load_secret_key():
     return secret_key
 
 
-# def _admin_denied_response():
-#     """Return the standard response for a logged-in non-admin user."""
-#     return "Forbidden", 403
+def _admin_denied_response():
+    """Return the standard response for a logged-in non-admin user."""
+    return "Forbidden", 403
 
 def _is_admin_path(path):
     """Return True for the admin page and all admin subpaths."""
