@@ -1,7 +1,8 @@
+# tests/api/test_admin_reports_api.py
 
 import pytest
 from app import create_app
-from app.db import create_listing, create_report, get_listing_by_id, get_report_by_id
+from app.db import create_listing, create_report, get_db_connection
 
 @pytest.fixture
 def client():
@@ -10,99 +11,142 @@ def client():
     with app.test_client() as client:
         with app.app_context():
             # Seed users
-            conn = app.db_connection()
+            conn = get_db_connection()
             conn.execute(
-                'INSERT INTO users (id, username, email, password, role) VALUES (1, "admin", "admin@test.com", "hash", "admin")'
+                'INSERT INTO users (id, student_id, first_name, last_name, display_name, email, contact_number, password_hash, role) '
+                'VALUES (1, "S10001", "Admin", "User", "AdminUser", "admin@test.com", "12345678", "hash", "admin")'
             )
             conn.execute(
-                'INSERT INTO users (id, username, email, password, role) VALUES (2, "user", "user@test.com", "hash", "user")'
+                'INSERT INTO users (id, student_id, first_name, last_name, display_name, email, contact_number, password_hash, role) '
+                'VALUES (2, "S10002", "Regular", "User", "RegularUser", "user@test.com", "87654321", "hash", "user")'
+            )
+            conn.execute(
+                'INSERT INTO users (id, student_id, first_name, last_name, display_name, email, contact_number, password_hash, role) '
+                'VALUES (3, "S10003", "Test", "User", "TestUser", "test@test.com", "11111111", "hash", "user")'
             )
             conn.commit()
+            conn.close()
             
-            # Seed listing and report
-            create_listing(title='Test Listing', description='Test', price=100, seller_id=2, category='Electronics')
-            create_report(listing_id=1, reporter_id=2, reason='Spam', description='Test report')
+            # Seed listings
+            create_listing(
+                title='Test Listing 1',
+                description='Test Description 1',
+                price=100,
+                seller_id=2,
+                category='Electronics'
+            )
+            create_listing(
+                title='Test Listing 2',
+                description='Test Description 2',
+                price=200,
+                seller_id=2,
+                category='Books'
+            )
+            
+            # Seed reports
+            create_report(listing_id=1, reporter_id=3, reason='Spam', description='This is spam')
+            create_report(listing_id=2, reporter_id=3, reason='Fraud', description='Fraudulent listing')
         yield client
 
 def login_as(client, user_id):
     with client.session_transaction() as sess:
         sess['user_id'] = user_id
 
-def test_ac1_admin_delete_success(client):
-    """AC1: Admin can successfully soft-delete a reported listing."""
+def test_ac1_admin_get_reports_success(client):
+    """AC1: Admin can successfully get all reports."""
     login_as(client, 1)  # Admin user
     
-    # Verify listing is active
-    listing = get_listing_by_id(1)
-    assert listing['status'] == 'Active'
-    
-    response = client.post('/admin/reports/1/delete-listing')
-    assert response.status_code == 200
-    data = response.get_json()
-    assert data['success'] is True
-    
-    # Verify listing is soft-deleted
-    listing = get_listing_by_id(1)
-    assert listing['status'] == 'Deleted'
-    
-    # Verify report is resolved
-    report = get_report_by_id(1)
-    assert report['status'] == 'Resolved'
-
-def test_ac2_deleted_listing_hidden_from_listings(client):
-    """AC2: Deleted listing is hidden from GET /api/listings."""
-    login_as(client, 1)  # Admin user
-    
-    # Delete the listing
-    response = client.post('/admin/reports/1/delete-listing')
-    assert response.status_code == 200
-    
-    # Try to get listings
-    response = client.get('/api/listings')
+    response = client.get('/api/admin/reports')
     assert response.status_code == 200
     data = response.get_json()
     
-    # Should not include the deleted listing
-    listings = data.get('listings', [])
-    assert all(l['id'] != 1 for l in listings)
+    assert 'reports' in data
+    assert len(data['reports']) == 2
+    
+    # Verify report structure
+    report = data['reports'][0]
+    assert 'id' in report
+    assert 'listing_id' in report
+    assert 'listing_title' in report
+    assert 'listing_category' in report
+    assert 'reporter_display_name' in report
+    assert 'reason' in report
+    assert 'description' in report
+    assert 'status' in report
+    assert 'created_at' in report
 
-def test_ac3_non_admin_forbidden(client):
-    """AC3: Non-admin users get 403 error."""
+def test_ac2_non_admin_forbidden(client):
+    """AC2: Non-admin users get 403 error."""
     login_as(client, 2)  # Regular user
     
-    response = client.post('/admin/reports/1/delete-listing')
+    response = client.get('/api/admin/reports')
     assert response.status_code == 403
     
-    # Verify nothing changed
-    listing = get_listing_by_id(1)
-    assert listing['status'] == 'Active'
-    report = get_report_by_id(1)
-    assert report['status'] == 'Pending'
+    # Also test HTML endpoint
+    response = client.get('/admin/reports')
+    assert response.status_code == 403
 
-def test_ac4_nonexistent_report_404(client):
-    """AC4: 404 for already-deleted or nonexistent report."""
+def test_ac2_not_logged_in_redirect(client):
+    """AC2: Not logged in users get redirected."""
+    response = client.get('/admin/reports')
+    # Should redirect to login (302) or return 401
+    assert response.status_code in (302, 401)
+    
+    response = client.get('/api/admin/reports')
+    assert response.status_code in (302, 401)
+
+def test_ac3_each_item_has_required_fields(client):
+    """AC3: Each report item has listing, reason, and description fields."""
     login_as(client, 1)  # Admin user
     
-    # Try with non-existent report
-    response = client.post('/admin/reports/999/delete-listing')
-    assert response.status_code == 404
+    response = client.get('/api/admin/reports')
+    assert response.status_code == 200
     data = response.get_json()
-    assert data['success'] is False
-    assert 'not found' in data['error'].lower()
     
-    # Delete the valid report first
-    response = client.post('/admin/reports/1/delete-listing')
+    for report in data['reports']:
+        # Check required fields
+        assert 'listing_title' in report
+        assert 'listing_category' in report
+        assert 'reason' in report
+        assert 'description' in report
+        assert 'status' in report
+        assert 'reporter_display_name' in report
+        
+        # Check values are not empty (unless description is None)
+        assert report['listing_title'] is not None
+        assert report['listing_category'] is not None
+        assert report['reason'] is not None
+        # Description can be None or empty
+        assert report['status'] in ['Pending', 'Resolved']
+
+def test_get_all_reports_html_template(client):
+    """Test that the HTML endpoint renders the template with reports data."""
+    login_as(client, 1)  # Admin user
+    
+    response = client.get('/admin/reports')
     assert response.status_code == 200
     
-    # Try again with already-resolved report
-    response = client.post('/admin/reports/1/delete-listing')
-    assert response.status_code == 404
-    data = response.get_json()
-    assert data['success'] is False
-    assert 'not found' in data['error'].lower()
+    # Check that the response contains report data
+    html = response.get_data(as_text=True)
+    assert 'Test Listing 1' in html
+    assert 'Test Listing 2' in html
+    assert 'Spam' in html
+    assert 'Fraud' in html
+    assert 'Status' in html
 
-def test_unauthenticated_user(client):
-    """Test that unauthenticated users cannot access admin endpoint."""
-    response = client.post('/admin/reports/1/delete-listing')
-    # Should redirect to login or return 401
-    assert response.status_code in (302, 401)
+def test_empty_reports(client):
+    """Test behavior when there are no reports."""
+    # Delete all reports
+    from app.db import get_db_connection
+    with client.application.app_context():
+        conn = get_db_connection()
+        conn.execute('DELETE FROM reports')
+        conn.commit()
+        conn.close()
+    
+    login_as(client, 1)  # Admin user
+    
+    response = client.get('/api/admin/reports')
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data['reports'] == []
