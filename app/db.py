@@ -888,3 +888,43 @@ def get_all_reports():
     """).fetchall()
     conn.close()
     return [dict(row) for row in rows]
+
+def dismiss_report(report_id):
+    """
+    Dismiss a pending report by setting its status to 'Dismissed'.
+    
+    Args:
+        report_id: The ID of the report to dismiss
+        
+    Returns:
+        (report_dict, None) on success
+        (None, "not_found") if report doesn't exist or isn't pending
+    """
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            # First check if report exists and is pending
+            cur.execute(
+                "SELECT * FROM reports WHERE id = %s AND status = 'Pending'",
+                (report_id,)
+            )
+            report = cur.fetchone()
+            
+            if not report:
+                return None, "not_found"
+            
+            # Update the status
+            cur.execute(
+                "UPDATE reports SET status = 'Dismissed' WHERE id = %s RETURNING *",
+                (report_id,)
+            )
+            updated_report = cur.fetchone()
+            conn.commit()
+            
+            return dict(updated_report), None
+            
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
