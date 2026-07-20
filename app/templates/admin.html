@@ -37,7 +37,7 @@
                     <tbody>
                         {% if reports %}
                             {% for report in reports %}
-                            <tr>
+                            <tr data-report-id="{{ report.id }}">
                                 <td>
                                     <strong>{{ report.listing_title }}</strong>
                                     <br><small class="text-muted">{{ report.listing_category }}</small>
@@ -51,21 +51,30 @@
                                 </td>
                                 <td>
                                     {% if report.status == 'Pending' %}
-                                        <span class="status-badge bg-soft-yellow text-yellow">Pending</span>
+                                        <span class="status-badge bg-soft-yellow text-yellow status-badge-{{ report.id }}">Pending</span>
+                                    {% elif report.status == 'Dismissed' %}
+                                        <span class="status-badge bg-soft-green text-green status-badge-{{ report.id }}">Dismissed</span>
                                     {% elif report.status == 'Resolved' %}
-                                        <span class="status-badge bg-soft-green text-green">Resolved</span>
+                                        <span class="status-badge bg-soft-green text-green status-badge-{{ report.id }}">Resolved</span>
                                     {% else %}
-                                        <span class="status-badge bg-soft-gray text-gray">{{ report.status }}</span>
+                                        <span class="status-badge bg-soft-gray text-gray status-badge-{{ report.id }}">{{ report.status }}</span>
                                     {% endif %}
                                 </td>
-                                <td class="text-end">
+                                <td class="text-end action-cell-{{ report.id }}">
                                     {% if report.status == 'Pending' %}
-                                        <button class="btn btn-sm btn-outline-dark" data-bs-toggle="modal" data-bs-target="#dismissReportModal">Dismiss</button>
-                                        <button class="btn btn-sm btn-danger" 
+                                        <button class="btn btn-sm btn-outline-dark dismiss-report-btn" 
+                                                data-report-id="{{ report.id }}"
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#dismissReportModal">
+                                            <i class="bi bi-check2-circle"></i> Dismiss
+                                        </button>
+                                        <button class="btn btn-sm btn-danger delete-listing-btn" 
                                                 data-bs-toggle="modal" 
                                                 data-bs-target="#deleteListingModal"
                                                 data-report-id="{{ report.id }}"
-                                                data-listing-title="{{ report.listing_title }}">Soft-delete</button>
+                                                data-listing-title="{{ report.listing_title }}">
+                                            <i class="bi bi-trash3"></i> Soft-delete
+                                        </button>
                                     {% else %}
                                         <span class="text-muted">Resolved</span>
                                     {% endif %}
@@ -122,13 +131,17 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content confirm-modal">
             <div class="modal-header">
-                <h5 class="modal-title">Dismiss report?</h5>
+                <h5 class="modal-title">Dismiss Report</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">This keeps the listing active and marks the report as dismissed once backend logic is connected.</div>
+            <div class="modal-body">
+                <p>Are you sure you want to dismiss this report?</p>
+                <p class="text-muted">The listing will remain active and visible to all users.</p>
+                <input type="hidden" id="dismissReportId" value="">
+            </div>
             <div class="modal-footer">
                 <button class="btn btn-outline-dark" data-bs-dismiss="modal">Cancel</button>
-                <button class="btn btn-accent">Dismiss Report</button>
+                <button class="btn btn-accent" id="confirmDismissReport">Dismiss Report</button>
             </div>
         </div>
     </div>
@@ -175,7 +188,100 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Handle delete listing button in modal
+    // --- DISMISS REPORT FUNCTIONALITY ---
+    const dismissModal = document.getElementById('dismissReportModal');
+    const dismissReportIdInput = document.getElementById('dismissReportId');
+    const confirmDismissBtn = document.getElementById('confirmDismissReport');
+    let dismissModalInstance = null;
+    
+    // Initialize modal instance
+    if (dismissModal) {
+        dismissModalInstance = new bootstrap.Modal(dismissModal);
+        
+        // When dismiss modal is shown, set the report ID
+        dismissModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            if (button && button.dataset.reportId) {
+                dismissReportIdInput.value = button.dataset.reportId;
+            }
+        });
+    }
+    
+    // Handle dismiss confirmation
+    if (confirmDismissBtn) {
+        confirmDismissBtn.addEventListener('click', function() {
+            const reportId = dismissReportIdInput.value;
+            const button = this;
+            
+            // Disable button and show loading state
+            button.disabled = true;
+            button.textContent = 'Processing...';
+            
+            fetch(`/admin/reports/${reportId}/dismiss`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.error || 'Failed to dismiss report');
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Find the row for this report
+                const row = document.querySelector(`tr[data-report-id="${reportId}"]`);
+                if (row) {
+                    // Update status badge
+                    const statusBadge = row.querySelector(`.status-badge-${reportId}`);
+                    if (statusBadge) {
+                        statusBadge.className = 'status-badge bg-soft-green text-green status-badge-' + reportId;
+                        statusBadge.textContent = 'Dismissed';
+                    }
+                    
+                    // Replace action buttons with "Resolved" text
+                    const actionCell = row.querySelector(`.action-cell-${reportId}`);
+                    if (actionCell) {
+                        actionCell.innerHTML = '<span class="text-muted">Resolved</span>';
+                    }
+                }
+                
+                // Update the pending count in stats
+                const pendingCountElement = document.querySelector('.stats-card.bg-soft-yellow .stats-value');
+                if (pendingCountElement) {
+                    const currentCount = parseInt(pendingCountElement.textContent);
+                    if (currentCount > 0) {
+                        pendingCountElement.textContent = currentCount - 1;
+                    }
+                }
+                
+                // Close modal
+                if (dismissModalInstance) {
+                    dismissModalInstance.hide();
+                }
+                
+                // Show success message (optional)
+                console.log('Report dismissed successfully:', data);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to dismiss report: ' + error.message);
+                if (dismissModalInstance) {
+                    dismissModalInstance.hide();
+                }
+            })
+            .finally(() => {
+                // Reset button state
+                button.disabled = false;
+                button.textContent = 'Dismiss Report';
+            });
+        });
+    }
+    
+    // --- DELETE LISTING FUNCTIONALITY ---
     const deleteModal = document.getElementById('deleteListingModal');
     if (deleteModal) {
         deleteModal.addEventListener('show.bs.modal', function(event) {
@@ -188,7 +294,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Handle confirm delete
     document.getElementById('confirmDeleteListing').addEventListener('click', function() {
         const reportId = document.getElementById('deleteReportId').value;
         const button = this;
@@ -207,7 +312,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.success) {
                 // Close modal
                 const modal = bootstrap.Modal.getInstance(document.getElementById('deleteListingModal'));
-                modal.hide();
+                if (modal) modal.hide();
                 
                 // Reload the page to refresh the reports table
                 window.location.reload();
@@ -223,17 +328,32 @@ document.addEventListener('DOMContentLoaded', function() {
             button.textContent = 'Soft-delete Listing';
         });
     });
+    
+    // --- SEARCH FUNCTIONALITY ---
+    const searchInput = document.getElementById('admin_report_search');
+    if (searchInput) {
+        searchInput.addEventListener('keyup', function() {
+            const search = this.value.toLowerCase();
+            const rows = document.querySelectorAll('#reports-panel tbody tr');
+            
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(search) ? '' : 'none';
+            });
+        });
+    }
 });
 
-// Search/filter functionality
-document.getElementById('admin_report_search').addEventListener('keyup', function() {
-    const search = this.value.toLowerCase();
-    const rows = document.querySelectorAll('#reports-panel tbody tr');
-    
-    rows.forEach(row => {
-        const text = row.textContent.toLowerCase();
-        row.style.display = text.includes(search) ? '' : 'none';
-    });
+// -- Also handle the case where dismiss modal is triggered from a button that might not have data-report-id
+// This ensures the modal shows correctly even if triggered programmatically
+document.addEventListener('click', function(e) {
+    if (e.target.closest('.dismiss-report-btn')) {
+        const btn = e.target.closest('.dismiss-report-btn');
+        const reportId = btn.dataset.reportId;
+        if (reportId) {
+            document.getElementById('dismissReportId').value = reportId;
+        }
+    }
 });
 </script>
 

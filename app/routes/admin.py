@@ -44,3 +44,27 @@ def delete_reported_listing(report_id):
         "message": "Listing soft-deleted successfully",
         "report": report
     }), 200
+
+@admin_bp.route('/reports/<int:report_id>/dismiss', methods=['POST'])
+@admin_required
+def dismiss_report_route(report_id):
+    """Dismiss a pending report."""
+    from app.db import dismiss_report
+    
+    try:
+        report, error = dismiss_report(report_id)
+        
+        if error == "not_found":
+            return jsonify({
+                "error": "Report not found or already processed"
+            }), 404
+        
+        return jsonify({
+            "message": "Report dismissed successfully",
+            "report": report
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            "error": f"Failed to dismiss report: {str(e)}"
+        }), 500
