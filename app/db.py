@@ -1106,12 +1106,12 @@ def get_all_reports():
             r.description,
             r.status,
             r.created_at,
-            l.title as listing_title,
-            l.category as listing_category,
-            u.display_name as reporter_display_name
+            COALESCE(l.title, 'Deleted Listing') as listing_title,
+            COALESCE(l.category, 'Unknown') as listing_category,
+            COALESCE(u.display_name, 'Unknown User') as reporter_display_name
         FROM reports r
-        JOIN listings l ON r.listing_id = l.id
-        JOIN users u ON r.reporter_id = u.id
+        LEFT JOIN listings l ON r.listing_id = l.id
+        LEFT JOIN users u ON r.reporter_id = u.id
         ORDER BY r.created_at DESC
     """).fetchall()
     conn.close()

@@ -4,11 +4,13 @@ from app.db import admin_delete_reported_listing, get_report_by_id, get_all_repo
 
 admin_bp = Blueprint("admin", __name__)
 
-@admin_bp.route('/admin/reports')
+@admin_bp.route('/')
+@admin_bp.route('/reports')
 @admin_required
 def admin_reports():
     """Render admin page with reports data."""
     reports = get_all_reports()
+    print(f"DEBUG: Found {len(reports)} reports")  # Debug line
     return render_template('admin.html', reports=reports)
 
 @admin_bp.route('/api/admin/reports')
