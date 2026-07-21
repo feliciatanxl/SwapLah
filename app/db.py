@@ -902,29 +902,33 @@ def dismiss_report(report_id):
     """
     conn = get_db_connection()
     try:
-        with conn.cursor() as cur:
-            # First check if report exists and is pending
-            cur.execute(
-                "SELECT * FROM reports WHERE id = %s AND status = 'Pending'",
-                (report_id,)
-            )
-            report = cur.fetchone()
-            
-            if not report:
-                return None, "not_found"
-            
-            # Update the status
-            cur.execute(
-                "UPDATE reports SET status = 'Dismissed' WHERE id = %s RETURNING *",
-                (report_id,)
-            )
-            updated_report = cur.fetchone()
-            conn.commit()
-            
-            return dict(updated_report), None
-            
+        cursor = conn.cursor()
+        
+        # Check if report exists and is pending
+        cursor.execute(
+            "SELECT * FROM reports WHERE id = ? AND status = 'Pending'",
+            (report_id,)
+        )
+        report = cursor.fetchone()
+        
+        if not report:
+            return None, "not_found"
+        
+        # Update status to Dismissed
+        cursor.execute(
+            "UPDATE reports SET status = 'Dismissed' WHERE id = ?",
+            (report_id,)
+        )
+        conn.commit()
+        
+        # Fetch the updated report
+        cursor.execute("SELECT * FROM reports WHERE id = ?", (report_id,))
+        updated_report = cursor.fetchone()
+        
+        return dict(updated_report), None
+        
     except Exception as e:
-        conn.rollback()
-        raise e
+        print(f"Error dismissing report: {e}")
+        return None, "database_error"
     finally:
         conn.close()
