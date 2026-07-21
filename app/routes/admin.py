@@ -45,26 +45,39 @@ def delete_reported_listing(report_id):
         "report": report
     }), 200
 
-@admin_bp.route('/reports/<int:report_id>/dismiss', methods=['POST'])
+@admin_bp.route('/admin/reports/<int:report_id>/dismiss', methods=['POST'])
 @admin_required
 def dismiss_report_route(report_id):
-    """Dismiss a pending report."""
-    from app.db import dismiss_report
-    
+    """
+    Dismiss a pending report. Only admins can do this.
+    Mirrors the delete-listing endpoint error handling.
+    """
     try:
+        from app.db import dismiss_report
+        
         report, error = dismiss_report(report_id)
         
         if error == "not_found":
             return jsonify({
-                "error": "Report not found or already processed"
+                'success': False,
+                'message': 'Report not found or already processed'
             }), 404
         
+        if error:
+            return jsonify({
+                'success': False,
+                'message': 'Failed to dismiss report'
+            }), 500
+        
         return jsonify({
-            "message": "Report dismissed successfully",
-            "report": report
+            'success': True,
+            'message': 'Report dismissed successfully',
+            'report': report
         }), 200
         
     except Exception as e:
+        print(f"Error in dismiss_report_route: {e}")
         return jsonify({
-            "error": f"Failed to dismiss report: {str(e)}"
+            'success': False,
+            'message': 'An unexpected error occurred'
         }), 500
