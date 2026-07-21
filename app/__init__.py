@@ -9,7 +9,7 @@ from functools import wraps
 from flask import Flask, flash, jsonify, redirect, render_template, request, session, url_for
 from dotenv import load_dotenv
 from werkzeug.security import check_password_hash, generate_password_hash
-from app.auth import admin_required , _require_admin_response
+from app.auth import _require_admin_response
 
 from app.db import (
     search_active_listings,
@@ -21,9 +21,8 @@ from app.db import (
     get_user_by_id,
     init_db,
     update_user_account,
-    get_all_reports, 
 )
-import app.db as db_module  # noqa: F401 — exposes db functions for monkeypatching in tests
+import app.db as db_module 
 from app.routes.listing import listings_bp
 from app.routes.offers import offers_bp
 from app.routes.history import history_bp
@@ -63,10 +62,6 @@ def _load_secret_key():
 
     return secret_key
 
-
-# def _admin_denied_response():
-#     """Return the standard response for a logged-in non-admin user."""
-#     return "Forbidden", 403
 
 def _is_admin_path(path):
     """Return True for the admin page and all admin subpaths."""
@@ -295,7 +290,7 @@ def _register_admin_path_guard(app):
 
     @app.before_request
     def enforce_admin_path_guard():
-        if not _is_admin_path(request.path) or request.endpoint == "admin":
+        if not _is_admin_path(request.path) or request.endpoint == "admin.admin_dashboard":
             return None
 
         return _require_admin_response()
@@ -522,12 +517,6 @@ def _register_simple_page_routes(app):
 
         return render_template("sell.html")
 
-    @app.route("/admin")
-    @admin_required
-    def admin():
-        """Render admin page."""
-        return render_template("admin.html")
-
 
 def create_app():
     """Create and configure the Flask application."""
@@ -548,7 +537,7 @@ def create_app():
     app.register_blueprint(listings_bp)
     app.register_blueprint(offers_bp)
     app.register_blueprint(history_bp)
-    app.register_blueprint(admin_bp) 
+    app.register_blueprint(admin_bp)
     app.register_blueprint(reports_bp)
 
     return app

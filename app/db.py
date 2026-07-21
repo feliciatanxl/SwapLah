@@ -948,13 +948,57 @@ def get_all_reports():
             r.description,
             r.status,
             r.created_at,
-            l.title as listing_title,
-            l.status as listing_status,
-            u.display_name as reporter_name
+            COALESCE(l.title, 'Deleted Listing') as listing_title,
+            COALESCE(l.category, 'Unknown') as listing_category,
+            COALESCE(u.display_name, 'Unknown User') as reporter_display_name
         FROM reports r
-        JOIN listings l ON r.listing_id = l.id
-        JOIN users u ON r.reporter_id = u.id
+        LEFT JOIN listings l ON r.listing_id = l.id
+        LEFT JOIN users u ON r.reporter_id = u.id
         ORDER BY r.created_at DESC
     """).fetchall()
     conn.close()
     return [dict(row) for row in rows]
+
+def dismiss_report(report_id):
+    """
+    Dismiss a pending report by setting its status to 'Dismissed'.
+    
+    Args:
+        report_id: The ID of the report to dismiss
+        
+    Returns:
+        (report_dict, None) on success
+        (None, "not_found") if report doesn't exist or isn't pending
+    """
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        
+        # Check if report exists and is pending
+        cursor.execute(
+            "SELECT * FROM reports WHERE id = ? AND status = 'Pending'",
+            (report_id,)
+        )
+        report = cursor.fetchone()
+        
+        if not report:
+            return None, "not_found"
+        
+        # Update status to Dismissed with timestamp
+        cursor.execute(
+            "UPDATE reports SET status = 'Dismissed', created_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (report_id,)
+        )
+        conn.commit()
+        
+        # Fetch the updated report
+        cursor.execute("SELECT * FROM reports WHERE id = ?", (report_id,))
+        updated_report = cursor.fetchone()
+        
+        return dict(updated_report), None
+        
+    except Exception as e:
+        print(f"Error dismissing report: {e}")
+        return None, "database_error"
+    finally:
+        conn.close()
