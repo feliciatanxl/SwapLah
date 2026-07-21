@@ -879,8 +879,8 @@ def get_all_reports():
             r.status,
             r.created_at,
             l.title as listing_title,
-            l.status as listing_status,
-            u.display_name as reporter_name
+            l.category as listing_category,
+            u.display_name as reporter_display_name
         FROM reports r
         JOIN listings l ON r.listing_id = l.id
         JOIN users u ON r.reporter_id = u.id
@@ -914,9 +914,9 @@ def dismiss_report(report_id):
         if not report:
             return None, "not_found"
         
-        # Update status to Dismissed
+        # Update status to Dismissed with timestamp
         cursor.execute(
-            "UPDATE reports SET status = 'Dismissed' WHERE id = ?",
+            "UPDATE reports SET status = 'Dismissed', created_at = CURRENT_TIMESTAMP WHERE id = ?",
             (report_id,)
         )
         conn.commit()
