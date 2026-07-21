@@ -528,11 +528,12 @@ def _register_simple_page_routes(app):
 
         return render_template("sell.html")
 
-    @app.route("/admin")
-    @admin_required
-    def admin():
-        """Render admin page."""
-        return render_template("admin.html")
+    # @app.route("/admin")
+    # @admin_required
+    # def admin():
+    #     """Render admin page with reports."""
+    # reports = get_all_reports()
+    # return render_template("admin.html", reports=reports)
 
 
 def create_app():
