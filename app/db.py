@@ -568,42 +568,56 @@ def get_sold_listings_by_seller(seller_id):
     return [_attach_images(dict(row)) for row in rows]
 
 
+def _profile_stats_sql():
+    """Return SQL for profile aggregate statistics."""
+    return """
+    SELECT
+        COUNT(DISTINCT CASE WHEN listings.status = 'Active' THEN listings.id END) AS active_count,
+        COUNT(DISTINCT CASE WHEN offers.status = 'Accepted' THEN offers.id END) AS total_sales,
+        COUNT(DISTINCT offers.id) AS offer_count,
+        COUNT(DISTINCT CASE WHEN offers.status != 'Pending' THEN offers.id END) AS responded_offer_count,
+        COUNT(DISTINCT reviews.id) AS review_count,
+        AVG(reviews.rating) AS average_rating
+    FROM users
+    LEFT JOIN listings ON listings.seller_id = users.id
+    LEFT JOIN offers ON offers.listing_id = listings.id
+    LEFT JOIN reviews ON reviews.reviewed_user_id = users.id
+    WHERE users.id = ?
+    """
+
+
+def _get_profile_stats_row(user_id):
+    """Return one profile aggregate stats row."""
+    conn = get_db_connection()
+    row = conn.execute(_profile_stats_sql(), (user_id,)).fetchone()
+    conn.close()
+    return row
+
+
+def _trust_badge(total_sales, active_count):
+    """Return the seller trust badge from sales and listing activity."""
+    if total_sales >= 20:
+        return "Top Seller"
+    if total_sales >= 5:
+        return "Trusted Seller"
+    if active_count > 0:
+        return "Active Seller"
+    return "New Seller"
+
+
+def _response_rate(row):
+    """Return percentage of offers that have received a seller response."""
+    offer_count = row["offer_count"] or 0
+    if not offer_count:
+        return None
+    return round(((row["responded_offer_count"] or 0) / offer_count) * 100)
+
+
 def get_user_profile_stats(user_id):
     """Return profile stats derived from marketplace and review data."""
-    conn = get_db_connection()
-    row = conn.execute(
-        """
-        SELECT
-            COUNT(DISTINCT CASE WHEN listings.status = 'Active' THEN listings.id END) AS active_count,
-            COUNT(DISTINCT CASE WHEN offers.status = 'Accepted' THEN offers.id END) AS total_sales,
-            COUNT(DISTINCT offers.id) AS offer_count,
-            COUNT(DISTINCT CASE WHEN offers.status != 'Pending' THEN offers.id END) AS responded_offer_count,
-            COUNT(DISTINCT reviews.id) AS review_count,
-            AVG(reviews.rating) AS average_rating
-        FROM users
-        LEFT JOIN listings ON listings.seller_id = users.id
-        LEFT JOIN offers ON offers.listing_id = listings.id
-        LEFT JOIN reviews ON reviews.reviewed_user_id = users.id
-        WHERE users.id = ?
-        """,
-        (user_id,),
-    ).fetchone()
-    conn.close()
-
+    row = _get_profile_stats_row(user_id)
     active_count = row["active_count"] or 0
     total_sales = row["total_sales"] or 0
-    offer_count = row["offer_count"] or 0
-    responded_offer_count = row["responded_offer_count"] or 0
-    response_rate = round((responded_offer_count / offer_count) * 100) if offer_count else None
-
-    if total_sales >= 20:
-        trust_badge = "Top Seller"
-    elif total_sales >= 5:
-        trust_badge = "Trusted Seller"
-    elif active_count > 0:
-        trust_badge = "Active Seller"
-    else:
-        trust_badge = "New Seller"
 
     return {
         "active_count": active_count,
@@ -611,8 +625,8 @@ def get_user_profile_stats(user_id):
         "average_rating": row["average_rating"],
         "total_sales": total_sales,
         "sold_count": total_sales,
-        "trust_badge": trust_badge,
-        "response_rate": response_rate,
+        "trust_badge": _trust_badge(total_sales, active_count),
+        "response_rate": _response_rate(row),
     }
 
 

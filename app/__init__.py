@@ -390,6 +390,32 @@ def _save_profile_update(form_data):
     return redirect(url_for("profile"))
 
 
+def _render_profile_page(user):
+    """Render the profile page with marketplace stats and lists."""
+    return render_template(
+        "profile.html",
+        user=user,
+        active_listings=get_active_listings_by_seller(user["id"]),
+        sold_listings=get_sold_listings_by_seller(user["id"]),
+        profile_stats=get_user_profile_stats(user["id"]),
+        reviews=get_reviews_for_user(user["id"]),
+    )
+
+
+def _handle_profile_edit(user):
+    """Render or process the edit profile form."""
+    if request.method == "GET":
+        return render_template("edit_profile.html", user=user)
+
+    form_data = _get_profile_form_data()
+    error_response = _validate_profile_form(form_data, user)
+
+    if error_response:
+        return error_response
+
+    return _save_profile_update(form_data)
+
+
 def _register_main_routes(app):
     """Register homepage and simple listing page routes."""
 
@@ -468,14 +494,7 @@ def _register_profile_routes(app):
         if redirect_response:
             return redirect_response
 
-        return render_template(
-            "profile.html",
-            user=user,
-            active_listings=get_active_listings_by_seller(user["id"]),
-            sold_listings=get_sold_listings_by_seller(user["id"]),
-            profile_stats=get_user_profile_stats(user["id"]),
-            reviews=get_reviews_for_user(user["id"]),
-        )
+        return _render_profile_page(user)
 
     @app.route("/profile/edit", methods=["GET", "POST"])
     def edit_profile():
@@ -487,16 +506,7 @@ def _register_profile_routes(app):
         if redirect_response:
             return redirect_response
 
-        if request.method == "GET":
-            return render_template("edit_profile.html", user=user)
-
-        form_data = _get_profile_form_data()
-        error_response = _validate_profile_form(form_data, user)
-
-        if error_response:
-            return error_response
-
-        return _save_profile_update(form_data)
+        return _handle_profile_edit(user)
 
 
 def _register_auth_routes(app):
