@@ -28,6 +28,8 @@ def _require_admin_response():
 
 
 def admin_required(view_func):
+    """Decorate a view so it requires an active admin session."""
+
     @wraps(view_func)
     def wrapper(*args, **kwargs):
         response = _require_admin_response()

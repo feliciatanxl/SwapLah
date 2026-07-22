@@ -247,9 +247,9 @@ WHERE r.id = ?
 """
 
 ADMIN_DELETE_REPORTED_LISTING_SQL = """
-UPDATE listings 
-SET status = 'Deleted', 
-    last_modified_timestamp = ? 
+UPDATE listings
+SET status = 'Deleted',
+    last_modified_timestamp = ?
 WHERE id = ? AND status = 'Active'
 """
 
@@ -280,7 +280,7 @@ def init_db():
     conn.execute(CREATE_OFFERS_TABLE_SQL)
     conn.execute(CREATE_TRANSACTIONS_TABLE_SQL)
     conn.execute(CREATE_REVIEWS_TABLE_SQL)
-    conn.execute(CREATE_REPORTS_TABLE_SQL) 
+    conn.execute(CREATE_REPORTS_TABLE_SQL)
     conn.commit()
     conn.close()
 
@@ -927,16 +927,16 @@ def accept_offer(offer_id):
 def create_report(listing_id, reporter_id, reason, description=None):
     """
     Create a new report for a listing with validation.
-    
+
     Args:
         listing_id (int): ID of the listing being reported
         reporter_id (int): ID of the user submitting the report
         reason (str): Reason for reporting (must be from allowed list)
         description (str): Detailed description of the issue (optional but should have min length)
-    
+
     Returns:
         dict: The created report data
-    
+
     Raises:
         ValueError: If listing doesn't exist, is deleted, or validation fails
     """
@@ -944,25 +944,25 @@ def create_report(listing_id, reporter_id, reason, description=None):
     listing = get_listing_by_id(listing_id)
     if not listing:
         raise ValueError("Listing not found")
-    
+
     # Check if listing is deleted (get_listing_by_id only returns active ones)
     # We need to check the raw listing for status
     conn = get_db_connection()
     raw_listing = conn.execute(
-        "SELECT id, status FROM listings WHERE id = ?", 
+        "SELECT id, status FROM listings WHERE id = ?",
         (listing_id,)
     ).fetchone()
     conn.close()
-    
+
     if not raw_listing:
         raise ValueError("Listing not found")
     if raw_listing["status"] == "Deleted":
         raise ValueError("Listing is already deleted")
-    
+
     # Validate reason is from allowed list
     allowed_reasons = [
         "Counterfeit",
-        "Prohibited item", 
+        "Prohibited item",
         "Spam",
         "Inappropriate content",
         "Other",
@@ -972,14 +972,14 @@ def create_report(listing_id, reporter_id, reason, description=None):
     ]
     if reason not in allowed_reasons:
         raise ValueError(f"Reason must be one of: {', '.join(allowed_reasons)}")
-    
+
     # Validate description if provided
     if description is not None:
         if len(description.strip()) < 10:
             raise ValueError("Description must be at least 10 characters")
     else:
         description = ""  # Set empty string if None
-    
+
     conn = get_db_connection()
     try:
         # Check if user has already reported this listing
@@ -989,7 +989,7 @@ def create_report(listing_id, reporter_id, reason, description=None):
         ).fetchone()
         if existing:
             raise ValueError("You have already reported this listing")
-        
+
         # Insert the report
         cursor = conn.execute(
             CREATE_REPORT_SQL,
@@ -997,15 +997,15 @@ def create_report(listing_id, reporter_id, reason, description=None):
         )
         conn.commit()
         report_id = cursor.lastrowid
-        
+
         # Fetch the created report with details
         report = conn.execute(GET_REPORT_BY_ID_SQL, (report_id,)).fetchone()
         conn.close()
         return dict(report)
-        
-    except sqlite3.IntegrityError:
+
+    except sqlite3.IntegrityError as exc:
         conn.close()
-        raise ValueError("Database integrity error")
+        raise ValueError("Database integrity error") from exc
     except Exception as e:
         conn.close()
         raise e
@@ -1028,45 +1028,45 @@ def admin_delete_reported_listing(report_id):
     conn = None
     try:
         conn = get_db_connection()
-        
+
         # Get the report and verify it exists and is pending
         report = conn.execute(
             "SELECT id, listing_id, status FROM reports WHERE id = ?",
             (report_id,)
         ).fetchone()
-        
+
         if not report:
             return False, "not_found"
-        
+
         if report["status"] != "Pending":
             return False, "not_found"
-        
+
         listing_id = report["listing_id"]
-        
+
         # Check if listing exists and is active
         listing = conn.execute(
             "SELECT id, status FROM listings WHERE id = ?",
             (listing_id,)
         ).fetchone()
-        
+
         if not listing or listing["status"] != "Active":
             return False, "not_found"
-        
+
         # Soft delete the listing
         conn.execute(
             ADMIN_DELETE_REPORTED_LISTING_SQL,
             (_now(), listing_id)
         )
-        
+
         # Mark report as Resolved
         conn.execute(
             RESOLVE_REPORT_SQL,
             (report_id,)
         )
-        
+
         conn.commit()
         return True, None
-        
+
     except Exception:
         if conn:
             conn.rollback()
@@ -1076,7 +1076,7 @@ def admin_delete_reported_listing(report_id):
             conn.close()
 
 GET_ALL_REPORTS_SQL = """
-SELECT 
+SELECT
     r.id,
     r.listing_id,
     r.reporter_id,
@@ -1098,7 +1098,7 @@ def get_all_reports():
     """Get all reports with listing and reporter details."""
     conn = get_db_connection()
     rows = conn.execute("""
-        SELECT 
+        SELECT
             r.id,
             r.listing_id,
             r.reporter_id,
@@ -1120,10 +1120,10 @@ def get_all_reports():
 def dismiss_report(report_id):
     """
     Dismiss a pending report by setting its status to 'Dismissed'.
-    
+
     Args:
         report_id: The ID of the report to dismiss
-        
+
     Returns:
         (report_dict, None) on success
         (None, "not_found") if report doesn't exist or isn't pending
@@ -1131,30 +1131,31 @@ def dismiss_report(report_id):
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
-        
+
         # Check if report exists and is pending
         cursor.execute(
             "SELECT * FROM reports WHERE id = ? AND status = 'Pending'",
             (report_id,)
         )
         report = cursor.fetchone()
-        
+
         if not report:
             return None, "not_found"
-        
-        # Update status to Dismissed with timestamp
+
+        # Update status to Dismissed (do not touch created_at — overwriting it
+        # broke sort order and lost the original report timestamp)
         cursor.execute(
-            "UPDATE reports SET status = 'Dismissed', created_at = CURRENT_TIMESTAMP WHERE id = ?",
+            "UPDATE reports SET status = 'Dismissed' WHERE id = ?",
             (report_id,)
         )
         conn.commit()
-        
+
         # Fetch the updated report
         cursor.execute("SELECT * FROM reports WHERE id = ?", (report_id,))
         updated_report = cursor.fetchone()
-        
+
         return dict(updated_report), None
-        
+
     except Exception as e:
         print(f"Error dismissing report: {e}")
         return None, "database_error"
