@@ -109,6 +109,7 @@ def _get_registration_form_data():
 def _create_user_account(form_data):
     """Create a user account from validated registration form data."""
     password_hash = generate_password_hash(form_data["password"])
+    conn = None
 
     try:
         conn = get_db_connection()
@@ -131,10 +132,12 @@ def _create_user_account(form_data):
             ),
         )
         conn.commit()
-        conn.close()
     except Exception:  # noqa: BLE001
         flash("Email or Student ID already exists.", "danger")
         return render_template("register.html")
+    finally:
+        if conn is not None:
+            conn.close()
 
     flash("Account created successfully. Please log in.", "success")
     return redirect(url_for("login"))
