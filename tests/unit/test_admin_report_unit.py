@@ -1,6 +1,5 @@
-# tests/unit/test_admin_reports.py
-
 import pytest
+import app.db as db_module
 from app.db import (
     admin_delete_reported_listing,
     create_report,
@@ -11,12 +10,23 @@ from app.db import (
     soft_delete_listing
 )
 
+TEST_CONDITION = 'Good'
+TEST_IMAGE_URL = 'https://example.com/image.jpg'
+
+
 @pytest.fixture
-def app():
+def app(tmp_path, monkeypatch):
+    """Create the Flask app against an isolated on-disk test database."""
+    test_db = tmp_path / "test_admin_report_unit.db"
+    monkeypatch.setattr(db_module, "DATABASE", test_db)
+
     from app import create_app
-    app = create_app(testing=True)
-    app.config['DATABASE'] = ':memory:'
-    return app
+    flask_app = create_app()
+    flask_app.config['TESTING'] = True
+    flask_app.config['SECRET_KEY'] = "admin-report-test-secret"
+    
+    with flask_app.app_context():
+        yield flask_app
 
 def test_get_all_reports_empty(app):
     with app.app_context():
@@ -28,23 +38,25 @@ def test_get_all_reports_with_data(app):
     with app.app_context():
         # Create a listing
         create_listing(
+            seller_id=1,
             title='Test Listing',
             description='Test Description',
             price=100,
-            seller_id=1,
-            category='Electronics'
+            category='Electronics',
+            condition=TEST_CONDITION,
+            image_url=TEST_IMAGE_URL,
         )
         
         # Create reports
         create_report(listing_id=1, reporter_id=2, reason='Spam', description='Spam report')
-        create_report(listing_id=1, reporter_id=3, reason='Fraud', description='Fraudulent listing')
+        create_report(listing_id=1, reporter_id=3, reason='Other', description='Fraudulent listing')
         
         reports = get_all_reports()
         
         assert len(reports) == 2
         assert reports[0]['listing_title'] == 'Test Listing'
         assert reports[0]['listing_category'] == 'Electronics'
-        assert reports[0]['reason'] in ['Spam', 'Fraud']
+        assert reports[0]['reason'] in ['Spam', 'Other']
         assert reports[0]['status'] == 'Pending'
         assert 'reporter_display_name' in reports[0]
         assert 'created_at' in reports[0]
@@ -54,11 +66,13 @@ def test_get_all_reports_join_fields(app):
     with app.app_context():
         # Create listing and report with specific data
         create_listing(
+            seller_id=1,
             title='Specific Listing',
             description='Test',
             price=50,
-            seller_id=1,
-            category='Books'
+            category='Books',
+            condition=TEST_CONDITION,
+            image_url=TEST_IMAGE_URL,
         )
         
         # Need to create a user with specific display name for reporter
@@ -97,11 +111,13 @@ def test_admin_delete_reported_listing_success(app):
         conn.close()
         
         create_listing(
+            seller_id=1,
             title='Test Listing',
             description='Test Description',
             price=100,
-            seller_id=1,
-            category='Electronics'
+            category='Electronics',
+            condition=TEST_CONDITION,
+            image_url=TEST_IMAGE_URL,
         )
         
         create_report(listing_id=1, reporter_id=2, reason='Spam')
@@ -142,11 +158,13 @@ def test_admin_delete_reported_listing_already_resolved(app):
         conn.close()
         
         create_listing(
+            seller_id=1,
             title='Test Listing',
             description='Test',
             price=100,
-            seller_id=1,
-            category='Electronics'
+            category='Electronics',
+            condition=TEST_CONDITION,
+            image_url=TEST_IMAGE_URL,
         )
         create_report(listing_id=1, reporter_id=2, reason='Spam')
         
