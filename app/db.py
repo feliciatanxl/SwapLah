@@ -1,3 +1,4 @@
+"""Database access layer for the SwapLah Flask application."""
 import sqlite3
 import json
 from pathlib import Path
@@ -15,10 +16,7 @@ def get_db_connection():
 
 
 
-
-
-
-def init_db():  
+def init_db():
     """Create database tables if they do not exist."""
     conn = get_db_connection()
     conn.execute(
@@ -104,7 +102,9 @@ def get_user_by_email(email):
     return user
 
 
-def create_listing(seller_id, title, description, price, category, condition, image_url):
+def create_listing(  # pylint: disable=too-many-arguments, too-many-positional-arguments
+    seller_id, title, description, price, category, condition, image_url
+):
     """Insert a new listing and return it as a dict."""
     conn = get_db_connection()
 
@@ -197,7 +197,7 @@ def get_all_listings():
             else:
                 listing["images"] = [raw_image]
                 listing["image"] = raw_image
-        except Exception:
+        except (json.JSONDecodeError, TypeError):
             listing["images"] = [raw_image]
             listing["image"] = raw_image
 
@@ -250,12 +250,13 @@ def get_listing_by_id(listing_id):
         else:
             listing["images"] = [listing["image_url"]]
             listing["image"] = listing["image_url"]
-    except Exception:
+    except (json.JSONDecodeError, TypeError):
         listing["images"] = [listing["image_url"]]
         listing["image"] = listing["image_url"]
 
     return listing
- 
+
+
 def ensure_reviews_schema(conn):
     """Rebuild the reviews table if it uses the outdated schema (user_id, no offer_id)."""
     columns = conn.execute("PRAGMA table_info(reviews)").fetchall()
@@ -268,6 +269,7 @@ def ensure_reviews_schema(conn):
 
 
 def ensure_listing_status_column(conn):
+    """Add the listing status column if it does not already exist."""
     columns = conn.execute("PRAGMA table_info(listings)").fetchall()
     column_names = [column["name"] for column in columns]
 
@@ -277,7 +279,9 @@ def ensure_listing_status_column(conn):
         )
 
 ## update/edit listing
-def update_listing(listing_id, seller_id, title, description, price, category, condition, image_url):
+def update_listing(  # pylint: disable=too-many-arguments, too-many-positional-arguments
+    listing_id, seller_id, title, description, price, category, condition, image_url
+):
     """Update an active listing owned by the seller."""
     conn = get_db_connection()
 
@@ -349,7 +353,11 @@ def get_user_by_id(user_id):
     """Retrieve one user by ID using a parameterized query."""
     conn = get_db_connection()
     user = conn.execute(
-        "SELECT id, student_id, first_name, last_name, display_name, email, contact_number, role, status, created_at FROM users WHERE id = :user_id",
+        """
+        SELECT id, student_id, first_name, last_name, display_name,
+               email, contact_number, role, status, created_at
+        FROM users WHERE id = :user_id
+        """,
         {"user_id": user_id},
     ).fetchone()
     conn.close()
@@ -360,7 +368,9 @@ def get_user_by_id(user_id):
     return dict(user)
 
 
-def update_user_account(user_id, first_name, last_name, display_name, contact_number, password_hash=None):
+def update_user_account(  # pylint: disable=too-many-arguments, too-many-positional-arguments
+    user_id, first_name, last_name, display_name, contact_number, password_hash=None
+):
     """Update editable account details only. Email and Student ID remain locked."""
     conn = get_db_connection()
 
@@ -448,7 +458,9 @@ def create_offer(listing_id, buyer_id, offer_type, proposed_price=None, swap_lis
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     cursor = conn.execute(
         """
-        INSERT INTO offers (listing_id, buyer_id, offer_type, proposed_price, swap_listing_id, status, created_at)
+        INSERT INTO offers (
+            listing_id, buyer_id, offer_type, proposed_price, swap_listing_id, status, created_at
+        )
         VALUES (?, ?, ?, ?, ?, 'Pending', ?)
         """,
         (listing_id, buyer_id, offer_type, proposed_price, swap_listing_id, now)
@@ -460,6 +472,7 @@ def create_offer(listing_id, buyer_id, offer_type, proposed_price=None, swap_lis
     return dict(offer)
 
 def get_offer_by_id(offer_id):
+    """Return an offer by ID as a dict, or None if it does not exist."""
     conn = get_db_connection()
 
     offer = conn.execute(
@@ -535,6 +548,7 @@ def create_review(
     rating,
     comment
 ):
+    """Insert a new review and return it as a dict."""
     conn = get_db_connection()
 
     cursor = conn.execute(

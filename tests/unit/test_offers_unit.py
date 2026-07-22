@@ -1,3 +1,4 @@
+# pylint: disable=missing-module-docstring,missing-function-docstring,redefined-outer-name,duplicate-code
 """
 Unit tests for POST /api/offers — cash and swap offer submission.
 All DB calls are monkeypatched so no real database is needed.
@@ -30,7 +31,7 @@ def login_as(client, user_id=1):
 
 def make_fake_get_listing_owner(seller_id):
     """Return a stub that always reports the given seller_id."""
-    def _stub(listing_id):
+    def _stub(_listing_id):
         return seller_id
     return _stub
 
@@ -77,7 +78,9 @@ def test_submit_offer_not_logged_in(client):
 def test_cash_offer_success(client, monkeypatch):
     """AC1 / AC4 (cash): valid cash offer is recorded with status Pending."""
     login_as(client, user_id=2)
-    monkeypatch.setattr(offers_routes, "get_listing_owner", make_fake_get_listing_owner(seller_id=1))
+    monkeypatch.setattr(
+        offers_routes, "get_listing_owner", make_fake_get_listing_owner(seller_id=1)
+    )
     monkeypatch.setattr(offers_routes, "create_offer", fake_create_offer)
 
     response = client.post("/api/offers", json={
@@ -97,7 +100,9 @@ def test_cash_offer_success(client, monkeypatch):
 def test_cash_offer_on_own_listing_rejected(client, monkeypatch):
     """AC2 (cash): buyer must not offer on their own listing."""
     login_as(client, user_id=1)
-    monkeypatch.setattr(offers_routes, "get_listing_owner", make_fake_get_listing_owner(seller_id=1))
+    monkeypatch.setattr(
+        offers_routes, "get_listing_owner", make_fake_get_listing_owner(seller_id=1)
+    )
 
     response = client.post("/api/offers", json={
         "listingId": 5,
@@ -112,7 +117,9 @@ def test_cash_offer_on_own_listing_rejected(client, monkeypatch):
 def test_cash_offer_missing_price_rejected(client, monkeypatch):
     """AC5 (cash): offer without proposedPrice must be rejected."""
     login_as(client, user_id=2)
-    monkeypatch.setattr(offers_routes, "get_listing_owner", make_fake_get_listing_owner(seller_id=1))
+    monkeypatch.setattr(
+        offers_routes, "get_listing_owner", make_fake_get_listing_owner(seller_id=1)
+    )
 
     response = client.post("/api/offers", json={
         "listingId": 5,
@@ -126,7 +133,9 @@ def test_cash_offer_missing_price_rejected(client, monkeypatch):
 def test_cash_offer_invalid_price_rejected(client, monkeypatch):
     """proposedPrice must be a non-negative number."""
     login_as(client, user_id=2)
-    monkeypatch.setattr(offers_routes, "get_listing_owner", make_fake_get_listing_owner(seller_id=1))
+    monkeypatch.setattr(
+        offers_routes, "get_listing_owner", make_fake_get_listing_owner(seller_id=1)
+    )
 
     response = client.post("/api/offers", json={
         "listingId": 5,
@@ -141,7 +150,9 @@ def test_cash_offer_invalid_price_rejected(client, monkeypatch):
 def test_cash_offer_returns_201_with_offer(client, monkeypatch):
     """AC4 (cash): POST /api/offers creates the offer and returns it."""
     login_as(client, user_id=2)
-    monkeypatch.setattr(offers_routes, "get_listing_owner", make_fake_get_listing_owner(seller_id=1))
+    monkeypatch.setattr(
+        offers_routes, "get_listing_owner", make_fake_get_listing_owner(seller_id=1)
+    )
     monkeypatch.setattr(offers_routes, "create_offer", fake_create_offer)
 
     response = client.post("/api/offers", json={
@@ -163,8 +174,14 @@ def test_cash_offer_returns_201_with_offer(client, monkeypatch):
 def test_swap_offer_success(client, monkeypatch):
     """AC1 (swap): valid swap offer using buyer's own active listing is recorded."""
     login_as(client, user_id=2)
-    monkeypatch.setattr(offers_routes, "get_listing_owner", make_fake_get_listing_owner(seller_id=1))
-    monkeypatch.setattr(offers_routes, "get_active_listing_by_buyer", make_fake_get_active_listing_by_buyer(owned=True))
+    monkeypatch.setattr(
+        offers_routes, "get_listing_owner", make_fake_get_listing_owner(seller_id=1)
+    )
+    monkeypatch.setattr(
+        offers_routes,
+        "get_active_listing_by_buyer",
+        make_fake_get_active_listing_by_buyer(owned=True),
+    )
     monkeypatch.setattr(offers_routes, "create_offer", fake_create_offer)
 
     response = client.post("/api/offers", json={
@@ -183,8 +200,14 @@ def test_swap_offer_success(client, monkeypatch):
 def test_swap_offer_item_not_owned_by_buyer(client, monkeypatch):
     """AC2 / AC3 (swap): swap item must exist in buyer's own active listings."""
     login_as(client, user_id=2)
-    monkeypatch.setattr(offers_routes, "get_listing_owner", make_fake_get_listing_owner(seller_id=1))
-    monkeypatch.setattr(offers_routes, "get_active_listing_by_buyer", make_fake_get_active_listing_by_buyer(owned=False))
+    monkeypatch.setattr(
+        offers_routes, "get_listing_owner", make_fake_get_listing_owner(seller_id=1)
+    )
+    monkeypatch.setattr(
+        offers_routes,
+        "get_active_listing_by_buyer",
+        make_fake_get_active_listing_by_buyer(owned=False),
+    )
 
     response = client.post("/api/offers", json={
         "listingId": 5,
@@ -199,7 +222,9 @@ def test_swap_offer_item_not_owned_by_buyer(client, monkeypatch):
 def test_swap_offer_on_own_listing_rejected(client, monkeypatch):
     """AC4 (swap): buyer must not swap-offer on their own listing."""
     login_as(client, user_id=1)
-    monkeypatch.setattr(offers_routes, "get_listing_owner", make_fake_get_listing_owner(seller_id=1))
+    monkeypatch.setattr(
+        offers_routes, "get_listing_owner", make_fake_get_listing_owner(seller_id=1)
+    )
 
     response = client.post("/api/offers", json={
         "listingId": 5,
@@ -214,7 +239,9 @@ def test_swap_offer_on_own_listing_rejected(client, monkeypatch):
 def test_swap_offer_missing_swap_listing_id(client, monkeypatch):
     """AC2 (swap): swapListingId is required."""
     login_as(client, user_id=2)
-    monkeypatch.setattr(offers_routes, "get_listing_owner", make_fake_get_listing_owner(seller_id=1))
+    monkeypatch.setattr(
+        offers_routes, "get_listing_owner", make_fake_get_listing_owner(seller_id=1)
+    )
 
     response = client.post("/api/offers", json={
         "listingId": 5,
@@ -228,8 +255,14 @@ def test_swap_offer_missing_swap_listing_id(client, monkeypatch):
 def test_swap_offer_returns_201_with_offer(client, monkeypatch):
     """AC5 (swap): POST /api/offers creates the swap offer and returns it."""
     login_as(client, user_id=2)
-    monkeypatch.setattr(offers_routes, "get_listing_owner", make_fake_get_listing_owner(seller_id=1))
-    monkeypatch.setattr(offers_routes, "get_active_listing_by_buyer", make_fake_get_active_listing_by_buyer(owned=True))
+    monkeypatch.setattr(
+        offers_routes, "get_listing_owner", make_fake_get_listing_owner(seller_id=1)
+    )
+    monkeypatch.setattr(
+        offers_routes,
+        "get_active_listing_by_buyer",
+        make_fake_get_active_listing_by_buyer(owned=True),
+    )
     monkeypatch.setattr(offers_routes, "create_offer", fake_create_offer)
 
     response = client.post("/api/offers", json={
@@ -251,7 +284,9 @@ def test_swap_offer_returns_201_with_offer(client, monkeypatch):
 def test_invalid_offer_type(client, monkeypatch):
     """Unknown offerType must be rejected with 400."""
     login_as(client, user_id=2)
-    monkeypatch.setattr(offers_routes, "get_listing_owner", make_fake_get_listing_owner(seller_id=1))
+    monkeypatch.setattr(
+        offers_routes, "get_listing_owner", make_fake_get_listing_owner(seller_id=1)
+    )
 
     response = client.post("/api/offers", json={
         "listingId": 5,

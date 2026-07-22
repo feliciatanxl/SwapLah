@@ -1,18 +1,19 @@
 """Flask application factory."""
-import re
-
-from flask import Flask, flash, redirect, render_template, request, session, url_for
-from werkzeug.security import check_password_hash, generate_password_hash
 import math
+import re
+import sqlite3
+
+from flask import Flask, flash, jsonify, redirect, render_template, request, session, url_for
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.db import (
     get_all_listings,
     get_db_connection,
     get_listing_by_id,
     get_listings_by_seller,
+    get_reviews_for_user,
     get_user_by_email,
     get_user_by_id,
-    get_reviews_for_user,
     get_user_rating_stats,
     init_db,
     update_user_account,
@@ -95,7 +96,7 @@ def _handle_register():
         )
         conn.commit()
         conn.close()
-    except Exception:  # noqa: BLE001
+    except sqlite3.IntegrityError:
         flash('Email or Student ID already exists.', 'danger')
         return render_template('register.html')
 
@@ -103,26 +104,43 @@ def _handle_register():
     return redirect(url_for('login'))
 
 
-def create_app():
-    """Create and configure the Flask application."""
-    app = Flask(__name__)
-    app.config['SECRET_KEY'] = 'your-secret-key'
-    init_db()
+def _validate_profile_form(form_data, user):
+    """Validate edit profile form data and return an error response if invalid."""
+    required_fields = [
+        form_data['first_name'],
+        form_data['last_name'],
+        form_data['display_name'],
+        form_data['contact_number'],
+    ]
+
+    if not all(required_fields):
+        flash('Please fill in all required profile fields.', 'danger')
+        return render_template('edit_profile.html', user=user)
+
+    if not re.fullmatch(r'\d{8}', form_data['contact_number']):
+        flash('Please enter a valid contact number (8 digits).', 'danger')
+        return render_template('edit_profile.html', user=user)
+
+    if form_data['password'] and form_data['password'] != form_data['confirm_password']:
+        flash('Passwords do not match.', 'danger')
+        return render_template('edit_profile.html', user=user)
+
+    return None
+
+
+def _register_main_routes(app):
+    """Register the homepage and listing detail routes."""
 
     @app.route('/')
     def index():
         page = request.args.get('page', 1, type=int)
         per_page = 10
-
-        if page < 1:
-            page = 1
+        page = max(page, 1)
 
         all_listings = get_all_listings()
         total_listings = len(all_listings)
         total_pages = math.ceil(total_listings / per_page) if total_listings > 0 else 1
-
-        if page > total_pages:
-            page = total_pages
+        page = min(page, total_pages)
 
         start = (page - 1) * per_page
         end = start + per_page
@@ -157,10 +175,13 @@ def create_app():
             error_message=None
         )
 
+
+def _register_listing_owner_routes(app):
+    """Register routes used by a listing's owner."""
+
     @app.route('/api/my-listings')
     def api_my_listings():
         """Return the current user's listings as JSON (for the swap dropdown)."""
-        from flask import jsonify
         user_id = session.get('user_id')
         if not user_id:
             return jsonify({'error': 'Not logged in.'}), 401
@@ -169,6 +190,7 @@ def create_app():
 
     @app.route('/listing/<int:listing_id>/edit')
     def edit_listing(listing_id):
+        """Render the edit listing page for the listing's owner."""
         if 'user_id' not in session:
             flash('Please log in to edit your listing.', 'danger')
             return redirect(url_for('login'))
@@ -186,15 +208,8 @@ def create_app():
         return render_template('edit_listing.html', listing=listing)
 
 
-    @app.route('/offers')
-    def offers():
-        """Render offers page."""
-        return render_template('offers.html')
-
-    @app.route('/history')
-    def history():
-        """Render history page."""
-        return render_template('history.html')
+def _register_profile_routes(app):
+    """Register profile view and edit routes."""
 
     @app.route('/profile')
     def profile():
@@ -241,38 +256,60 @@ def create_app():
             return redirect(url_for('login'))
         if request.method == 'GET':
             return render_template('edit_profile.html', user=user)
-        first_name = request.form.get('first_name', '').strip()
-        last_name = request.form.get('last_name', '').strip()
-        display_name = request.form.get('display_name', '').strip()
-        contact_number = request.form.get('contact_number', '').strip()
-        password = request.form.get('password', '')
-        confirm_password = request.form.get('confirm_password', '')
-        if not all([first_name, last_name, display_name, contact_number]):
-            flash('Please fill in all required profile fields.', 'danger')
-            return render_template('edit_profile.html', user=user)
-        if not re.fullmatch(r'\d{8}', contact_number):
-            flash('Please enter a valid contact number (8 digits).', 'danger')
-            return render_template('edit_profile.html', user=user)
-        if password and password != confirm_password:
-            flash('Passwords do not match.', 'danger')
-            return render_template('edit_profile.html', user=user)
-        new_hash = generate_password_hash(password) if password else None
+
+        form_data = {
+            'first_name': request.form.get('first_name', '').strip(),
+            'last_name': request.form.get('last_name', '').strip(),
+            'display_name': request.form.get('display_name', '').strip(),
+            'contact_number': request.form.get('contact_number', '').strip(),
+            'password': request.form.get('password', ''),
+            'confirm_password': request.form.get('confirm_password', ''),
+        }
+
+        error_response = _validate_profile_form(form_data, user)
+        if error_response:
+            return error_response
+
+        new_hash = generate_password_hash(form_data['password']) if form_data['password'] else None
         update_user_account(
-            session['user_id'], first_name, last_name, display_name, contact_number, new_hash
+            session['user_id'],
+            form_data['first_name'],
+            form_data['last_name'],
+            form_data['display_name'],
+            form_data['contact_number'],
+            new_hash,
         )
-        session['display_name'] = display_name
+        session['display_name'] = form_data['display_name']
         flash('Profile updated successfully.', 'success')
         return redirect(url_for('profile'))
+
+
+def _register_simple_page_routes(app):
+    """Register static page routes that require no query logic."""
 
     @app.route('/sell')
     def sell():
         """Render sell page."""
         return render_template('sell.html')
 
+    @app.route('/offers')
+    def offers():
+        """Render offers page."""
+        return render_template('offers.html')
+
+    @app.route('/history')
+    def history():
+        """Render history page."""
+        return render_template('history.html')
+
     @app.route('/admin')
     def admin():
         """Render admin page."""
         return render_template('admin.html')
+
+
+def _register_auth_routes(app):
+    """Register authentication routes."""
 
     @app.route('/login', methods=['GET', 'POST'])
     def login():
@@ -299,6 +336,19 @@ def create_app():
         session.clear()
         flash('You have been logged out.', 'success')
         return redirect(url_for('login'))
+
+
+def create_app():
+    """Create and configure the Flask application."""
+    app = Flask(__name__)
+    app.config['SECRET_KEY'] = 'your-secret-key'
+    init_db()
+
+    _register_main_routes(app)
+    _register_listing_owner_routes(app)
+    _register_profile_routes(app)
+    _register_simple_page_routes(app)
+    _register_auth_routes(app)
 
     app.register_blueprint(listings_bp)
     app.register_blueprint(offers_bp)

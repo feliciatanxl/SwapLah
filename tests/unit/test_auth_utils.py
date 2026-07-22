@@ -1,3 +1,4 @@
+# pylint: disable=missing-module-docstring,missing-function-docstring,redefined-outer-name
 from werkzeug.security import check_password_hash, generate_password_hash
 
 
@@ -12,7 +13,10 @@ def test_invalid_email_domain_rejected():
 
 
 def test_required_fields_are_not_empty():
-    fields = ["S12345678", "Felicia", "Tan", "FeliciaT", "s12345678@mymail.nyp.edu.sg", "91234567", "Password123"]
+    fields = [
+        "S12345678", "Felicia", "Tan", "FeliciaT",
+        "s12345678@mymail.nyp.edu.sg", "91234567", "Password123",
+    ]
     assert all(field.strip() for field in fields)
 
 

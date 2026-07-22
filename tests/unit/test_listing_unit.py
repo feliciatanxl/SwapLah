@@ -1,3 +1,4 @@
+# pylint: disable=missing-module-docstring,missing-function-docstring,redefined-outer-name
 import pytest
 
 from app import create_app
@@ -18,7 +19,9 @@ def login_test_user(client):
         session["user_id"] = 1
 
 
-def fake_create_listing(seller_id, title, description, price, category, condition, image_url):
+def fake_create_listing(  # pylint: disable=too-many-arguments, too-many-positional-arguments
+    seller_id, title, description, price, category, condition, image_url
+):
     return {
         "id": 1,
         "seller_id": seller_id,
@@ -191,6 +194,3 @@ def test_create_listing_invalid_request_body(client):
     data = response.get_json()
 
     assert "error" in data
-
-
-    

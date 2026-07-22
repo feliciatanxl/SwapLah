@@ -1,7 +1,7 @@
+# pylint: disable=missing-module-docstring,missing-function-docstring,redefined-outer-name
 import time
 
-import app.db as db
-from app import create_app
+from app import create_app, db
 
 
 def create_test_user(email, student_id):
