@@ -55,61 +55,6 @@ CREATE TABLE IF NOT EXISTS offers (
 )
 """
 
-CREATE_TRANSACTIONS_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS transactions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    offer_id INTEGER NOT NULL,
-    listing_id INTEGER NOT NULL,
-    seller_id INTEGER NOT NULL,
-    buyer_id INTEGER NOT NULL,
-    transaction_type TEXT NOT NULL,
-    amount REAL,
-    swap_listing_id INTEGER,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (offer_id) REFERENCES offers (id),
-    FOREIGN KEY (listing_id) REFERENCES listings (id),
-    FOREIGN KEY (seller_id) REFERENCES users (id),
-    FOREIGN KEY (buyer_id) REFERENCES users (id),
-    FOREIGN KEY (swap_listing_id) REFERENCES listings (id)
-)
-"""
-
-OFFERS_FOR_SELLER_SQL = """
-SELECT
-    offers.id,
-    offers.listing_id,
-    offers.buyer_id,
-    offers.offer_type,
-    offers.proposed_price,
-    offers.swap_listing_id,
-    offers.status,
-    offers.created_at,
-    listings.title AS listing_title,
-    listings.category AS listing_category,
-    listings.price AS listing_price,
-    buyer.display_name AS buyer_display_name,
-    swap_listing.title AS swap_listing_title
-FROM offers
-JOIN listings ON offers.listing_id = listings.id
-JOIN users AS buyer ON offers.buyer_id = buyer.id
-LEFT JOIN listings AS swap_listing ON offers.swap_listing_id = swap_listing.id
-WHERE listings.seller_id = ?
-ORDER BY offers.created_at DESC
-"""
-
-CREATE_REVIEWS_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS reviews (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    reviewed_user_id INTEGER NOT NULL,
-    reviewer_id INTEGER,
-    rating INTEGER NOT NULL,
-    comment TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (reviewed_user_id) REFERENCES users (id),
-    FOREIGN KEY (reviewer_id) REFERENCES users (id)
-)
-"""
-
 INSERT_LISTING_SQL = """
 INSERT INTO listings (
     seller_id, title, description, price, category, item_condition,
@@ -217,10 +162,8 @@ WHERE id = :user_id
 
 def get_db_connection():
     """Return a SQLite database connection."""
-    conn = sqlite3.connect(DATABASE, timeout=10)
+    conn = sqlite3.connect(DATABASE)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA busy_timeout=10000")
     return conn
 
 
@@ -236,8 +179,6 @@ def init_db():
     conn.execute(CREATE_LISTINGS_TABLE_SQL)
     ensure_listing_status_column(conn)
     conn.execute(CREATE_OFFERS_TABLE_SQL)
-    conn.execute(CREATE_TRANSACTIONS_TABLE_SQL)
-    conn.execute(CREATE_REVIEWS_TABLE_SQL)
     conn.commit()
     conn.close()
 
@@ -438,14 +379,16 @@ def soft_delete_listing(listing_id, seller_id):
 
     return dict(deleted_listing), None
 
-def _active_listing_search_filters(keyword="", category="", condition="", price_type=""):
-    """Return SQL clauses and parameters for active listing filters."""
-    clauses = ["listings.status = 'Active'"]
-    params = []
+def search_active_listings(keyword="", category="", condition="", price_type=""):
+    """Return active listings matching search, category, and condition filters."""
+    conn = get_db_connection()
     search = keyword.strip()
     category = category.strip()
     condition = condition.strip()
     price_type = price_type.strip()
+
+    clauses = ["listings.status = 'Active'"]
+    params = []
 
     if search:
         pattern = f"%{search}%"
@@ -473,40 +416,25 @@ def _active_listing_search_filters(keyword="", category="", condition="", price_
     if price_type == "swap":
         clauses.append("listings.price = 'Swap Only'")
 
-    return " AND ".join(clauses), params
+    where_clause = " AND ".join(clauses)
 
-
-def _active_listing_search_sql(where_clause):
-    """Return the active listing search SQL with the supplied WHERE clause."""
-    return f"""
-    SELECT
-        listings.id,
-        listings.title,
-        listings.description,
-        listings.price,
-        listings.category,
-        listings.item_condition AS condition,
-        listings.image_url,
-        listings.listing_date,
-        users.display_name AS seller
-    FROM listings
-    LEFT JOIN users ON listings.seller_id = users.id
-    WHERE {where_clause}
-    ORDER BY listings.listing_date DESC
-    """
-
-
-def search_active_listings(keyword="", category="", condition="", price_type=""):
-    """Return active listings matching search, category, condition, and price type filters."""
-    conn = get_db_connection()
-    where_clause, params = _active_listing_search_filters(
-        keyword,
-        category,
-        condition,
-        price_type,
-    )
     rows = conn.execute(
-        _active_listing_search_sql(where_clause),
+        f"""
+        SELECT
+            listings.id,
+            listings.title,
+            listings.description,
+            listings.price,
+            listings.category,
+            listings.item_condition AS condition,
+            listings.image_url,
+            listings.listing_date,
+            users.display_name AS seller
+        FROM listings
+        LEFT JOIN users ON listings.seller_id = users.id
+        WHERE {where_clause}
+        ORDER BY listings.listing_date DESC
+        """,
         params,
     ).fetchall()
 
@@ -537,30 +465,6 @@ def get_active_listings_by_seller(seller_id):
     ).fetchall()
     conn.close()
     return [_attach_images(dict(row)) for row in rows]
-
-
-def get_reviews_for_user(user_id):
-    """Return public reviews for a user, newest first."""
-    conn = get_db_connection()
-    rows = conn.execute(
-        """
-        SELECT
-            reviews.id,
-            reviews.reviewed_user_id,
-            reviews.reviewer_id,
-            reviews.rating,
-            reviews.comment,
-            reviews.created_at,
-            users.display_name AS reviewer_display_name
-        FROM reviews
-        LEFT JOIN users ON reviews.reviewer_id = users.id
-        WHERE reviews.reviewed_user_id = ?
-        ORDER BY reviews.created_at DESC, reviews.id DESC
-        """,
-        (user_id,),
-    ).fetchall()
-    conn.close()
-    return [dict(row) for row in rows]
 
 
 def get_user_profile_stats(user_id):
@@ -599,7 +503,6 @@ def get_user_profile_stats(user_id):
         "trust_badge": trust_badge,
         "response_rate": None,
     }
-
 
 def get_user_by_id(user_id):
     """Retrieve one user by ID using a parameterized query."""
@@ -651,17 +554,9 @@ def get_listing_owner(listing_id):
 
 
 def get_listings_by_seller(seller_id):
-    """Return active listings belonging to seller_id for swap dropdown."""
+    """Return all listings belonging to seller_id for swap dropdown."""
     conn = get_db_connection()
-    rows = conn.execute(
-        """
-        SELECT id, title
-        FROM listings
-        WHERE seller_id = ?
-        AND status = 'Active'
-        """,
-        (seller_id,),
-    ).fetchall()
+    rows = conn.execute("SELECT id, title FROM listings WHERE seller_id = ?", (seller_id,)).fetchall()
     conn.close()
     return [dict(row) for row in rows]
 
@@ -697,141 +592,3 @@ def create_offer(listing_id, buyer_id, offer_type, proposed_price=None, swap_lis
     offer = conn.execute("SELECT * FROM offers WHERE id = ?", (cursor.lastrowid,)).fetchone()
     conn.close()
     return dict(offer)
-
-
-def get_offers_for_seller(seller_id):
-    """Return all offers received on listings owned by seller_id, newest first."""
-    conn = get_db_connection()
-    rows = conn.execute(OFFERS_FOR_SELLER_SQL, (seller_id,)).fetchall()
-    conn.close()
-    return [dict(row) for row in rows]
-
-
-def get_offer_by_id(offer_id):
-    """Return a single offer by ID as a dict, or None if it doesn't exist."""
-    conn = get_db_connection()
-    row = conn.execute("SELECT * FROM offers WHERE id = ?", (offer_id,)).fetchone()
-    conn.close()
-    return dict(row) if row else None
-
-
-TRANSACTIONS_FOR_BUYER_SQL = """
-SELECT
-    transactions.id,
-    transactions.transaction_type,
-    transactions.amount,
-    transactions.created_at,
-    listings.title AS listing_title,
-    listings.category AS listing_category,
-    seller.display_name AS counterparty_display_name
-FROM transactions
-JOIN listings ON transactions.listing_id = listings.id
-JOIN users AS seller ON transactions.seller_id = seller.id
-WHERE transactions.buyer_id = ?
-ORDER BY transactions.created_at DESC
-"""
-
-TRANSACTIONS_FOR_SELLER_SQL = """
-SELECT
-    transactions.id,
-    transactions.transaction_type,
-    transactions.amount,
-    transactions.created_at,
-    listings.title AS listing_title,
-    listings.category AS listing_category,
-    buyer.display_name AS counterparty_display_name
-FROM transactions
-JOIN listings ON transactions.listing_id = listings.id
-JOIN users AS buyer ON transactions.buyer_id = buyer.id
-WHERE transactions.seller_id = ?
-ORDER BY transactions.created_at DESC
-"""
-
-
-def get_transactions_for_user(user_id, role):
-    """
-    Return completed transactions for a user.
-
-    role must be either 'buyer' or 'seller'. Each row includes the item,
-    category, counterparty display name, transaction type, amount and date.
-    """
-    if role == "buyer":
-        sql = TRANSACTIONS_FOR_BUYER_SQL
-    elif role == "seller":
-        sql = TRANSACTIONS_FOR_SELLER_SQL
-    else:
-        raise ValueError("role must be 'buyer' or 'seller'")
-
-    conn = get_db_connection()
-    rows = conn.execute(sql, (user_id,)).fetchall()
-    conn.close()
-    return [dict(row) for row in rows]
-
-
-def _create_transaction_for_offer(conn, offer):
-    """Insert a transaction record for a just-accepted offer."""
-    seller_id = conn.execute(
-        "SELECT seller_id FROM listings WHERE id = ?", (offer["listing_id"],)
-    ).fetchone()["seller_id"]
-
-    conn.execute(
-        """
-        INSERT INTO transactions (
-            offer_id, listing_id, seller_id, buyer_id,
-            transaction_type, amount, swap_listing_id
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            offer["id"],
-            offer["listing_id"],
-            seller_id,
-            offer["buyer_id"],
-            offer["offer_type"],
-            offer["proposed_price"],
-            offer["swap_listing_id"],
-        ),
-    )
-
-
-def reject_offer(offer_id):
-    """Mark a single offer as Rejected and return the updated offer."""
-    conn = get_db_connection()
-    conn.execute("UPDATE offers SET status = 'Rejected' WHERE id = ?", (offer_id,))
-    conn.commit()
-    offer = conn.execute("SELECT * FROM offers WHERE id = ?", (offer_id,)).fetchone()
-    conn.close()
-    return dict(offer)
-
-
-def accept_offer(offer_id):
-    """
-    Accept a pending offer.
-
-    Marks the offer Accepted, auto-rejects other pending offers on the same
-    listing, marks the listing as Sold (no longer available for new offers),
-    and records a transaction for the accepted offer.
-    """
-    conn = get_db_connection()
-    offer = conn.execute("SELECT * FROM offers WHERE id = ?", (offer_id,)).fetchone()
-    offer = dict(offer)
-
-    conn.execute("UPDATE offers SET status = 'Accepted' WHERE id = ?", (offer_id,))
-    conn.execute(
-        """
-        UPDATE offers
-        SET status = 'Rejected'
-        WHERE listing_id = ? AND id != ? AND status = 'Pending'
-        """,
-        (offer["listing_id"], offer_id),
-    )
-    conn.execute(
-        "UPDATE listings SET status = 'Sold' WHERE id = ?",
-        (offer["listing_id"],),
-    )
-    _create_transaction_for_offer(conn, offer)
-
-    conn.commit()
-    updated_offer = conn.execute("SELECT * FROM offers WHERE id = ?", (offer_id,)).fetchone()
-    conn.close()
-    return dict(updated_offer)
