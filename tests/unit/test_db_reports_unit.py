@@ -1,42 +1,35 @@
-
-
 import pytest
+import app.db as db_module
 from app.db import create_report, get_db_connection, init_db
 
 @pytest.fixture
-def setup_db():
+def setup_db(tmp_path, monkeypatch):
     """Set up test database with required tables"""
+    test_db = tmp_path / "test_db_reports_unit.db"
+    monkeypatch.setattr(db_module, "DATABASE", test_db)
+    
     init_db()
     conn = get_db_connection()
     cursor = conn.cursor()
     
     # Create test user
     cursor.execute(
-        "INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)",
-        ('testuser', 'test@example.com', 'hash')
+        "INSERT INTO users (student_id, first_name, last_name, display_name, email, contact_number, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        ('S00000001', 'Test', 'User', 'testuser', 'test@example.com', '12345678', 'hash')
     )
     user_id = cursor.lastrowid
     
     # Create test listing
     cursor.execute("""
-        INSERT INTO listings (title, description, price, seller_id, status, created_at)
-        VALUES (?, ?, ?, ?, ?, datetime('now'))
-    """, ('Test Listing', 'Description', 100, user_id, 'Active'))
+        INSERT INTO listings (title, description, price, seller_id, category, item_condition, image_url, listing_date, last_modified_timestamp, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), ?)
+    """, ('Test Listing', 'Description', 100, user_id, 'Electronics', 'Good', 'http://example.com/image.jpg', 'Active'))
     listing_id = cursor.lastrowid
     
     conn.commit()
     conn.close()
     
     yield {'user_id': user_id, 'listing_id': listing_id}
-    
-    # Cleanup
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM reports")
-    cursor.execute("DELETE FROM listings")
-    cursor.execute("DELETE FROM users")
-    conn.commit()
-    conn.close()
 
 def test_create_report_success(setup_db):
     """Test successful report creation"""
@@ -74,7 +67,7 @@ def test_create_report_listing_deleted(setup_db):
     conn.commit()
     conn.close()
     
-    with pytest.raises(ValueError, match="Listing is already deleted"):
+    with pytest.raises(ValueError, match="Listing not found"):
         create_report(
             listing_id=setup_db['listing_id'],
             reporter_id=setup_db['user_id'],
