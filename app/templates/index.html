@@ -107,7 +107,30 @@
             <a class="btn btn-outline-dark" href="{{ url_for('index') }}#latest-listings">
                 Clear filters
             </a>
-           
+            {% if request.args.get('category') or request.args.get('condition') %}
+            <div class="filter-pills active-filter-row">
+                {% if request.args.get('category') %}
+                <a class="filter-pill text-decoration-none" aria-label="Clear category filter" href="{{ url_for(
+            'index',
+            search=request.args.get('search', ''),
+            condition=request.args.get('condition', '')
+        ) }}#latest-listings">
+                    {{ request.args.get('category') }} <i class="bi bi-x"></i>
+                </a>
+                {% endif %}
+
+                {% if request.args.get('condition') %}
+                <a class="filter-pill text-decoration-none" aria-label="Clear condition filter" href="{{ url_for(
+            'index',
+            search=request.args.get('search', ''),
+            category=request.args.get('category', '')
+        ) }}#latest-listings">
+                    {{ request.args.get('condition') }} <i class="bi bi-x"></i>
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+
         </form>
 
         <div class="row g-4">
