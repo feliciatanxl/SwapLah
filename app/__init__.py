@@ -11,13 +11,17 @@ from dotenv import load_dotenv
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.db import (
+    get_active_listings_by_seller,
     search_active_listings,
     get_reviews_for_user,
     get_db_connection,
     get_listing_by_id,
+    get_listing_category_summary,
     get_listings_by_seller,
+    get_sold_listings_by_seller,
     get_user_by_email,
     get_user_by_id,
+    get_user_profile_stats,
     init_db,
     update_user_account,
 )
@@ -229,6 +233,7 @@ def _render_index_page(page, search, category, condition):
         page=pagination["page"],
         total_pages=pagination["total_pages"],
         total_listings=pagination["total_listings"],
+        category_summary=get_listing_category_summary(),
         search=search,
         category=category,
         condition=condition,
@@ -463,7 +468,14 @@ def _register_profile_routes(app):
         if redirect_response:
             return redirect_response
 
-        return render_template("profile.html", user=user)
+        return render_template(
+            "profile.html",
+            user=user,
+            active_listings=get_active_listings_by_seller(user["id"]),
+            sold_listings=get_sold_listings_by_seller(user["id"]),
+            profile_stats=get_user_profile_stats(user["id"]),
+            reviews=get_reviews_for_user(user["id"]),
+        )
 
     @app.route("/profile/edit", methods=["GET", "POST"])
     def edit_profile():

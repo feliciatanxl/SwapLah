@@ -5,6 +5,13 @@ from pathlib import Path
 
 DATABASE = Path(__file__).resolve().parent.parent / "swaplah.db"
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+LISTING_CATEGORIES = (
+    {"label": "Textbooks", "icon": "bi-book"},
+    {"label": "Electronics", "icon": "bi-laptop"},
+    {"label": "Lab Equipment", "icon": "bi-prescription2"},
+    {"label": "Stationery", "icon": "bi-pencil"},
+    {"label": "Clothing", "icon": "bi-bag"},
+)
 
 CREATE_USERS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS users (
@@ -302,6 +309,40 @@ def get_all_listings():
     return [_attach_images(dict(row)) for row in rows]
 
 
+def get_listing_category_summary():
+    """Return active listing counts for the configured listing categories."""
+    conn = get_db_connection()
+    rows = conn.execute(
+        """
+        SELECT category, COUNT(*) AS count
+        FROM listings
+        WHERE status = 'Active'
+        GROUP BY category
+        """
+    ).fetchall()
+    total_row = conn.execute(
+        """
+        SELECT COUNT(*) AS total
+        FROM listings
+        WHERE status = 'Active'
+        """
+    ).fetchone()
+    conn.close()
+
+    category_counts = {row["category"]: row["count"] for row in rows}
+    return {
+        "total": total_row["total"] or 0,
+        "category_rows": [
+            {
+                "label": category["label"],
+                "icon": category["icon"],
+                "count": category_counts.get(category["label"], 0),
+            }
+            for category in LISTING_CATEGORIES
+        ],
+    }
+
+
 def get_listing_by_id(listing_id):
     """Return full listing detail by ID, or None if not found."""
     conn = get_db_connection()
@@ -470,6 +511,109 @@ def search_active_listings(keyword="", category="", condition=""):
 
     conn.close()
     return [_attach_images(dict(row)) for row in rows]
+
+
+def get_active_listings_by_seller(seller_id):
+    """Return active listing cards owned by one seller."""
+    conn = get_db_connection()
+    rows = conn.execute(
+        """
+        SELECT
+            id,
+            title,
+            description,
+            price,
+            category,
+            item_condition AS condition,
+            image_url,
+            listing_date
+        FROM listings
+        WHERE seller_id = ?
+        AND status = 'Active'
+        ORDER BY listing_date DESC
+        """,
+        (seller_id,),
+    ).fetchall()
+    conn.close()
+    return [_attach_images(dict(row)) for row in rows]
+
+
+def get_sold_listings_by_seller(seller_id):
+    """Return listings sold by one seller based on accepted offers."""
+    conn = get_db_connection()
+    rows = conn.execute(
+        """
+        SELECT
+            listings.id,
+            listings.title,
+            listings.description,
+            listings.price,
+            listings.category,
+            listings.item_condition AS condition,
+            listings.image_url,
+            offers.created_at AS sold_at,
+            offers.offer_type,
+            offers.proposed_price,
+            users.display_name AS buyer
+        FROM offers
+        INNER JOIN listings ON offers.listing_id = listings.id
+        LEFT JOIN users ON offers.buyer_id = users.id
+        WHERE listings.seller_id = ?
+        AND offers.status = 'Accepted'
+        ORDER BY offers.created_at DESC
+        """,
+        (seller_id,),
+    ).fetchall()
+    conn.close()
+    return [_attach_images(dict(row)) for row in rows]
+
+
+def get_user_profile_stats(user_id):
+    """Return profile stats derived from marketplace and review data."""
+    conn = get_db_connection()
+    row = conn.execute(
+        """
+        SELECT
+            COUNT(DISTINCT CASE WHEN listings.status = 'Active' THEN listings.id END) AS active_count,
+            COUNT(DISTINCT CASE WHEN offers.status = 'Accepted' THEN offers.id END) AS total_sales,
+            COUNT(DISTINCT offers.id) AS offer_count,
+            COUNT(DISTINCT CASE WHEN offers.status != 'Pending' THEN offers.id END) AS responded_offer_count,
+            COUNT(DISTINCT reviews.id) AS review_count,
+            AVG(reviews.rating) AS average_rating
+        FROM users
+        LEFT JOIN listings ON listings.seller_id = users.id
+        LEFT JOIN offers ON offers.listing_id = listings.id
+        LEFT JOIN reviews ON reviews.reviewed_user_id = users.id
+        WHERE users.id = ?
+        """,
+        (user_id,),
+    ).fetchone()
+    conn.close()
+
+    active_count = row["active_count"] or 0
+    total_sales = row["total_sales"] or 0
+    offer_count = row["offer_count"] or 0
+    responded_offer_count = row["responded_offer_count"] or 0
+    response_rate = round((responded_offer_count / offer_count) * 100) if offer_count else None
+
+    if total_sales >= 20:
+        trust_badge = "Top Seller"
+    elif total_sales >= 5:
+        trust_badge = "Trusted Seller"
+    elif active_count > 0:
+        trust_badge = "Active Seller"
+    else:
+        trust_badge = "New Seller"
+
+    return {
+        "active_count": active_count,
+        "review_count": row["review_count"] or 0,
+        "average_rating": row["average_rating"],
+        "total_sales": total_sales,
+        "sold_count": total_sales,
+        "trust_badge": trust_badge,
+        "response_rate": response_rate,
+    }
 
 
 def get_reviews_for_user(user_id):
