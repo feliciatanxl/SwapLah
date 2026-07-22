@@ -5,6 +5,13 @@ from pathlib import Path
 
 DATABASE = Path(__file__).resolve().parent.parent / "swaplah.db"
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+LISTING_CATEGORIES = (
+    {"label": "Textbooks", "icon": "bi-book"},
+    {"label": "Electronics", "icon": "bi-laptop"},
+    {"label": "Lab Equipment", "icon": "bi-prescription2"},
+    {"label": "Stationery", "icon": "bi-pencil"},
+    {"label": "Clothing", "icon": "bi-bag"},
+)
 
 CREATE_USERS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS users (
@@ -272,6 +279,14 @@ def get_listing_category_summary():
         "free": total_row["free_count"] or 0,
         "swap": total_row["swap_count"] or 0,
         "categories": category_counts,
+        "category_rows": [
+            {
+                "label": category["label"],
+                "icon": category["icon"],
+                "count": category_counts.get(category["label"], 0),
+            }
+            for category in LISTING_CATEGORIES
+        ],
     }
 
 
