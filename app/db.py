@@ -243,6 +243,38 @@ def get_all_listings():
     return [_attach_images(dict(row)) for row in rows]
 
 
+def get_listing_category_summary():
+    """Return active listing counts used by the homepage category cards."""
+    conn = get_db_connection()
+    rows = conn.execute(
+        """
+        SELECT category, COUNT(*) AS count
+        FROM listings
+        WHERE status = 'Active'
+        GROUP BY category
+        """
+    ).fetchall()
+    total_row = conn.execute(
+        """
+        SELECT
+            COUNT(*) AS total,
+            SUM(CASE WHEN price = 'Free' THEN 1 ELSE 0 END) AS free_count,
+            SUM(CASE WHEN price = 'Swap Only' THEN 1 ELSE 0 END) AS swap_count
+        FROM listings
+        WHERE status = 'Active'
+        """
+    ).fetchone()
+    conn.close()
+
+    category_counts = {row["category"]: row["count"] for row in rows}
+    return {
+        "total": total_row["total"],
+        "free": total_row["free_count"] or 0,
+        "swap": total_row["swap_count"] or 0,
+        "categories": category_counts,
+    }
+
+
 def get_listing_by_id(listing_id):
     """Return full listing detail by ID, or None if not found."""
     conn = get_db_connection()
@@ -347,12 +379,13 @@ def soft_delete_listing(listing_id, seller_id):
 
     return dict(deleted_listing), None
 
-def search_active_listings(keyword="", category="", condition=""):
+def search_active_listings(keyword="", category="", condition="", price_type=""):
     """Return active listings matching search, category, and condition filters."""
     conn = get_db_connection()
     search = keyword.strip()
     category = category.strip()
     condition = condition.strip()
+    price_type = price_type.strip()
 
     clauses = ["listings.status = 'Active'"]
     params = []
@@ -376,6 +409,12 @@ def search_active_listings(keyword="", category="", condition=""):
     if condition:
         clauses.append("listings.item_condition = ?")
         params.append(condition)
+
+    if price_type == "free":
+        clauses.append("listings.price = 'Free'")
+
+    if price_type == "swap":
+        clauses.append("listings.price = 'Swap Only'")
 
     where_clause = " AND ".join(clauses)
 
@@ -401,6 +440,69 @@ def search_active_listings(keyword="", category="", condition=""):
 
     conn.close()
     return [_attach_images(dict(row)) for row in rows]
+
+
+def get_active_listings_by_seller(seller_id):
+    """Return active listing cards owned by one seller."""
+    conn = get_db_connection()
+    rows = conn.execute(
+        """
+        SELECT
+            id,
+            title,
+            description,
+            price,
+            category,
+            item_condition AS condition,
+            image_url,
+            listing_date
+        FROM listings
+        WHERE seller_id = ?
+        AND status = 'Active'
+        ORDER BY listing_date DESC
+        """,
+        (seller_id,),
+    ).fetchall()
+    conn.close()
+    return [_attach_images(dict(row)) for row in rows]
+
+
+def get_user_profile_stats(user_id):
+    """Return profile stats that can be derived from current marketplace data."""
+    conn = get_db_connection()
+    row = conn.execute(
+        """
+        SELECT
+            COUNT(CASE WHEN listings.status = 'Active' THEN 1 END) AS active_count,
+            COUNT(DISTINCT CASE WHEN offers.status = 'Accepted' THEN offers.id END) AS total_sales
+        FROM listings
+        LEFT JOIN offers ON offers.listing_id = listings.id
+        WHERE listings.seller_id = ?
+        """,
+        (user_id,),
+    ).fetchone()
+    conn.close()
+
+    total_sales = row["total_sales"] or 0
+    active_count = row["active_count"] or 0
+
+    if total_sales >= 20:
+        trust_badge = "Top Seller"
+    elif total_sales >= 5:
+        trust_badge = "Trusted Seller"
+    elif active_count > 0:
+        trust_badge = "Active Seller"
+    else:
+        trust_badge = "New Seller"
+
+    return {
+        "active_count": active_count,
+        "review_count": 0,
+        "average_rating": None,
+        "total_sales": total_sales,
+        "trust_badge": trust_badge,
+        "response_rate": None,
+    }
 
 def get_user_by_id(user_id):
     """Retrieve one user by ID using a parameterized query."""

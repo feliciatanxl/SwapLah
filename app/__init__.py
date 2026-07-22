@@ -9,12 +9,15 @@ from flask import Flask, flash, jsonify, redirect, render_template, request, ses
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.db import (
+    get_active_listings_by_seller,
     search_active_listings,
+    get_listing_category_summary,
     get_db_connection,
     get_listing_by_id,
     get_listings_by_seller,
     get_user_by_email,
     get_user_by_id,
+    get_user_profile_stats,
     init_db,
     update_user_account,
 )
@@ -137,10 +140,10 @@ def _create_user_account(form_data):
     return redirect(url_for("login"))
 
 
-def _paginate_listings(page, search="", category="", condition="", per_page=10):
+def _paginate_listings(page, search="", category="", condition="", price_type="", per_page=10):
     """Return paginated listings and page metadata."""
     page = max(page, 1)
-    all_listings = search_active_listings(search, category, condition)
+    all_listings = search_active_listings(search, category, condition, price_type)
     total_listings = len(all_listings)
     total_pages = math.ceil(total_listings / per_page) if total_listings > 0 else 1
     page = min(page, total_pages)
@@ -286,8 +289,9 @@ def _register_main_routes(app):
         search = request.args.get("search", "").strip()
         category = request.args.get("category", "").strip()
         condition = request.args.get("condition", "").strip()
+        price_type = request.args.get("price_type", "").strip()
 
-        pagination = _paginate_listings(page, search, category, condition)
+        pagination = _paginate_listings(page, search, category, condition, price_type)
 
         return render_template(
             "index.html",
@@ -295,9 +299,11 @@ def _register_main_routes(app):
             page=pagination["page"],
             total_pages=pagination["total_pages"],
             total_listings=pagination["total_listings"],
+            category_summary=get_listing_category_summary(),
             search=search,
             category=category,
             condition=condition,
+            price_type=price_type,
         )
 
     @app.route("/listing/<int:listing_id>")
@@ -367,7 +373,12 @@ def _register_profile_routes(app):
         if redirect_response:
             return redirect_response
 
-        return render_template("profile.html", user=user)
+        return render_template(
+            "profile.html",
+            user=user,
+            active_listings=get_active_listings_by_seller(user["id"]),
+            profile_stats=get_user_profile_stats(user["id"]),
+        )
 
     @app.route("/profile/edit", methods=["GET", "POST"])
     def edit_profile():

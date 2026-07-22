@@ -45,70 +45,28 @@
             <a href="#latest-listings" class="section-link">View all <i class="bi bi-chevron-right"></i></a>
         </div>
 
+        {% set category_cards = [
+            {"label": "All", "icon": "bi-grid", "count": category_summary.total, "url": url_for('index') ~ "#latest-listings", "active": not category and not price_type},
+            {"label": "Textbooks", "icon": "bi-book", "count": category_summary.categories.get("Textbooks", 0), "url": url_for('index', category='Textbooks') ~ "#latest-listings", "active": category == "Textbooks"},
+            {"label": "Electronics", "icon": "bi-laptop", "count": category_summary.categories.get("Electronics", 0), "url": url_for('index', category='Electronics') ~ "#latest-listings", "active": category == "Electronics"},
+            {"label": "Lab Equipment", "icon": "bi-prescription2", "count": category_summary.categories.get("Lab Equipment", 0), "url": url_for('index', category='Lab Equipment') ~ "#latest-listings", "active": category == "Lab Equipment"},
+            {"label": "Stationery", "icon": "bi-pencil", "count": category_summary.categories.get("Stationery", 0), "url": url_for('index', category='Stationery') ~ "#latest-listings", "active": category == "Stationery"},
+            {"label": "Free Items", "icon": "bi-gift", "count": category_summary.free, "url": url_for('index', price_type='free') ~ "#latest-listings", "active": price_type == "free"},
+            {"label": "Swap Only", "icon": "bi-arrow-left-right", "count": category_summary.swap, "url": url_for('index', price_type='swap') ~ "#latest-listings", "active": price_type == "swap"}
+        ] %}
+
         <div class="row g-3">
+            {% for card in category_cards %}
             <div class="col-6 col-sm-4 col-lg">
-                <div class="category-card category-card-active">
-                    <div class="category-icon"><i class="bi bi-grid"></i></div>
+                <a class="category-card {% if card.active %}category-card-active{% endif %}" href="{{ card.url }}">
+                    <div class="category-icon"><i class="bi {{ card.icon }}"></i></div>
                     <div>
-                        <h6>All</h6>
-                        <p>811 items</p>
+                        <h6>{{ card.label }}</h6>
+                        <p>{{ card.count }} item{% if card.count != 1 %}s{% endif %}</p>
                     </div>
-                </div>
+                </a>
             </div>
-            <div class="col-6 col-sm-4 col-lg">
-                <div class="category-card">
-                    <div class="category-icon"><i class="bi bi-book"></i></div>
-                    <div>
-                        <h6>Textbooks</h6>
-                        <p>234 items</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-6 col-sm-4 col-lg">
-                <div class="category-card">
-                    <div class="category-icon"><i class="bi bi-laptop"></i></div>
-                    <div>
-                        <h6>Electronics</h6>
-                        <p>187 items</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-6 col-sm-4 col-lg">
-                <div class="category-card">
-                    <div class="category-icon"><i class="bi bi-prescription2"></i></div>
-                    <div>
-                        <h6>Lab Equipment</h6>
-                        <p>92 items</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-6 col-sm-4 col-lg">
-                <div class="category-card">
-                    <div class="category-icon"><i class="bi bi-pencil"></i></div>
-                    <div>
-                        <h6>Stationery</h6>
-                        <p>78 items</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-6 col-sm-4 col-lg">
-                <div class="category-card">
-                    <div class="category-icon"><i class="bi bi-gift"></i></div>
-                    <div>
-                        <h6>Free Items</h6>
-                        <p>64 items</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-6 col-sm-4 col-lg">
-                <div class="category-card">
-                    <div class="category-icon"><i class="bi bi-arrow-left-right"></i></div>
-                    <div>
-                        <h6>Swap Only</h6>
-                        <p>41 items</p>
-                    </div>
-                </div>
-            </div>
+            {% endfor %}
         </div>
     </div>
 </section>
@@ -142,6 +100,9 @@
                 <option value="Good" {% if request.args.get('condition')=='Good' %}selected{% endif %}>Good</option>
                 <option value="Fair" {% if request.args.get('condition')=='Fair' %}selected{% endif %}>Fair</option>
             </select>
+            {% if price_type %}
+            <input type="hidden" name="price_type" value="{{ price_type }}">
+            {% endif %}
             <button class="btn btn-accent" type="submit">Apply</button>
             <a class="btn btn-outline-dark" href="{{ url_for('index') }}#latest-listings">
                 Clear filters
@@ -238,7 +199,8 @@
                     <a class="page-link" href="{{ url_for('index',page=page-1,
        search=request.args.get('search', ''),
        category=request.args.get('category', ''),
-       condition=request.args.get('condition', '')
+       condition=request.args.get('condition', ''),
+       price_type=request.args.get('price_type', '')
    ) }}#latest-listings">
                         Previous
                     </a>
@@ -256,7 +218,8 @@
        page=p,
        search=request.args.get('search', ''),
        category=request.args.get('category', ''),
-       condition=request.args.get('condition', '')
+       condition=request.args.get('condition', ''),
+       price_type=request.args.get('price_type', '')
    ) }}#latest-listings">
                         {{ p }}
                     </a>
@@ -269,7 +232,8 @@
        page=page+1,
        search=request.args.get('search', ''),
        category=request.args.get('category', ''),
-       condition=request.args.get('condition', '')
+       condition=request.args.get('condition', ''),
+       price_type=request.args.get('price_type', '')
    ) }}#latest-listings">
                         Next
                     </a>
