@@ -1,15 +1,20 @@
-# tests/api/test_admin_reports_api.py
-
 import pytest
+import app.db as db_module
 from app import create_app
 from app.db import create_listing, create_report, get_db_connection
 
 @pytest.fixture
-def client():
-    app = create_app(testing=True)
-    app.config['DATABASE'] = ':memory:'
-    with app.test_client() as client:
-        with app.app_context():
+def client(tmp_path, monkeypatch):
+    """Create a Flask test client using an isolated SQLite database."""
+    test_db = tmp_path / "test_admin_reports_api.db"
+    monkeypatch.setattr(db_module, "DATABASE", test_db)
+
+    flask_app = create_app()
+    flask_app.config["TESTING"] = True
+    flask_app.config["SECRET_KEY"] = "admin-reports-api-test-secret"
+
+    with flask_app.test_client() as test_client:
+        with flask_app.app_context():
             # Seed users
             conn = get_db_connection()
             conn.execute(
@@ -29,24 +34,28 @@ def client():
             
             # Seed listings
             create_listing(
+                seller_id=2,
                 title='Test Listing 1',
                 description='Test Description 1',
                 price=100,
-                seller_id=2,
-                category='Electronics'
+                category='Electronics',
+                condition='Good',
+                image_url='http://example.com/img1.jpg'
             )
             create_listing(
+                seller_id=2,
                 title='Test Listing 2',
                 description='Test Description 2',
                 price=200,
-                seller_id=2,
-                category='Books'
+                category='Books',
+                condition='Good',
+                image_url='http://example.com/img2.jpg'
             )
             
             # Seed reports
             create_report(listing_id=1, reporter_id=3, reason='Spam', description='This is spam')
-            create_report(listing_id=2, reporter_id=3, reason='Fraud', description='Fraudulent listing')
-        yield client
+            create_report(listing_id=2, reporter_id=3, reason='Other', description='Fraudulent listing')
+        yield test_client
 
 def login_as(client, user_id):
     with client.session_transaction() as sess:
@@ -56,7 +65,7 @@ def test_ac1_admin_get_reports_success(client):
     """AC1: Admin can successfully get all reports."""
     login_as(client, 1)  # Admin user
     
-    response = client.get('/api/admin/reports')
+    response = client.get('/admin/reports')
     assert response.status_code == 200
     data = response.get_json()
     
@@ -79,27 +88,27 @@ def test_ac2_non_admin_forbidden(client):
     """AC2: Non-admin users get 403 error."""
     login_as(client, 2)  # Regular user
     
-    response = client.get('/api/admin/reports')
+    response = client.get('/admin/reports')
     assert response.status_code == 403
     
     # Also test HTML endpoint
-    response = client.get('/admin/reports')
+    response = client.get('/admin')
     assert response.status_code == 403
 
 def test_ac2_not_logged_in_redirect(client):
     """AC2: Not logged in users get redirected."""
-    response = client.get('/admin/reports')
+    response = client.get('/admin')
     # Should redirect to login (302) or return 401
     assert response.status_code in (302, 401)
     
-    response = client.get('/api/admin/reports')
+    response = client.get('/admin/reports')
     assert response.status_code in (302, 401)
 
 def test_ac3_each_item_has_required_fields(client):
     """AC3: Each report item has listing, reason, and description fields."""
     login_as(client, 1)  # Admin user
     
-    response = client.get('/api/admin/reports')
+    response = client.get('/admin/reports')
     assert response.status_code == 200
     data = response.get_json()
     
@@ -123,7 +132,7 @@ def test_get_all_reports_html_template(client):
     """Test that the HTML endpoint renders the template with reports data."""
     login_as(client, 1)  # Admin user
     
-    response = client.get('/admin/reports')
+    response = client.get('/admin')
     assert response.status_code == 200
     
     # Check that the response contains report data
@@ -131,7 +140,7 @@ def test_get_all_reports_html_template(client):
     assert 'Test Listing 1' in html
     assert 'Test Listing 2' in html
     assert 'Spam' in html
-    assert 'Fraud' in html
+    assert 'Other' in html
     assert 'Status' in html
 
 def test_empty_reports(client):
@@ -146,7 +155,7 @@ def test_empty_reports(client):
     
     login_as(client, 1)  # Admin user
     
-    response = client.get('/api/admin/reports')
+    response = client.get('/admin/reports')
     assert response.status_code == 200
     data = response.get_json()
     assert data['reports'] == []

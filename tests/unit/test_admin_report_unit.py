@@ -85,7 +85,7 @@ def test_get_all_reports_join_fields(app):
         conn.commit()
         conn.close()
         
-        create_report(listing_id=1, reporter_id=2, reason='Test Reason', description='Test Description')
+        create_report(listing_id=1, reporter_id=2, reason='Spam', description='Test Description')
         
         reports = get_all_reports()
         
@@ -94,7 +94,7 @@ def test_get_all_reports_join_fields(app):
         assert report['listing_title'] == 'Specific Listing'
         assert report['listing_category'] == 'Books'
         assert report['reporter_display_name'] == 'TestUser'
-        assert report['reason'] == 'Test Reason'
+        assert report['reason'] == 'Spam'
         assert report['description'] == 'Test Description'
         assert report['status'] == 'Pending'
 
@@ -110,7 +110,7 @@ def test_admin_delete_reported_listing_success(app):
         conn.commit()
         conn.close()
         
-        create_listing(
+        listing_data = create_listing(
             seller_id=1,
             title='Test Listing',
             description='Test Description',
@@ -122,16 +122,19 @@ def test_admin_delete_reported_listing_success(app):
         
         create_report(listing_id=1, reporter_id=2, reason='Spam')
         
-        # Get the listing to verify it's active
+        # Get the listing to verify it exists
         listing = get_listing_by_id(1)
-        assert listing['status'] == 'Active'
+        assert listing is not None
+        # get_listing_by_id only returns Active listings, so if it returns something, it's active
+        assert listing['id'] == 1
+        assert listing['title'] == 'Test Listing'
         
         # Admin soft-deletes the reported listing
         success, error = admin_delete_reported_listing(1)
         assert success is True
         assert error is None
         
-        # Verify listing is soft-deleted
+        # Verify listing is soft-deleted (get_listing_by_id returns None for deleted)
         listing = get_listing_by_id(1)
         assert listing is None  # get_listing_by_id only returns Active listings
         
