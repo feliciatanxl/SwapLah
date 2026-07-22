@@ -1,8 +1,11 @@
-# pylint: disable=missing-module-docstring,missing-function-docstring,redefined-outer-name
+"""Acceptance tests for editing listings."""
+
+# pylint: disable=missing-function-docstring
+
 import time
 
-from app import create_app, db
-
+from app import create_app
+from app import db
 
 def create_test_user(email, student_id):
     conn = db.get_db_connection()
