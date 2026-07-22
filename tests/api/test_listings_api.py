@@ -440,3 +440,112 @@ def test_delete_listing_rejects_non_owner(client):
 
     assert response.status_code == 403
     assert response.get_json()["error"] == "You are not allowed to delete this listing."
+
+def test_create_listing_rejects_missing_required_fields(client):
+    """POST /api/listings rejects a payload with a missing required field."""
+    seller_id = seed_user()
+    login_as(client, seller_id)
+
+    payload = valid_listing_payload()
+    payload.pop("title")
+
+    response = client.post("/api/listings", json=payload)
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "All fields are required."
+
+
+def test_create_listing_rejects_invalid_request_body(client):
+    """POST /api/listings rejects malformed JSON request data."""
+    seller_id = seed_user()
+    login_as(client, seller_id)
+
+    response = client.post(
+        "/api/listings",
+        data="this is not valid JSON",
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "Invalid request body."
+
+
+def test_update_listing_rejects_unauthenticated_user(client):
+    """PUT /api/listings/<id> requires an authenticated user."""
+    seller_id = seed_user()
+    listing = seed_listing(seller_id=seller_id)
+
+    response = client.put(
+        f"/api/listings/{listing['id']}",
+        json=valid_listing_payload(),
+    )
+
+    assert response.status_code == 401
+    assert response.get_json()["error"] == (
+        "You must be logged in to edit a listing."
+    )
+
+
+def test_update_listing_returns_404_for_missing_listing(client):
+    """PUT /api/listings/<id> returns 404 when the listing does not exist."""
+    seller_id = seed_user()
+    login_as(client, seller_id)
+
+    response = client.put(
+        "/api/listings/999999",
+        json=valid_listing_payload(),
+    )
+
+    assert response.status_code == 404
+    assert response.get_json()["error"] == (
+        "Listing not found or has already been deleted."
+    )
+
+
+def test_delete_listing_rejects_unauthenticated_user(client):
+    """DELETE /api/listings/<id> requires an authenticated user."""
+    seller_id = seed_user()
+    listing = seed_listing(seller_id=seller_id)
+
+    response = client.delete(f"/api/listings/{listing['id']}")
+
+    assert response.status_code == 401
+    assert response.get_json()["error"] == (
+        "You must be logged in to delete a listing."
+    )
+
+
+def test_delete_listing_returns_404_for_missing_listing(client):
+    """DELETE /api/listings/<id> returns 404 when the listing does not exist."""
+    seller_id = seed_user()
+    login_as(client, seller_id)
+
+    response = client.delete("/api/listings/999999")
+
+    assert response.status_code == 404
+    assert response.get_json()["error"] == (
+        "Listing not found or has already been deleted."
+    )
+
+
+def test_get_active_listings_returns_empty_list_for_no_match(client):
+    """GET /api/listings returns an empty page when no listing matches."""
+    seller_id = seed_user()
+    seed_listing(
+        seller_id=seller_id,
+        title="Python Textbook",
+    )
+
+    response = client.get(
+        "/api/listings?search=nonexistent-keyword"
+    )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert data["listings"] == []
+    assert data["page"] == 1
+    assert data["perPage"] == 10
+    assert data["totalListings"] == 0
+    assert data["totalPages"] == 1
