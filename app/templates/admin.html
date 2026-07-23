@@ -105,20 +105,44 @@
                 <table class="table align-middle mb-0">
                     <thead><tr><th>User</th><th>Email</th><th>Student ID</th><th>Status</th><th class="text-end">Action</th></tr></thead>
                     <tbody>
-                        <tr>
-                            <td><strong>Jordan Mok</strong><br><small class="text-muted">Display: Jordan</small></td>
-                            <td>jordan.mok@mymail.nyp.edu.sg</td>
-                            <td>S10234567</td>
-                            <td><span class="status-badge bg-soft-green text-green">Active</span></td>
-                            <td class="text-end"><button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#toggleUserModal">Suspend</button></td>
-                        </tr>
-                        <tr>
-                            <td><strong>Tan Rui</strong><br><small class="text-muted">Display: Rui</small></td>
-                            <td>tan.rui@mymail.nyp.edu.sg</td>
-                            <td>S10987654</td>
-                            <td><span class="status-badge bg-soft-pink text-pink">Suspended</span></td>
-                            <td class="text-end"><button class="btn btn-sm btn-outline-dark" data-bs-toggle="modal" data-bs-target="#toggleUserModal">Activate</button></td>
-                        </tr>
+                        {% if users %}
+                            {% for user in users %}
+                                <tr data-user-id="{{ user.id }}">
+                                    <td>
+                                        <strong>{{ user.display_name }}</strong><br>
+                                        <small class="text-muted">{{ user.first_name }} {{ user.last_name }}</small>
+                                    </td>
+                                    <td>{{ user.email }}</td>
+                                    <td>{{ user.student_id }}</td>
+                                    <td>
+                                        {% if user.status == 'Active' %}
+                                            <span class="status-badge bg-soft-green text-green status-badge-user-{{ user.id }}">Active</span>
+                                        {% else %}
+                                            <span class="status-badge bg-soft-pink text-pink status-badge-user-{{ user.id }}">Suspended</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end action-cell-user-{{ user.id }}">
+                                        {% if user.status == 'Active' %}
+                                            <button class="btn btn-sm btn-outline-danger toggle-user-btn"
+                                                    data-bs-toggle="modal" data-bs-target="#toggleUserModal"
+                                                    data-user-id="{{ user.id }}" data-user-name="{{ user.display_name }}"
+                                                    data-current-status="Active">Suspend</button>
+                                        {% else %}
+                                            <button class="btn btn-sm btn-outline-dark toggle-user-btn"
+                                                    data-bs-toggle="modal" data-bs-target="#toggleUserModal"
+                                                    data-user-id="{{ user.id }}" data-user-name="{{ user.display_name }}"
+                                                    data-current-status="Suspended">Activate</button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center py-4">
+                                    <p class="text-muted mb-0">No users found.</p>
+                                </td>
+                            </tr>
+                        {% endif %}
                     </tbody>
                 </table>
             </div>
@@ -177,10 +201,14 @@
                 <h5 class="modal-title">Change account status?</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">Use this UI later to toggle a user between Active and Suspended.</div>
+            <div class="modal-body">
+                Change <strong id="toggleUserName"></strong>'s status to
+                <strong id="toggleUserTargetStatus"></strong>?
+                <input type="hidden" id="toggleUserId">
+            </div>
             <div class="modal-footer">
                 <button class="btn btn-outline-dark" data-bs-dismiss="modal">Cancel</button>
-                <button class="btn btn-accent">Confirm Change</button>
+                <button class="btn btn-accent" id="confirmToggleUser">Confirm Change</button>
             </div>
         </div>
     </div>
@@ -358,6 +386,228 @@ document.addEventListener('click', function(e) {
         }
     }
 });
+const toggleUserModal = document.getElementById('toggleUserModal');
+const toggleUserIdInput = document.getElementById('toggleUserId');
+const toggleUserNameSpan = document.getElementById('toggleUserName');
+const toggleUserTargetStatusSpan = document.getElementById('toggleUserTargetStatus');
+const confirmToggleUserBtn = document.getElementById('confirmToggleUser');
+let toggleUserModalInstance = null;
+
+if (toggleUserModal) {
+    toggleUserModalInstance = new bootstrap.Modal(toggleUserModal);
+
+    toggleUserModal.addEventListener('show.bs.modal', function(event) {
+        const button = event.relatedTarget;
+        if (button && button.dataset.userId) {
+            const userId = button.dataset.userId;
+            const userName = button.dataset.userName || 'User';
+            const currentStatus = button.dataset.currentStatus;
+            const targetStatus = currentStatus === 'Active' ? 'Suspended' : 'Active';
+
+            toggleUserIdInput.value = userId;
+            toggleUserNameSpan.textContent = userName;
+            toggleUserTargetStatusSpan.textContent = targetStatus;
+
+            // Store target status on the confirm button for later use
+            confirmToggleUserBtn.dataset.targetStatus = targetStatus;
+        }
+    });
+}
+
+if (confirmToggleUserBtn) {
+    confirmToggleUserBtn.addEventListener('click', function() {
+        const userId = toggleUserIdInput.value;
+        const targetStatus = this.dataset.targetStatus;
+        const button = this;
+
+        if (!userId || !targetStatus) {
+            alert('Missing user information.');
+            return;
+        }
+
+        button.disabled = true;
+        button.textContent = 'Processing...';
+
+        fetch(`/admin/users/${userId}/status`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ status: targetStatus }),
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.message || 'Failed to update status');
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // Find the row for this user
+                const row = document.querySelector(`tr[data-user-id="${userId}"]`);
+                if (row) {
+                    // Update status badge
+                    const badge = row.querySelector(`.status-badge-user-${userId}`);
+                    if (badge) {
+                        if (targetStatus === 'Active') {
+                            badge.className = `status-badge bg-soft-green text-green status-badge-user-${userId}`;
+                            badge.textContent = 'Active';
+                        } else {
+                            badge.className = `status-badge bg-soft-pink text-pink status-badge-user-${userId}`;
+                            badge.textContent = 'Suspended';
+                        }
+                    }
+
+                    // Replace action button
+                    const actionCell = row.querySelector(`.action-cell-user-${userId}`);
+                    if (actionCell) {
+                        const newStatus = targetStatus;
+                        const oppositeStatus = newStatus === 'Active' ? 'Suspended' : 'Active';
+                        const btnLabel = newStatus === 'Active' ? 'Suspend' : 'Activate';
+                        const btnClass = newStatus === 'Active' ? 'btn-outline-danger' : 'btn-outline-dark';
+                        actionCell.innerHTML = `
+                            <button class="btn btn-sm ${btnClass} toggle-user-btn"
+                                    data-bs-toggle="modal" data-bs-target="#toggleUserModal"
+                                    data-user-id="${userId}" data-user-name="${data.user_name || 'User'}"
+                                    data-current-status="${newStatus}">${btnLabel}</button>
+                        `;
+                    }
+                }
+
+                // Close modal
+                if (toggleUserModalInstance) {
+                    toggleUserModalInstance.hide();
+                }
+
+                console.log('User status updated successfully:', data);
+            } else {
+                throw new Error(data.message || 'Failed to update status');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to update user status: ' + error.message);
+            // Keep modal open on error
+        })
+        .finally(() => {
+            button.disabled = false;
+            button.textContent = 'Confirm Change';
+        });
+    });
+}
+
+// --- USER SEARCH FUNCTIONALITY ---
+const userSearchInput = document.getElementById('admin_user_search');
+if (userSearchInput) {
+    userSearchInput.addEventListener('keyup', function() {
+        const search = this.value.toLowerCase();
+        const rows = document.querySelectorAll('#users-panel tbody tr');
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.includes(search) ? '' : 'none';
+        });
+    });
+}
+</script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // --- User toggle modal ---
+        const modalEl = document.getElementById('toggleUserModal');
+        if (!modalEl) return;
+
+        const modal = new bootstrap.Modal(modalEl);
+        const userIdInput = document.getElementById('toggleUserId');
+        const userNameSpan = document.getElementById('toggleUserName');
+        const targetStatusSpan = document.getElementById('toggleUserTargetStatus');
+        const confirmBtn = document.getElementById('confirmToggleUser');
+
+        // Populate modal on show
+        modalEl.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            if (!button) {
+                console.warn('No relatedTarget for toggleUserModal');
+                return;
+            }
+            const userId = button.dataset.userId;
+            const userName = button.dataset.userName || 'User';
+            const currentStatus = button.dataset.currentStatus;
+            const targetStatus = currentStatus === 'Active' ? 'Suspended' : 'Active';
+
+            userIdInput.value = userId;
+            userNameSpan.textContent = userName;
+            targetStatusSpan.textContent = targetStatus;
+            confirmBtn.dataset.targetStatus = targetStatus;
+            confirmBtn.dataset.userId = userId;
+        });
+
+        // Handle confirm click
+        confirmBtn.addEventListener('click', function() {
+            const userId = this.dataset.userId;
+            const targetStatus = this.dataset.targetStatus;
+            const button = this;
+
+            if (!userId || !targetStatus) {
+                alert('Missing user information.');
+                return;
+            }
+
+            button.disabled = true;
+            button.textContent = 'Processing...';
+
+            fetch(`/admin/users/${userId}/status`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: targetStatus }),
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.message || data.error || 'Failed to update status');
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // Update row in place
+                    const row = document.querySelector(`tr[data-user-id="${userId}"]`);
+                    if (row) {
+                        const badge = row.querySelector(`.status-badge-user-${userId}`);
+                        if (badge) {
+                            badge.className = `status-badge ${targetStatus === 'Active' ? 'bg-soft-green text-green' : 'bg-soft-pink text-pink'} status-badge-user-${userId}`;
+                            badge.textContent = targetStatus;
+                        }
+                        const actionCell = row.querySelector(`.action-cell-user-${userId}`);
+                        if (actionCell) {
+                            const newStatus = targetStatus;
+                            const opposite = newStatus === 'Active' ? 'Suspended' : 'Active';
+                            const label = newStatus === 'Active' ? 'Suspend' : 'Activate';
+                            const btnClass = newStatus === 'Active' ? 'btn-outline-danger' : 'btn-outline-dark';
+                            actionCell.innerHTML = `
+                                <button class="btn btn-sm ${btnClass} toggle-user-btn"
+                                    data-bs-toggle="modal" data-bs-target="#toggleUserModal"
+                                    data-user-id="${userId}" data-user-name="${data.user?.display_name || 'User'}"
+                                    data-current-status="${newStatus}">${label}</button>
+                            `;
+                        }
+                    }
+                    modal.hide();
+                } else {
+                    throw new Error(data.message || 'Failed to update status');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error: ' + error.message);
+            })
+            .finally(() => {
+                button.disabled = false;
+                button.textContent = 'Confirm Change';
+            });
+        });
+    });
 </script>
 
 {% endblock %}

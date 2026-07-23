@@ -1,5 +1,5 @@
 """Admin routes for reviewing and resolving listing reports."""
-from flask import Blueprint, jsonify, render_template
+from flask import Blueprint, jsonify, render_template, request
 
 from app.auth import admin_required
 from app.db import (
@@ -8,6 +8,7 @@ from app.db import (
     get_all_reports,
     get_report_by_id,
 )
+from app.user_admin import get_all_users, update_user_status
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -15,9 +16,10 @@ admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 @admin_bp.route("")
 @admin_required
 def admin_dashboard():
-    """Render the admin moderation dashboard with all reports."""
+    """Render the admin moderation dashboard with all reports and users."""
     reports = get_all_reports()
-    return render_template("admin.html", reports=reports)
+    users = get_all_users()
+    return render_template("admin.html", reports=reports, users=users)
 
 
 @admin_bp.route("/reports")
@@ -71,3 +73,33 @@ def dismiss_report_route(report_id):
         "message": "Report dismissed successfully",
         "report": report,
     }), 200
+
+
+@admin_bp.route("/users")
+@admin_required
+def api_admin_users():
+    """Return all users as JSON."""
+    users = get_all_users()
+    return jsonify({"users": users}), 200
+
+
+@admin_bp.route("/users/<int:user_id>/status", methods=["POST"])
+@admin_required
+def update_user_status_route(user_id):
+    """
+    Admin endpoint to toggle a user's status between Active and Suspended.
+    Expects JSON body: {"status": "Active"} or {"status": "Suspended"}.
+    """
+    data = request.get_json(silent=True)
+    if not data or not data.get("status"):
+        return jsonify({"success": False, "error": "status is required"}), 400
+
+    status = data["status"]
+    if status not in ("Active", "Suspended"):
+        return jsonify({"success": False, "error": "status must be Active or Suspended"}), 400
+
+    user = update_user_status(user_id, status)
+    if user is None:
+        return jsonify({"success": False, "error": "User not found"}), 404
+
+    return jsonify({"success": True, "user": user}), 200
