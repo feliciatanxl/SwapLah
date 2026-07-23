@@ -11,13 +11,17 @@ from dotenv import load_dotenv
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.db import (
+    get_active_listings_by_seller,
     search_active_listings,
     get_reviews_for_user,
     get_db_connection,
     get_listing_by_id,
+    get_listing_category_summary,
     get_listings_by_seller,
+    get_sold_listings_by_seller,
     get_user_by_email,
     get_user_by_id,
+    get_user_profile_stats,
     get_user_rating_stats,
     init_db,
     update_user_account,
@@ -28,6 +32,15 @@ from app.routes.offers import offers_bp
 from app.routes.history import history_bp
 from app.routes.reviews import reviews_bp
 
+def _format_rating(value):
+    """Format a rating number, dropping a trailing '.0' (e.g. 4.0 -> '4')."""
+    if value is None:
+        return ""
+    if float(value) == int(value):
+        return str(int(value))
+    return str(value)
+
+
 SESSION_TIMEOUT_SECONDS = 30 * 60
 # SESSION_TIMEOUT_SECONDS = 10
 SESSION_TIMEOUT_MESSAGE = "Session expired due to inactivity. Please log in again."
@@ -35,6 +48,7 @@ SESSION_TIMEOUT_MESSAGE = "Session expired due to inactivity. Please log in agai
 PUBLIC_ENDPOINTS = {
     "index",
     "listing_detail",
+    "view_profile",
     "login",
     "register",
     "forgot_password",
@@ -231,6 +245,7 @@ def _render_index_page(page, search, category, condition):
         page=pagination["page"],
         total_pages=pagination["total_pages"],
         total_listings=pagination["total_listings"],
+        category_summary=get_listing_category_summary(),
         search=search,
         category=category,
         condition=condition,
@@ -388,6 +403,33 @@ def _save_profile_update(form_data):
     return redirect(url_for("profile"))
 
 
+def _render_profile_page(user, is_own_profile):
+    """Render the profile page with marketplace stats and lists."""
+    return render_template(
+        "profile.html",
+        user=user,
+        active_listings=get_active_listings_by_seller(user["id"]),
+        sold_listings=get_sold_listings_by_seller(user["id"]),
+        profile_stats=get_user_profile_stats(user["id"]),
+        reviews=get_reviews_for_user(user["id"]),
+        is_own_profile=is_own_profile,
+    )
+
+
+def _handle_profile_edit(user):
+    """Render or process the edit profile form."""
+    if request.method == "GET":
+        return render_template("edit_profile.html", user=user)
+
+    form_data = _get_profile_form_data()
+    error_response = _validate_profile_form(form_data, user)
+
+    if error_response:
+        return error_response
+
+    return _save_profile_update(form_data)
+
+
 def _register_main_routes(app):
     """Register homepage and simple listing page routes."""
 
@@ -458,15 +500,7 @@ def _register_profile_routes(app):
         if redirect_response:
             return redirect_response
 
-        rating = get_user_rating_stats(session["user_id"])
-        reviews = get_reviews_for_user(session["user_id"])
-        return render_template(
-            "profile.html",
-            user=user,
-            rating=rating,
-            reviews=reviews,
-            is_own_profile=True,
-        )
+        return _render_profile_page(user, is_own_profile=True)
 
     @app.route("/profile/<int:user_id>")
     def view_profile(user_id):
@@ -480,15 +514,7 @@ def _register_profile_routes(app):
             flash("This user does not exist.", "danger")
             return redirect(url_for("index"))
 
-        rating = get_user_rating_stats(user_id)
-        reviews = get_reviews_for_user(user_id)
-        return render_template(
-            "profile.html",
-            user=user,
-            rating=rating,
-            reviews=reviews,
-            is_own_profile=False,
-        )
+        return _render_profile_page(user, is_own_profile=False)
 
     @app.route("/profile/edit", methods=["GET", "POST"])
     def edit_profile():
@@ -500,16 +526,7 @@ def _register_profile_routes(app):
         if redirect_response:
             return redirect_response
 
-        if request.method == "GET":
-            return render_template("edit_profile.html", user=user)
-
-        form_data = _get_profile_form_data()
-        error_response = _validate_profile_form(form_data, user)
-
-        if error_response:
-            return error_response
-
-        return _save_profile_update(form_data)
+        return _handle_profile_edit(user)
 
 
 def _register_auth_routes(app):
@@ -589,6 +606,7 @@ def create_app():
     load_dotenv()
     app = Flask(__name__)
     app.config["SECRET_KEY"] = _load_secret_key()
+    app.jinja_env.filters["format_rating"] = _format_rating
     init_db()
 
     _register_main_routes(app)
