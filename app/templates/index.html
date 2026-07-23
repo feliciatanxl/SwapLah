@@ -47,7 +47,7 @@
 
         <div class="row g-3">
             <div class="col-6 col-sm-4 col-lg">
-                <a class="category-card {% if not category and not price_type %}category-card-active{% endif %}" href="{{ url_for('index') }}#latest-listings">
+                <a class="category-card {% if not category %}category-card-active{% endif %}" href="{{ url_for('index') }}#latest-listings">
                     <div class="category-icon"><i class="bi bi-grid"></i></div>
                     <div>
                         <h6>All</h6>
@@ -55,7 +55,6 @@
                     </div>
                 </a>
             </div>
-
             {% for category_row in category_summary.category_rows %}
             <div class="col-6 col-sm-4 col-lg">
                 <a class="category-card {% if category == category_row.label %}category-card-active{% endif %}" href="{{ url_for('index', category=category_row.label) }}#latest-listings">
@@ -98,14 +97,34 @@
                 <option value="Good" {% if request.args.get('condition')=='Good' %}selected{% endif %}>Good</option>
                 <option value="Fair" {% if request.args.get('condition')=='Fair' %}selected{% endif %}>Fair</option>
             </select>
-            {% if price_type %}
-            <input type="hidden" name="price_type" value="{{ price_type }}">
-            {% endif %}
             <button class="btn btn-accent" type="submit">Apply</button>
             <a class="btn btn-outline-dark" href="{{ url_for('index') }}#latest-listings">
                 Clear filters
             </a>
-           
+            {% if request.args.get('category') or request.args.get('condition') %}
+            <div class="filter-pills active-filter-row">
+                {% if request.args.get('category') %}
+                <a class="filter-pill text-decoration-none" aria-label="Clear category filter" href="{{ url_for(
+            'index',
+            search=request.args.get('search', ''),
+            condition=request.args.get('condition', '')
+        ) }}#latest-listings">
+                    {{ request.args.get('category') }} <i class="bi bi-x"></i>
+                </a>
+                {% endif %}
+
+                {% if request.args.get('condition') %}
+                <a class="filter-pill text-decoration-none" aria-label="Clear condition filter" href="{{ url_for(
+            'index',
+            search=request.args.get('search', ''),
+            category=request.args.get('category', '')
+        ) }}#latest-listings">
+                    {{ request.args.get('condition') }} <i class="bi bi-x"></i>
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+
         </form>
 
         <div class="row g-4">
@@ -197,8 +216,7 @@
                     <a class="page-link" href="{{ url_for('index',page=page-1,
        search=request.args.get('search', ''),
        category=request.args.get('category', ''),
-       condition=request.args.get('condition', ''),
-       price_type=request.args.get('price_type', '')
+       condition=request.args.get('condition', '')
    ) }}#latest-listings">
                         Previous
                     </a>
@@ -216,8 +234,7 @@
        page=p,
        search=request.args.get('search', ''),
        category=request.args.get('category', ''),
-       condition=request.args.get('condition', ''),
-       price_type=request.args.get('price_type', '')
+       condition=request.args.get('condition', '')
    ) }}#latest-listings">
                         {{ p }}
                     </a>
@@ -230,8 +247,7 @@
        page=page+1,
        search=request.args.get('search', ''),
        category=request.args.get('category', ''),
-       condition=request.args.get('condition', ''),
-       price_type=request.args.get('price_type', '')
+       condition=request.args.get('condition', '')
    ) }}#latest-listings">
                         Next
                     </a>
