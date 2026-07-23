@@ -2,7 +2,8 @@
 import pytest
 from flask import Flask, session
 
-# Admin helpers from app.auth
+# Import the auth module so we can patch its imported get_user_by_id
+import app.auth as auth_module
 from app.auth import (
     _is_admin_user,
     _require_admin_response,
@@ -10,14 +11,18 @@ from app.auth import (
 )
 # _admin_denied_response is defined in app/__init__.py
 from app import _admin_denied_response
-import app.db as db_module
 
 
 @pytest.fixture
 def helper_app():
-    """Create a minimal Flask app for helper tests."""
+    """Create a minimal Flask app with a dummy login route."""
     flask_app = Flask(__name__)
     flask_app.config["SECRET_KEY"] = "test-secret-key"
+
+    @flask_app.route("/login")
+    def login():
+        return "Login"
+
     return flask_app
 
 
@@ -40,8 +45,9 @@ def test_require_admin_redirects_logged_out_user(helper_app):
 
 def test_require_admin_blocks_non_admin_user(helper_app, monkeypatch):
     """Logged-in non-admin users should receive a forbidden response."""
+    # Patch the get_user_by_id that is imported inside app.auth
     monkeypatch.setattr(
-        db_module,
+        auth_module,
         "get_user_by_id",
         lambda user_id: {"id": user_id, "role": "user", "status": "Active"},
     )
@@ -53,7 +59,7 @@ def test_require_admin_blocks_non_admin_user(helper_app, monkeypatch):
 def test_admin_required_allows_active_admin(helper_app, monkeypatch):
     """Admin decorator should call the wrapped view for active admins."""
     monkeypatch.setattr(
-        db_module,
+        auth_module,
         "get_user_by_id",
         lambda user_id: {"id": user_id, "role": "admin", "status": "Active"},
     )
