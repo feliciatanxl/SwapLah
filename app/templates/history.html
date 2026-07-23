@@ -7,7 +7,6 @@
             <h1 class="section-title">Transaction History</h1>
             <p class="section-subtitle">Completed buys, sells, swaps, and review actions.</p>
         </div>
-        <span class="status-badge bg-soft-green text-green"><i class="bi bi-check-circle"></i> Demo data</span>
     </div>
 
     <div class="row g-3 mb-4">
@@ -26,7 +25,7 @@
 
     <div class="tab-content">
         <div class="tab-pane fade show active" id="buyer-history" role="tabpanel" tabindex="0">
-            <div class="table-card" id="buyerTableCard">
+            <div class="table-card d-none" id="buyerTableCard">
                 <table class="table align-middle mb-0">
                     <thead><tr><th>Item</th><th>Seller</th><th>Date</th><th>Amount</th><th>Review</th></tr></thead>
                     <tbody id="buyerHistoryBody"></tbody>
@@ -34,13 +33,13 @@
             </div>
             <div class="empty-state mt-4 d-none" id="buyerEmptyState">
                 <i class="bi bi-bag-check"></i>
-                <strong>No more buying transactions</strong>
+                <strong>No buying transactions yet</strong>
                 <span>Accepted purchases and swaps will appear here.</span>
             </div>
         </div>
 
         <div class="tab-pane fade" id="seller-history" role="tabpanel" tabindex="0">
-            <div class="table-card" id="sellerTableCard">
+            <div class="table-card d-none" id="sellerTableCard">
                 <table class="table align-middle mb-0">
                     <thead><tr><th>Item</th><th>Buyer</th><th>Date</th><th>Amount</th><th>Review</th></tr></thead>
                     <tbody id="sellerHistoryBody"></tbody>
@@ -48,10 +47,29 @@
             </div>
             <div class="empty-state mt-4 d-none" id="sellerEmptyState">
                 <i class="bi bi-shop"></i>
-                <strong>No more selling transactions</strong>
+                <strong>No selling transactions yet</strong>
                 <span>Completed sales will appear here after offers are accepted.</span>
             </div>
         </div>
+    </div>
+
+    <div class="page-heading mt-5">
+        <div>
+            <h2 class="section-title">Offer Outcomes</h2>
+            <p class="section-subtitle">Accepted and rejected cash or swap offers.</p>
+        </div>
+    </div>
+
+    <div class="table-card d-none" id="outcomesTableCard">
+        <table class="table align-middle mb-0">
+            <thead><tr><th>Item</th><th>Buyer</th><th>Seller</th><th>Status</th><th>Offer</th><th>Date</th></tr></thead>
+            <tbody id="outcomesBody"></tbody>
+        </table>
+    </div>
+    <div class="empty-state mt-4 d-none" id="outcomesEmptyState">
+        <i class="bi bi-clock-history"></i>
+        <strong>No resolved offers yet</strong>
+        <span>Accepted and rejected offers will appear here.</span>
     </div>
 </section>
 
@@ -131,6 +149,31 @@
         }).join("");
     }
 
+    function formatOfferValue(offer) {
+        if (offer.offerType === "swap") {
+            return "Swap: " + (offer.swapListingTitle || "Unknown item");
+        }
+        if (offer.proposedPrice === null || offer.proposedPrice === undefined) {
+            return "Cash";
+        }
+        return "$" + Number(offer.proposedPrice).toFixed(2);
+    }
+
+    function renderOutcomeRows(offers) {
+        const tbody = document.getElementById("outcomesBody");
+        tbody.innerHTML = offers.map(function (o) {
+            const statusClass = o.status === "Accepted" ? "bg-soft-green text-green" : "bg-soft-pink text-pink";
+            return "<tr>" +
+                "<td><strong>" + escapeHtml(o.listingTitle) + "</strong><br><small class=\"text-muted\">" + escapeHtml(o.listingCategory) + "</small></td>" +
+                "<td>" + escapeHtml(o.buyerDisplayName) + "</td>" +
+                "<td>" + escapeHtml(o.sellerDisplayName) + "</td>" +
+                "<td><span class=\"status-badge " + statusClass + "\">" + escapeHtml(o.status) + "</span></td>" +
+                "<td>" + escapeHtml(formatOfferValue(o)) + "</td>" +
+                "<td>" + escapeHtml(formatDate(o.createdAt)) + "</td>" +
+                "</tr>";
+        }).join("");
+    }
+
     function showError(message) {
         const errorBox = document.getElementById("historyError");
         errorBox.textContent = message;
@@ -170,9 +213,36 @@
         }
     }
 
+    async function loadOfferOutcomes() {
+        try {
+            const res = await fetch("/api/transactions/offers");
+            if (!res.ok) {
+                const body = await res.json().catch(function () { return {}; });
+                showError(body.error || "Unable to load offer outcomes.");
+                return [];
+            }
+            const data = await res.json();
+            const offers = data.offers || [];
+
+            if (offers.length === 0) {
+                document.getElementById("outcomesTableCard").classList.add("d-none");
+                document.getElementById("outcomesEmptyState").classList.remove("d-none");
+            } else {
+                document.getElementById("outcomesEmptyState").classList.add("d-none");
+                document.getElementById("outcomesTableCard").classList.remove("d-none");
+                renderOutcomeRows(offers);
+            }
+            return offers;
+        } catch (err) {
+            showError("Network error. Please try again.");
+            return [];
+        }
+    }
+
     async function init() {
         const buyerTransactions = await loadHistory("buyer", "buyerTableCard", "buyerEmptyState", "buyerHistoryBody");
         const sellerTransactions = await loadHistory("seller", "sellerTableCard", "sellerEmptyState", "sellerHistoryBody");
+        await loadOfferOutcomes();
 
         const totalSpent = buyerTransactions.reduce(function (sum, t) { return sum + (t.transactionType === "cash" ? Number(t.amount || 0) : 0); }, 0);
         const totalEarned = sellerTransactions.reduce(function (sum, t) { return sum + (t.transactionType === "cash" ? Number(t.amount || 0) : 0); }, 0);

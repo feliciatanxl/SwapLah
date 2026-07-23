@@ -15,10 +15,14 @@ __pycache__/
 
 # Pytest / coverage
 .pytest_cache/
+.pytest-tmp/
+.pytest-*-tmp/
+.pylint-cache/
 .coverage
 coverage.xml
 htmlcov/
 reports/
+swaplah-sbom.cdx.json
 
 # Databases
 *.db
@@ -34,5 +38,4 @@ Thumbs.db
 dist/
 build/
 *.egg-info/
-
 .agents/

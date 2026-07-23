@@ -68,7 +68,7 @@ def test_transactions_default_to_buyer_role(client, monkeypatch):
     response = client.get("/api/transactions")
 
     assert response.status_code == 200
-    assert response.get_json() == {"transactions": []}
+    assert response.get_json() == {"role": "buyer", "transactions": []}
     assert requested == [(73, "buyer")]
 
 
@@ -117,6 +117,7 @@ def test_transactions_serialise_database_fields(client, monkeypatch):
 
     assert response.status_code == 200
     assert response.get_json() == {
+        "role": "buyer",
         "transactions": [
             {
                 "id": 7,

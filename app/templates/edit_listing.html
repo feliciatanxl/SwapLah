@@ -163,7 +163,7 @@
         const removeCurrentImageBtn = document.getElementById("remove-current-image-btn");
         const clearImagesBtn = document.getElementById("clear-images-btn");
 
-        
+
         const initialPrice = "{{ listing.price }}";
         let selectedImages = JSON.parse('{{ listing.images | tojson | safe }}');
         let currentImageIndex = 0;
