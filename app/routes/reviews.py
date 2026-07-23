@@ -33,12 +33,14 @@ def _format_review(review):
     }
 
 
-def _check_seller_review_access(transaction_id):
+def _check_transaction_review_access(transaction_id, role):
     """
-    Shared validation for the seller-review endpoint: auth, existence, ownership.
+    Shared validation for the review endpoints: auth, existence, ownership.
 
-    Returns a Flask (body, status) response tuple on failure, or the
-    transaction dict when the caller may proceed.
+    role must be either 'seller' or 'buyer' and selects which party is
+    required to be the logged-in user. Returns a Flask (body, status)
+    response tuple on failure, or the transaction dict when the caller
+    may proceed.
     """
     if not session.get("user_id"):
         return None, (jsonify({"error": "You must be logged in to submit a review."}), 401)
@@ -47,12 +49,22 @@ def _check_seller_review_access(transaction_id):
     if transaction is None:
         return None, (jsonify({"error": "Transaction not found or not completed."}), 404)
 
-    if transaction["seller_id"] != session.get("user_id"):
+    if transaction[f"{role}_id"] != session.get("user_id"):
         return None, (
-            jsonify({"error": "You were not the seller in this transaction."}), 403
+            jsonify({"error": f"You were not the {role} in this transaction."}), 403
         )
 
     return transaction, None
+
+
+def _check_seller_review_access(transaction_id):
+    """Validation for the seller-review endpoint: auth, existence, ownership."""
+    return _check_transaction_review_access(transaction_id, "seller")
+
+
+def _check_buyer_review_access(transaction_id):
+    """Validation for the buyer-review endpoint: auth, existence, ownership."""
+    return _check_transaction_review_access(transaction_id, "buyer")
 
 
 def _validate_rating(rating):
@@ -104,6 +116,50 @@ def submit_seller_review(transaction_id):
         transaction_id=transaction_id,
         reviewer_id=transaction["seller_id"],
         reviewed_user_id=transaction["buyer_id"],
+        rating=rating,
+        comment=comment,
+    )
+
+    return jsonify({
+        "message": "Review submitted successfully.",
+        "review": _format_review(review),
+    }), 201
+
+
+# ---------------------------------------------------------------------------
+# POST /api/transactions/<id>/buyer-review  —  buyer reviews the seller
+# ---------------------------------------------------------------------------
+
+@reviews_bp.route("/api/transactions/<int:transaction_id>/buyer-review", methods=["POST"])
+def submit_buyer_review(transaction_id):
+    """
+    Accepts JSON:
+      rating   (int)  required, 1 to 5
+      comment  (str)  optional
+
+    Only the buyer of the given completed transaction may submit this
+    review. Saves a review linked to the transaction and to the seller's
+    profile.
+
+    Returns 201 with the created review on success.
+    """
+    transaction, error = _check_buyer_review_access(transaction_id)
+    if error:
+        return error
+
+    data = request.get_json(silent=True) or {}
+    rating = data.get("rating")
+
+    rating_error = _validate_rating(rating)
+    if rating_error:
+        return rating_error
+
+    comment = data.get("comment") or ""
+
+    review = db_module.create_review(
+        transaction_id=transaction_id,
+        reviewer_id=transaction["buyer_id"],
+        reviewed_user_id=transaction["seller_id"],
         rating=rating,
         comment=comment,
     )

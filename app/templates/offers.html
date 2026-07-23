@@ -63,36 +63,6 @@
     </div>
 </div>
 
-<!-- Leave a review modal -->
-<div class="modal fade" id="reviewBuyerModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content confirm-modal">
-            <div class="modal-header">
-                <h5 class="modal-title">Leave a review for <span id="reviewBuyerName"></span></h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <label for="reviewRating" class="form-label">Rating</label>
-                <select id="reviewRating" class="form-select mb-3">
-                    <option value="5">5 - Excellent</option>
-                    <option value="4">4 - Good</option>
-                    <option value="3">3 - Average</option>
-                    <option value="2">2 - Poor</option>
-                    <option value="1">1 - Very poor</option>
-                </select>
-                <label for="reviewComment" class="form-label">Comment (optional)</label>
-                <textarea id="reviewComment" class="form-control" rows="3"
-                    placeholder="Share your experience with this buyer..."></textarea>
-                <div id="reviewModalError" class="alert alert-danger mt-3 d-none"></div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-outline-dark" data-bs-dismiss="modal">Cancel</button>
-                <button class="btn btn-accent" id="confirmReviewBtn">Submit Review</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <script>
 let pendingOfferId = null;
 
@@ -177,24 +147,20 @@ function renderOfferCard(o) {
         ? `<button class="btn btn-accept" onclick="openAccept(${o.id})"><i class="bi bi-check-lg"></i> Accept</button>
            <button class="btn btn-reject" onclick="openReject(${o.id})"><i class="bi bi-x-lg"></i> Reject</button>`
         : `<button class="btn btn-outline-dark" disabled>${escHtml(o.status)}</button>`;
-    const reviewButton = (o.status === "Accepted" && o.transactionId)
-        ? `<button type="button" class="btn btn-sm btn-outline-primary review-btn"
-             data-transaction-id="${o.transactionId}" data-buyer-name="${escHtml(o.buyerDisplayName)}">
-             <i class="bi bi-star"></i> Leave a review</button>`
-        : "";
 
     return `
     <article class="offer-card ${isMuted ? "is-muted" : ""}" id="offer-${o.id}">
         <div class="offer-main">
             <div class="offer-content">
                 <div class="offer-meta">
+                    <span class="status-badge bg-soft-blue text-blue"><i class="bi bi-shop"></i> Selling</span>
                     ${typeIcon}
                     <span class="status-badge ${statusClass}">${escHtml(o.status)}</span>
                     <span class="offer-time">${timeAgo(o.createdAt)}</span>
                 </div>
                 <h4 class="offer-item-title">${escHtml(o.buyerDisplayName)}</h4>
                 <div class="offer-message">${offerDetail}</div>
-                <div class="offer-user"><span class="offer-avatar">${avatar}</span>${reviewButton}</div>
+                <div class="offer-user"><span class="offer-avatar">${avatar}</span></div>
             </div>
         </div>
         <div class="offer-actions">${actions}</div>
@@ -249,61 +215,6 @@ document.getElementById("confirmRejectBtn").addEventListener("click", async () =
         showFlash("Network error. Please try again.", "danger");
     }
     pendingOfferId = null;
-});
-
-let pendingReviewTransactionId = null;
-
-function openReviewModal(transactionId, buyerName) {
-    pendingReviewTransactionId = transactionId;
-    document.getElementById("reviewBuyerName").textContent = buyerName;
-    document.getElementById("reviewRating").value = "5";
-    document.getElementById("reviewComment").value = "";
-    document.getElementById("reviewModalError").classList.add("d-none");
-    new bootstrap.Modal(document.getElementById("reviewBuyerModal")).show();
-}
-
-function showReviewModalError(message) {
-    const errorBox = document.getElementById("reviewModalError");
-    errorBox.textContent = message;
-    errorBox.classList.remove("d-none");
-}
-
-document.getElementById("offers-container").addEventListener("click", (event) => {
-    const button = event.target.closest(".review-btn");
-    if (!button) return;
-    openReviewModal(button.dataset.transactionId, button.dataset.buyerName);
-});
-
-document.getElementById("confirmReviewBtn").addEventListener("click", async () => {
-    if (!pendingReviewTransactionId) return;
-
-    const rating = parseInt(document.getElementById("reviewRating").value, 10);
-    const comment = document.getElementById("reviewComment").value.trim();
-
-    try {
-        const res = await fetch(`/api/transactions/${pendingReviewTransactionId}/review`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ rating, comment }),
-        });
-        const data = await res.json();
-
-        if (!res.ok) {
-            showReviewModalError(data.error || "Unable to submit review.");
-            return;
-        }
-
-        bootstrap.Modal.getInstance(document.getElementById("reviewBuyerModal")).hide();
-        const button = document.querySelector(`[data-transaction-id="${pendingReviewTransactionId}"]`);
-        if (button) {
-            button.outerHTML = `<span class="status-badge bg-soft-green text-green">
-                <i class="bi bi-check-circle-fill"></i> Reviewed</span>`;
-        }
-        showFlash("Review submitted successfully.");
-        pendingReviewTransactionId = null;
-    } catch {
-        showReviewModalError("Network error. Please try again.");
-    }
 });
 
 async function loadOffers() {

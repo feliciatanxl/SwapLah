@@ -88,13 +88,11 @@ SELECT
     listings.category AS listing_category,
     listings.price AS listing_price,
     buyer.display_name AS buyer_display_name,
-    swap_listing.title AS swap_listing_title,
-    transactions.id AS transaction_id
+    swap_listing.title AS swap_listing_title
 FROM offers
 JOIN listings ON offers.listing_id = listings.id
 JOIN users AS buyer ON offers.buyer_id = buyer.id
 LEFT JOIN listings AS swap_listing ON offers.swap_listing_id = swap_listing.id
-LEFT JOIN transactions ON transactions.offer_id = offers.id
 WHERE listings.seller_id = ?
 ORDER BY offers.created_at DESC
 """
