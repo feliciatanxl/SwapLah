@@ -1,52 +1,55 @@
-
-
 import pytest
+import app.db as db_module
 from app import create_app
 from app.db import get_db_connection, init_db
 
 @pytest.fixture
-def client():
+def client(tmp_path, monkeypatch):
     """Create test client with session"""
-    app = create_app()
-    app.config['TESTING'] = True
-    app.config['SECRET_KEY'] = 'test-secret'
+    test_db = tmp_path / "test_listing_report_api.db"
+    monkeypatch.setattr(db_module, "DATABASE", test_db)
+
+    flask_app = create_app()
+    flask_app.config['TESTING'] = True
+    flask_app.config['SECRET_KEY'] = 'test-secret'
     
-    with app.test_client() as client:
+    with flask_app.test_client() as client:
         # Set up test data
-        init_db()
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # Create test user
-        cursor.execute(
-            "INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)",
-            ('testuser', 'test@example.com', 'hash')
-        )
-        user_id = cursor.lastrowid
-        
-        # Create another user (for testing different reporters)
-        cursor.execute(
-            "INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)",
-            ('otheruser', 'other@example.com', 'hash')
-        )
-        other_id = cursor.lastrowid
-        
-        # Create test listing
-        cursor.execute("""
-            INSERT INTO listings (title, description, price, seller_id, status, created_at)
-            VALUES (?, ?, ?, ?, ?, datetime('now'))
-        """, ('Test Listing', 'Description', 100, user_id, 'Active'))
-        listing_id = cursor.lastrowid
-        
-        # Create deleted listing
-        cursor.execute("""
-            INSERT INTO listings (title, description, price, seller_id, status, created_at)
-            VALUES (?, ?, ?, ?, ?, datetime('now'))
-        """, ('Deleted Listing', 'Description', 100, user_id, 'Deleted'))
-        deleted_listing_id = cursor.lastrowid
-        
-        conn.commit()
-        conn.close()
+        with flask_app.app_context():
+            init_db()
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            # Create test user
+            cursor.execute(
+                "INSERT INTO users (student_id, first_name, last_name, display_name, email, contact_number, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                ('S00000001', 'Test', 'User', 'testuser', 'test@example.com', '12345678', 'hash')
+            )
+            user_id = cursor.lastrowid
+            
+            # Create another user (for testing different reporters)
+            cursor.execute(
+                "INSERT INTO users (student_id, first_name, last_name, display_name, email, contact_number, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                ('S00000002', 'Other', 'User', 'otheruser', 'other@example.com', '87654321', 'hash')
+            )
+            other_id = cursor.lastrowid
+            
+            # Create test listing
+            cursor.execute("""
+                INSERT INTO listings (title, description, price, seller_id, category, item_condition, image_url, listing_date, last_modified_timestamp, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), ?)
+            """, ('Test Listing', 'Description', 100, user_id, 'Electronics', 'Good', 'http://example.com/image.jpg', 'Active'))
+            listing_id = cursor.lastrowid
+            
+            # Create deleted listing
+            cursor.execute("""
+                INSERT INTO listings (title, description, price, seller_id, category, item_condition, image_url, listing_date, last_modified_timestamp, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), ?)
+            """, ('Deleted Listing', 'Description', 100, user_id, 'Electronics', 'Good', 'http://example.com/image.jpg', 'Deleted'))
+            deleted_listing_id = cursor.lastrowid
+            
+            conn.commit()
+            conn.close()
         
         # Store test data in client
         client.test_data = {
