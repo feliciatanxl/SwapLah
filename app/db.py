@@ -812,3 +812,4 @@ def dismiss_report(report_id):
         return None, "database_error"
     finally:
         conn.close()
+        
