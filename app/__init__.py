@@ -13,22 +13,24 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from app.db import (
     get_active_listings_by_seller,
     search_active_listings,
-    get_reviews_for_user,
     get_db_connection,
     get_listing_by_id,
     get_listing_category_summary,
     get_listings_by_seller,
+    get_reviews_for_user,
     get_sold_listings_by_seller,
     get_user_by_email,
     get_user_by_id,
     get_user_profile_stats,
+    get_user_rating_stats,
     init_db,
     update_user_account,
 )
-import app.db as db_module  # noqa: F401 — exposes db functions for monkeypatching in tests
+import app.db as db_module  # noqa: F401 - exposes db functions for monkeypatching in tests
 from app.routes.listing import listings_bp
 from app.routes.offers import offers_bp
 from app.routes.history import history_bp
+from app.routes.reviews import reviews_bp
 
 SESSION_TIMEOUT_SECONDS = 30 * 60
 # SESSION_TIMEOUT_SECONDS = 10
@@ -255,6 +257,7 @@ def _render_listing_detail_page(listing_id):
         "listing_detail.html",
         listing=listing,
         listing_id=listing_id,
+        seller_rating=get_user_rating_stats(listing["seller_id"]),
         error_message=None,
     )
 
@@ -390,7 +393,7 @@ def _save_profile_update(form_data):
     return redirect(url_for("profile"))
 
 
-def _render_profile_page(user):
+def _render_profile_page(user, is_own_profile):
     """Render the profile page with marketplace stats and lists."""
     return render_template(
         "profile.html",
@@ -399,6 +402,7 @@ def _render_profile_page(user):
         sold_listings=get_sold_listings_by_seller(user["id"]),
         profile_stats=get_user_profile_stats(user["id"]),
         reviews=get_reviews_for_user(user["id"]),
+        is_own_profile=is_own_profile,
     )
 
 
@@ -494,7 +498,21 @@ def _register_profile_routes(app):
         if redirect_response:
             return redirect_response
 
-        return _render_profile_page(user)
+        return _render_profile_page(user, is_own_profile=True)
+
+    @app.route("/profile/<int:user_id>")
+    def view_profile(user_id):
+        """Render another user's public profile page."""
+        if session.get("user_id") == user_id:
+            return redirect(url_for("profile"))
+
+        user = get_user_by_id(user_id)
+
+        if user is None:
+            flash("This user does not exist.", "danger")
+            return redirect(url_for("index"))
+
+        return _render_profile_page(user, is_own_profile=False)
 
     @app.route("/profile/edit", methods=["GET", "POST"])
     def edit_profile():
@@ -599,5 +617,6 @@ def create_app():
     app.register_blueprint(listings_bp)
     app.register_blueprint(offers_bp)
     app.register_blueprint(history_bp)
+    app.register_blueprint(reviews_bp)
 
     return app

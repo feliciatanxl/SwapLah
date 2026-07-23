@@ -28,11 +28,14 @@
                 </div>
             </div>
 
+            {% if is_own_profile %}
             <a href="{{ url_for('edit_profile') }}" class="btn btn-accent px-4 py-2">
                 <i class="bi bi-pencil"></i> Edit profile
             </a>
+            {% endif %}
         </div>
 
+        {% if is_own_profile %}
         <div class="account-details-card mt-4">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
                 <div>
@@ -88,6 +91,7 @@
                 </div>
             </div>
         </div>
+        {% endif %}
 
         <div class="row g-3 mt-4">
             <div class="col-md-3">
@@ -95,12 +99,13 @@
                     <small class="stats-label text-yellow">
                         <i class="bi bi-star-fill"></i> Avg rating
                     </small>
-                    {% if profile_stats.average_rating %}
+                    {% if profile_stats.review_count > 0 %}
                     <h2 class="fw-bold mt-2 text-dark mb-0">{{ "%.1f"|format(profile_stats.average_rating) }}<span class="text-muted fs-5">/5</span></h2>
+                    <p class="text-muted mb-0 mt-1">{{ profile_stats.review_count }} review{{ 's' if profile_stats.review_count != 1 else '' }}</p>
                     {% else %}
-                    <h2 class="fw-bold mt-2 text-dark mb-0">--<span class="text-muted fs-5">/5</span></h2>
+                    <h3 class="fw-bold mt-2 text-dark mb-0 fs-4">No reviews yet</h3>
+                    <p class="text-muted mb-0 mt-1">0 reviews</p>
                     {% endif %}
-                    <p class="text-muted mb-0 mt-1">{{ profile_stats.review_count }} review{% if profile_stats.review_count != 1 %}s{% endif %}</p>
                 </div>
             </div>
 
@@ -196,19 +201,26 @@
                 <div class="review-card">
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <div class="d-flex gap-3 align-items-center">
-                            <div class="offer-avatar bg-soft-blue text-blue">{{ review.reviewer_display_name[0] if review.reviewer_display_name else "S" }}</div>
+                            <div class="offer-avatar bg-soft-blue text-blue">
+                                {{ review.reviewer_name[0] if review.reviewer_name else "?" }}
+                            </div>
                             <div>
-                                <h6 class="fw-bold mb-0">{{ review.reviewer_display_name or "Student Reviewer" }}</h6>
+                                <h6 class="fw-bold mb-0">{{ review.reviewer_name or "Former user" }}</h6>
                                 <div class="text-warning">
                                     {% for _ in range(review.rating) %}
                                     <i class="bi bi-star-fill"></i>
+                                    {% endfor %}
+                                    {% for _ in range(5 - review.rating) %}
+                                    <i class="bi bi-star"></i>
                                     {% endfor %}
                                 </div>
                             </div>
                         </div>
                         <span class="text-muted">{{ review.created_at }}</span>
                     </div>
+                    {% if review.comment %}
                     <p class="mb-0 text-dark">{{ review.comment }}</p>
+                    {% endif %}
                 </div>
                 {% else %}
                 <div class="empty-state">

@@ -354,7 +354,6 @@ def get_listing_by_id(listing_id):
 
     return _attach_images(dict(listing))
 
-
 def ensure_listing_status_column(conn):
     """Add the listing status column if it does not already exist."""
     columns = conn.execute("PRAGMA table_info(listings)").fetchall()
@@ -642,7 +641,8 @@ def get_reviews_for_user(user_id):
             reviews.rating,
             reviews.comment,
             reviews.created_at,
-            users.display_name AS reviewer_display_name
+            users.display_name AS reviewer_display_name,
+            users.display_name AS reviewer_name
         FROM reviews
         LEFT JOIN users ON reviews.reviewer_id = users.id
         WHERE reviews.reviewed_user_id = ?
@@ -855,7 +855,6 @@ def reject_offer(offer_id):
     conn.close()
     return dict(offer)
 
-
 def accept_offer(offer_id):
     """
     Accept a pending offer.
@@ -887,3 +886,44 @@ def accept_offer(offer_id):
     updated_offer = conn.execute("SELECT * FROM offers WHERE id = ?", (offer_id,)).fetchone()
     conn.close()
     return dict(updated_offer)
+
+
+def get_user_rating_stats(user_id):
+    """Return the average rating and review count received by a user."""
+    conn = get_db_connection()
+    row = conn.execute(
+        """
+        SELECT
+            AVG(rating) AS average_rating,
+            COUNT(*) AS review_count
+        FROM reviews
+        WHERE reviewed_user_id = ?
+        """,
+        (user_id,),
+    ).fetchone()
+    conn.close()
+    review_count = row["review_count"]
+
+    return {
+        "average_rating": round(row["average_rating"], 1) if review_count > 0 else None,
+        "review_count": review_count,
+    }
+
+
+def create_review(reviewer_id, reviewed_user_id, rating, comment=""):
+    """Create a review for a user and return the saved review."""
+    conn = get_db_connection()
+    cursor = conn.execute(
+        """
+        INSERT INTO reviews (reviewed_user_id, reviewer_id, rating, comment)
+        VALUES (?, ?, ?, ?)
+        """,
+        (reviewed_user_id, reviewer_id, rating, comment or ""),
+    )
+    conn.commit()
+    review = conn.execute(
+        "SELECT * FROM reviews WHERE id = ?",
+        (cursor.lastrowid,),
+    ).fetchone()
+    conn.close()
+    return dict(review)
