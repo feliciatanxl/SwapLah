@@ -7,8 +7,9 @@ Unit tests for:
 All DB calls are monkeypatched — no real database needed.
 """
 import pytest
-import app.db as db_module
 from app import create_app
+from app.routes import offers as offers_routes
+import app.db as db_module
 
 
 # ---------------------------------------------------------------------------
@@ -213,7 +214,6 @@ def test_unit_reject_does_not_touch_other_offers(client, monkeypatch):
     monkeypatch.setattr(db_module, "get_listing_owner", lambda lid: 1)
 
     rejected_ids = []
-
     def fake_reject(oid):
         rejected_ids.append(oid)
         return FAKE_OFFER_REJECTED
@@ -223,3 +223,110 @@ def test_unit_reject_does_not_touch_other_offers(client, monkeypatch):
     client.patch("/api/offers/1/reject")
 
     assert rejected_ids == [1]
+
+# ===========================================================================
+# POST /api/offers  —  create offer (coverage helpers)
+# ===========================================================================
+
+FAKE_CREATED_CASH = {
+    "id": 99, "listing_id": 10, "buyer_id": 2, "offer_type": "cash",
+    "proposed_price": 30.0, "swap_listing_id": None, "status": "Pending",
+    "created_at": "2026-06-10 09:00:00",
+}
+
+FAKE_CREATED_SWAP = {
+    "id": 100, "listing_id": 10, "buyer_id": 2, "offer_type": "swap",
+    "proposed_price": None, "swap_listing_id": 5, "status": "Pending",
+    "created_at": "2026-06-10 09:01:00",
+}
+
+
+def test_create_offer_unauthenticated(client):
+    """No session → 401."""
+    resp = client.post("/api/offers", json={"listingId": 10, "offerType": "cash", "proposedPrice": 30})
+    assert resp.status_code == 401
+
+
+def test_create_offer_missing_listing_id(client):
+    """Missing listingId → 400."""
+    login_as(client, 2)
+    resp = client.post("/api/offers", json={"offerType": "cash", "proposedPrice": 30})
+    assert resp.status_code == 400
+
+
+def test_create_offer_invalid_offer_type(client, monkeypatch):
+    """Bad offerType → 400."""
+    login_as(client, 2)
+    monkeypatch.setattr(db_module, "get_listing_owner", lambda lid: 1)
+    resp = client.post("/api/offers", json={"listingId": 10, "offerType": "barter"})
+    assert resp.status_code == 400
+
+
+def test_create_offer_listing_not_found(client, monkeypatch):
+    """Listing doesn't exist → 404."""
+    login_as(client, 2)
+    monkeypatch.setattr(db_module, "get_listing_owner", lambda lid: None)
+    resp = client.post("/api/offers", json={"listingId": 999, "offerType": "cash", "proposedPrice": 30})
+    assert resp.status_code == 404
+
+
+def test_create_offer_own_listing_forbidden(client, monkeypatch):
+    """Buyer is the seller → 403."""
+    login_as(client, 1)
+    monkeypatch.setattr(db_module, "get_listing_owner", lambda lid: 1)
+    resp = client.post("/api/offers", json={"listingId": 10, "offerType": "cash", "proposedPrice": 30})
+    assert resp.status_code == 403
+
+
+def test_create_cash_offer_missing_price(client, monkeypatch):
+    """Cash offer with no price → 400."""
+    login_as(client, 2)
+    monkeypatch.setattr(db_module, "get_listing_owner", lambda lid: 1)
+    resp = client.post("/api/offers", json={"listingId": 10, "offerType": "cash"})
+    assert resp.status_code == 400
+
+
+def test_create_cash_offer_negative_price(client, monkeypatch):
+    """Cash offer with negative price → 400."""
+    login_as(client, 2)
+    monkeypatch.setattr(db_module, "get_listing_owner", lambda lid: 1)
+    resp = client.post("/api/offers", json={"listingId": 10, "offerType": "cash", "proposedPrice": -5})
+    assert resp.status_code == 400
+
+
+def test_create_cash_offer_success(client, monkeypatch):
+    """Valid cash offer → 201."""
+    login_as(client, 2)
+    monkeypatch.setattr(db_module, "get_listing_owner", lambda lid: 1)
+    monkeypatch.setattr(db_module, "create_offer", lambda **kw: FAKE_CREATED_CASH)
+    resp = client.post("/api/offers", json={"listingId": 10, "offerType": "cash", "proposedPrice": 30})
+    assert resp.status_code == 201
+    assert resp.get_json()["offer"]["status"] == "Pending"
+
+
+def test_create_swap_offer_missing_swap_id(client, monkeypatch):
+    """Swap offer with no swapListingId → 400."""
+    login_as(client, 2)
+    monkeypatch.setattr(db_module, "get_listing_owner", lambda lid: 1)
+    resp = client.post("/api/offers", json={"listingId": 10, "offerType": "swap"})
+    assert resp.status_code == 400
+
+
+def test_create_swap_offer_not_own_listing(client, monkeypatch):
+    """Swap item not owned by buyer → 403."""
+    login_as(client, 2)
+    monkeypatch.setattr(db_module, "get_listing_owner", lambda lid: 1)
+    monkeypatch.setattr(db_module, "get_active_listing_by_buyer", lambda sid, bid: None)
+    resp = client.post("/api/offers", json={"listingId": 10, "offerType": "swap", "swapListingId": 5})
+    assert resp.status_code == 403
+
+
+def test_create_swap_offer_success(client, monkeypatch):
+    """Valid swap offer → 201."""
+    login_as(client, 2)
+    monkeypatch.setattr(db_module, "get_listing_owner", lambda lid: 1)
+    monkeypatch.setattr(db_module, "get_active_listing_by_buyer", lambda sid, bid: {"id": 5})
+    monkeypatch.setattr(db_module, "create_offer", lambda **kw: FAKE_CREATED_SWAP)
+    resp = client.post("/api/offers", json={"listingId": 10, "offerType": "swap", "swapListingId": 5})
+    assert resp.status_code == 201
+    assert resp.get_json()["offer"]["offerType"] == "swap"
