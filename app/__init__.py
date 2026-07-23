@@ -28,6 +28,15 @@ from app.routes.offers import offers_bp
 from app.routes.history import history_bp
 from app.routes.reviews import reviews_bp
 
+def _format_rating(value):
+    """Format a rating number, dropping a trailing '.0' (e.g. 4.0 -> '4')."""
+    if value is None:
+        return ""
+    if float(value) == int(value):
+        return str(int(value))
+    return str(value)
+
+
 SESSION_TIMEOUT_SECONDS = 30 * 60
 # SESSION_TIMEOUT_SECONDS = 10
 SESSION_TIMEOUT_MESSAGE = "Session expired due to inactivity. Please log in again."
@@ -592,6 +601,7 @@ def create_app():
     load_dotenv()
     app = Flask(__name__)
     app.config["SECRET_KEY"] = _load_secret_key()
+    app.jinja_env.filters["format_rating"] = _format_rating
     init_db()
 
     _register_main_routes(app)
