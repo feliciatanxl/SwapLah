@@ -56,6 +56,7 @@ def _format_offer(offer):
         formatted["listingPrice"] = offer["listing_price"]
         formatted["buyerDisplayName"] = offer["buyer_display_name"]
         formatted["swapListingTitle"] = offer.get("swap_listing_title")
+        formatted["transactionId"] = offer.get("transaction_id")
 
     return formatted
 

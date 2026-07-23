@@ -88,11 +88,13 @@ SELECT
     listings.category AS listing_category,
     listings.price AS listing_price,
     buyer.display_name AS buyer_display_name,
-    swap_listing.title AS swap_listing_title
+    swap_listing.title AS swap_listing_title,
+    transactions.id AS transaction_id
 FROM offers
 JOIN listings ON offers.listing_id = listings.id
 JOIN users AS buyer ON offers.buyer_id = buyer.id
 LEFT JOIN listings AS swap_listing ON offers.swap_listing_id = swap_listing.id
+LEFT JOIN transactions ON transactions.offer_id = offers.id
 WHERE listings.seller_id = ?
 ORDER BY offers.created_at DESC
 """
@@ -100,11 +102,13 @@ ORDER BY offers.created_at DESC
 CREATE_REVIEWS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS reviews (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    transaction_id INTEGER NOT NULL,
     reviewed_user_id INTEGER NOT NULL,
     reviewer_id INTEGER,
     rating INTEGER NOT NULL,
     comment TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (transaction_id) REFERENCES transactions (id),
     FOREIGN KEY (reviewed_user_id) REFERENCES users (id),
     FOREIGN KEY (reviewer_id) REFERENCES users (id)
 )
@@ -237,6 +241,7 @@ def init_db():
     ensure_listing_status_column(conn)
     conn.execute(CREATE_OFFERS_TABLE_SQL)
     conn.execute(CREATE_TRANSACTIONS_TABLE_SQL)
+    ensure_reviews_schema(conn)
     conn.execute(CREATE_REVIEWS_TABLE_SQL)
     conn.commit()
     conn.close()
@@ -321,6 +326,20 @@ def ensure_listing_status_column(conn):
 
     if "status" not in column_names:
         conn.execute("ALTER TABLE listings ADD COLUMN status TEXT NOT NULL DEFAULT 'Active'")
+
+
+def ensure_reviews_schema(conn):
+    """Rebuild the reviews table if it uses an outdated schema."""
+    columns = conn.execute("PRAGMA table_info(reviews)").fetchall()
+    column_names = [column["name"] for column in columns]
+    is_outdated = column_names and (
+        "reviewed_user_id" not in column_names or "transaction_id" not in column_names
+    )
+
+    if is_outdated:
+        row_count = conn.execute("SELECT COUNT(*) FROM reviews").fetchone()[0]
+        if row_count == 0:
+            conn.execute("DROP TABLE reviews")
 
 
 def _get_active_listing(conn, listing_id):
@@ -684,6 +703,30 @@ def get_transactions_for_user(user_id, role):
     rows = conn.execute(sql, (user_id,)).fetchall()
     conn.close()
     return [dict(row) for row in rows]
+
+
+def get_transaction_by_id(transaction_id):
+    """Return a single completed transaction by ID, or None if it doesn't exist."""
+    conn = get_db_connection()
+    row = conn.execute("SELECT * FROM transactions WHERE id = ?", (transaction_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def create_review(transaction_id, reviewer_id, reviewed_user_id, rating, comment):
+    """Insert a new review linked to a completed transaction and return it as a dict."""
+    conn = get_db_connection()
+    cursor = conn.execute(
+        """
+        INSERT INTO reviews (transaction_id, reviewer_id, reviewed_user_id, rating, comment)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (transaction_id, reviewer_id, reviewed_user_id, rating, comment),
+    )
+    conn.commit()
+    review = conn.execute("SELECT * FROM reviews WHERE id = ?", (cursor.lastrowid,)).fetchone()
+    conn.close()
+    return dict(review)
 
 
 def _create_transaction_for_offer(conn, offer):

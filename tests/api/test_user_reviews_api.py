@@ -51,14 +51,24 @@ def seed_user(test_db, student_id, email, display_name):
 
 
 def seed_review(test_db, reviewed_user_id, reviewer_id):
-    """Create one review for a user."""
+    """Create one completed transaction and a review linked to it."""
     conn = sqlite3.connect(test_db)
     conn.execute(
         """
-        INSERT INTO reviews (reviewed_user_id, reviewer_id, rating, comment)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO transactions (
+            offer_id, listing_id, seller_id, buyer_id, transaction_type, amount
+        )
+        VALUES (1, 1, ?, ?, 'cash', 10.0)
         """,
-        (reviewed_user_id, reviewer_id, 5, "Reliable campus seller."),
+        (reviewer_id, reviewed_user_id),
+    )
+    transaction_id = conn.execute("SELECT last_insert_rowid() AS id").fetchone()[0]
+    conn.execute(
+        """
+        INSERT INTO reviews (transaction_id, reviewed_user_id, reviewer_id, rating, comment)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (transaction_id, reviewed_user_id, reviewer_id, 5, "Reliable campus seller."),
     )
     conn.commit()
     conn.close()
