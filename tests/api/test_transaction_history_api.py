@@ -74,6 +74,22 @@ def _create_offer_and_accept(test_db, seller_id, buyer_id, listing_id, price):
     db_module.accept_offer(offer_id)
 
 
+def _create_rejected_offer(test_db, seller_id, buyer_id, listing_id, price):
+    """Seed a rejected cash offer for resolved-offer history."""
+    conn = sqlite3.connect(test_db)
+    conn.row_factory = sqlite3.Row
+    conn.execute(
+        """
+        INSERT INTO offers (listing_id, buyer_id, offer_type, proposed_price,
+                            swap_listing_id, status, created_at)
+        VALUES (?, ?, 'cash', ?, NULL, 'Rejected', '2026-06-11 10:00:00')
+        """,
+        (listing_id, buyer_id, price),
+    )
+    conn.commit()
+    conn.close()
+
+
 def seed_completed_deal(test_db, seller_name="Seller1", buyer_name="Buyer1", price=25.0):
     conn = sqlite3.connect(test_db)
     conn.row_factory = sqlite3.Row
@@ -167,3 +183,24 @@ def test_history_does_not_leak_other_users_transactions(client):
 
     resp = test_client.get("/api/transactions?role=seller")
     assert resp.get_json()["transactions"] == []
+
+
+def test_resolved_offer_outcomes_include_accepted_and_rejected(client):
+    """Accepted and rejected offers appear in transaction offer outcomes."""
+    test_client, test_db = client
+    seller_id, buyer_id = seed_completed_deal(test_db)
+
+    conn = sqlite3.connect(test_db)
+    conn.row_factory = sqlite3.Row
+    rejected_listing_id = _create_listing(conn, seller_id, "Rejected Listing")
+    conn.commit()
+    conn.close()
+    _create_rejected_offer(test_db, seller_id, buyer_id, rejected_listing_id, 12.0)
+
+    login_as(test_client, seller_id)
+
+    resp = test_client.get("/api/transactions/offers")
+
+    assert resp.status_code == 200
+    statuses = {offer["status"] for offer in resp.get_json()["offers"]}
+    assert statuses == {"Accepted", "Rejected"}

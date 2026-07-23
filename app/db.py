@@ -133,12 +133,56 @@ OFFERS_FOR_SELLER_SQL = (
     "offers.proposed_price,offers.swap_listing_id,offers.status,"
     "offers.created_at,listings.title AS listing_title,"
     "listings.category AS listing_category,listings.price AS listing_price,"
-    "buyer.display_name AS buyer_display_name,"
+    "buyer.display_name AS buyer_display_name,seller.display_name AS seller_display_name,"
     "swap_listing.title AS swap_listing_title FROM offers "
     "JOIN listings ON offers.listing_id=listings.id "
     "JOIN users AS buyer ON offers.buyer_id=buyer.id "
+    "JOIN users AS seller ON listings.seller_id=seller.id "
     "LEFT JOIN listings AS swap_listing ON offers.swap_listing_id=swap_listing.id "
-    "WHERE listings.seller_id=? ORDER BY offers.created_at DESC"
+    "WHERE listings.seller_id=? AND offers.status='Pending' ORDER BY offers.created_at DESC"
+)
+
+ALL_OFFERS_SQL = (
+    "SELECT offers.id,offers.listing_id,offers.buyer_id,offers.offer_type,"
+    "offers.proposed_price,offers.swap_listing_id,offers.status,"
+    "offers.created_at,listings.title AS listing_title,"
+    "listings.category AS listing_category,listings.price AS listing_price,"
+    "buyer.display_name AS buyer_display_name,seller.display_name AS seller_display_name,"
+    "swap_listing.title AS swap_listing_title FROM offers "
+    "JOIN listings ON offers.listing_id=listings.id "
+    "JOIN users AS buyer ON offers.buyer_id=buyer.id "
+    "JOIN users AS seller ON listings.seller_id=seller.id "
+    "LEFT JOIN listings AS swap_listing ON offers.swap_listing_id=swap_listing.id "
+    "WHERE offers.status='Pending' ORDER BY offers.created_at DESC"
+)
+
+RESOLVED_OFFERS_FOR_USER_SQL = (
+    "SELECT offers.id,offers.listing_id,offers.buyer_id,offers.offer_type,"
+    "offers.proposed_price,offers.swap_listing_id,offers.status,"
+    "offers.created_at,listings.title AS listing_title,"
+    "listings.category AS listing_category,listings.price AS listing_price,"
+    "buyer.display_name AS buyer_display_name,seller.display_name AS seller_display_name,"
+    "swap_listing.title AS swap_listing_title FROM offers "
+    "JOIN listings ON offers.listing_id=listings.id "
+    "JOIN users AS buyer ON offers.buyer_id=buyer.id "
+    "JOIN users AS seller ON listings.seller_id=seller.id "
+    "LEFT JOIN listings AS swap_listing ON offers.swap_listing_id=swap_listing.id "
+    "WHERE offers.status!='Pending' AND (offers.buyer_id=? OR listings.seller_id=?) "
+    "ORDER BY offers.created_at DESC"
+)
+
+ALL_RESOLVED_OFFERS_SQL = (
+    "SELECT offers.id,offers.listing_id,offers.buyer_id,offers.offer_type,"
+    "offers.proposed_price,offers.swap_listing_id,offers.status,"
+    "offers.created_at,listings.title AS listing_title,"
+    "listings.category AS listing_category,listings.price AS listing_price,"
+    "buyer.display_name AS buyer_display_name,seller.display_name AS seller_display_name,"
+    "swap_listing.title AS swap_listing_title FROM offers "
+    "JOIN listings ON offers.listing_id=listings.id "
+    "JOIN users AS buyer ON offers.buyer_id=buyer.id "
+    "JOIN users AS seller ON listings.seller_id=seller.id "
+    "LEFT JOIN listings AS swap_listing ON offers.swap_listing_id=swap_listing.id "
+    "WHERE offers.status!='Pending' ORDER BY offers.created_at DESC"
 )
 
 TRANSACTIONS_FOR_BUYER_SQL = (
@@ -589,9 +633,33 @@ def create_offer(listing_id, buyer_id, offer_type, proposed_price=None, swap_lis
 
 
 def get_offers_for_seller(seller_id):
-    """Return all offers received on listings owned by seller_id, newest first."""
+    """Return pending offers received on listings owned by seller_id, newest first."""
     conn = get_db_connection()
     rows = conn.execute(OFFERS_FOR_SELLER_SQL, (seller_id,)).fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
+def get_all_offers():
+    """Return all pending marketplace offers, newest first."""
+    conn = get_db_connection()
+    rows = conn.execute(ALL_OFFERS_SQL).fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
+def get_resolved_offers_for_user(user_id):
+    """Return accepted and rejected offers involving one user, newest first."""
+    conn = get_db_connection()
+    rows = conn.execute(RESOLVED_OFFERS_FOR_USER_SQL, (user_id, user_id)).fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
+def get_all_resolved_offers():
+    """Return all accepted and rejected marketplace offers, newest first."""
+    conn = get_db_connection()
+    rows = conn.execute(ALL_RESOLVED_OFFERS_SQL).fetchall()
     conn.close()
     return [dict(row) for row in rows]
 

@@ -55,6 +55,25 @@ FAKE_SELLER_TRANSACTIONS = [
     },
 ]
 
+FAKE_RESOLVED_OFFERS = [
+    {
+        "id": 4, "listing_id": 12, "buyer_id": 2, "offer_type": "cash",
+        "proposed_price": 30.0, "swap_listing_id": None, "status": "Accepted",
+        "created_at": "2026-05-13 15:00:00",
+        "listing_title": "Calculator", "listing_category": "Electronics",
+        "listing_price": "35.00", "buyer_display_name": "Buyer One",
+        "seller_display_name": "Seller One", "swap_listing_title": None,
+    },
+    {
+        "id": 5, "listing_id": 13, "buyer_id": 3, "offer_type": "swap",
+        "proposed_price": None, "swap_listing_id": 9, "status": "Rejected",
+        "created_at": "2026-05-14 16:00:00",
+        "listing_title": "Lab Coat", "listing_category": "Clothing",
+        "listing_price": "18.00", "buyer_display_name": "Buyer Two",
+        "seller_display_name": "Seller Two", "swap_listing_title": "Notebook",
+    },
+]
+
 
 # ===========================================================================
 # GET /api/transactions
@@ -131,3 +150,48 @@ def test_unit_get_history_invalid_role(client):
     login_as(client, 1)
     resp = client.get("/api/transactions?role=admin")
     assert resp.status_code == 400
+
+
+def test_unit_get_resolved_offer_outcomes_success(client, monkeypatch):
+    """Logged-in users can see accepted and rejected offer outcomes involving them."""
+    login_as(client, 1)
+    monkeypatch.setattr(db_module, "get_resolved_offers_for_user", lambda user_id: FAKE_RESOLVED_OFFERS)
+
+    resp = client.get("/api/transactions/offers")
+
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert len(data["offers"]) == 2
+    assert data["offers"][0]["status"] == "Accepted"
+    assert data["offers"][1]["status"] == "Rejected"
+    assert data["offers"][1]["swapListingTitle"] == "Notebook"
+
+
+def test_unit_get_resolved_offer_outcomes_admin_sees_all(client, monkeypatch):
+    """Active admins can see all accepted and rejected offer outcomes."""
+    login_as(client, 1)
+    with client.session_transaction() as sess:
+        sess["role"] = "admin"
+
+    monkeypatch.setattr(
+        db_module,
+        "get_user_by_id",
+        lambda uid: {"id": uid, "role": "admin", "status": "Active"},
+    )
+    monkeypatch.setattr(db_module, "get_all_resolved_offers", lambda: FAKE_RESOLVED_OFFERS)
+    monkeypatch.setattr(
+        db_module,
+        "get_resolved_offers_for_user",
+        lambda user_id: pytest.fail("admin should not use user-scoped resolved offers"),
+    )
+
+    resp = client.get("/api/transactions/offers")
+
+    assert resp.status_code == 200
+    assert len(resp.get_json()["offers"]) == 2
+
+
+def test_unit_get_resolved_offer_outcomes_unauthenticated(client):
+    """Logged-out users cannot see resolved offer outcomes."""
+    resp = client.get("/api/transactions/offers")
+    assert resp.status_code == 401

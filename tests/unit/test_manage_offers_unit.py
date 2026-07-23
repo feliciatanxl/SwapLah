@@ -97,6 +97,30 @@ def test_unit_get_received_offers_empty(client, monkeypatch):
     assert resp.get_json()["offers"] == []
 
 
+def test_unit_get_received_offers_admin_sees_all(client, monkeypatch):
+    """Active admins receive every offer, not only offers on their listings."""
+    login_as(client, 1)
+    with client.session_transaction() as sess:
+        sess["role"] = "admin"
+
+    monkeypatch.setattr(
+        db_module,
+        "get_user_by_id",
+        lambda uid: {"id": uid, "role": "admin", "status": "Active"},
+    )
+    monkeypatch.setattr(db_module, "get_all_offers", lambda: FAKE_OFFERS)
+    monkeypatch.setattr(
+        db_module,
+        "get_offers_for_seller",
+        lambda sid: pytest.fail("admin should not use seller-scoped offers"),
+    )
+
+    resp = client.get("/api/offers/received")
+
+    assert resp.status_code == 200
+    assert len(resp.get_json()["offers"]) == 2
+
+
 # ===========================================================================
 # PATCH /api/offers/<id>/accept
 # ===========================================================================

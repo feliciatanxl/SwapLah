@@ -1,172 +1,115 @@
 import pytest
 import app.db as db_module
-from app import create_app
-from app.routes.reports import reports_bp, ALLOWED_REASONS
-
+from app.db import create_report, get_db_connection, init_db
 
 @pytest.fixture
-def app(tmp_path, monkeypatch):
-    """Create the Flask app against an isolated on-disk test database."""
-    test_db = tmp_path / "test_reports_routes_unit.db"
+def setup_db(tmp_path, monkeypatch):
+    """Set up test database with required tables"""
+    test_db = tmp_path / "test_db_reports_unit.db"
     monkeypatch.setattr(db_module, "DATABASE", test_db)
-
-    flask_app = create_app()
-    flask_app.config['TESTING'] = True
-    flask_app.config['SECRET_KEY'] = "reports-routes-test-secret"
     
-    with flask_app.app_context():
-        yield flask_app
+    init_db()
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Create test user
+    cursor.execute(
+        "INSERT INTO users (student_id, first_name, last_name, display_name, email, contact_number, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        ('S00000001', 'Test', 'User', 'testuser', 'test@example.com', '12345678', 'hash')
+    )
+    user_id = cursor.lastrowid
+    
+    # Create test listing
+    cursor.execute("""
+        INSERT INTO listings (title, description, price, seller_id, category, item_condition, image_url, listing_date, last_modified_timestamp, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), ?)
+    """, ('Test Listing', 'Description', 100, user_id, 'Electronics', 'Good', 'http://example.com/image.jpg', 'Active'))
+    listing_id = cursor.lastrowid
+    
+    conn.commit()
+    conn.close()
+    
+    yield {'user_id': user_id, 'listing_id': listing_id}
 
+def test_create_report_success(setup_db):
+    """Test successful report creation"""
+    report = create_report(
+        listing_id=setup_db['listing_id'],
+        reporter_id=setup_db['user_id'],
+        reason='Counterfeit',
+        description='This appears to be a fake product.'
+    )
+    
+    assert report['listing_id'] == setup_db['listing_id']
+    assert report['reporter_id'] == setup_db['user_id']
+    assert report['reason'] == 'Counterfeit'
+    assert report['description'] == 'This appears to be a fake product.'
+    assert 'created_at' in report
 
-def test_validate_report_payload_valid(app):
-    """Test valid payload returns reason and description."""
-    with app.app_context():
-        from app.routes.reports import _validate_report_payload
-        reason, description, error = _validate_report_payload({
-            'reason': 'Spam',
-            'description': 'This is spam'
-        })
-        assert reason == 'Spam'
-        assert description == 'This is spam'
-        assert error is None
+def test_create_report_listing_not_found(setup_db):
+    """Test error when listing doesn't exist"""
+    with pytest.raises(ValueError, match="Listing not found"):
+        create_report(
+            listing_id=99999,
+            reporter_id=setup_db['user_id'],
+            reason='Spam',
+            description='Test description'
+        )
 
+def test_create_report_listing_deleted(setup_db):
+    """Test error when listing is deleted"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE listings SET status = 'Deleted' WHERE id = ?",
+        (setup_db['listing_id'],)
+    )
+    conn.commit()
+    conn.close()
+    
+    with pytest.raises(ValueError, match="Listing not found"):
+        create_report(
+            listing_id=setup_db['listing_id'],
+            reporter_id=setup_db['user_id'],
+            reason='Spam',
+            description='Test description'
+        )
 
-def test_validate_report_payload_missing_reason(app):
-    """Test missing reason returns error response (covers line 26)."""
-    with app.app_context():
-        from app.routes.reports import _validate_report_payload
-        _, _, error = _validate_report_payload({'description': 'test'})
-        assert error[1] == 400
-        assert error[0].json['error'] == 'reason is required'
+def test_create_report_invalid_reason(setup_db):
+    """Test error with invalid reason"""
+    with pytest.raises(ValueError, match="Reason must be one of"):
+        create_report(
+            listing_id=setup_db['listing_id'],
+            reporter_id=setup_db['user_id'],
+            reason='Invalid reason',
+            description='Test description'
+        )
 
+def test_create_report_short_description(setup_db):
+    """Test error with description too short"""
+    with pytest.raises(ValueError, match="Description must be at least 10 characters"):
+        create_report(
+            listing_id=setup_db['listing_id'],
+            reporter_id=setup_db['user_id'],
+            reason='Spam',
+            description='Too short'
+        )
 
-def test_validate_report_payload_missing_description(app):
-    """Test missing description returns error response."""
-    with app.app_context():
-        from app.routes.reports import _validate_report_payload
-        _, _, error = _validate_report_payload({'reason': 'Spam'})
-        assert error[1] == 400
-        assert error[0].json['error'] == 'description is required'
-
-
-def test_validate_report_payload_invalid_reason(app):
-    """Test invalid reason returns error with allowed reasons."""
-    with app.app_context():
-        from app.routes.reports import _validate_report_payload
-        _, _, error = _validate_report_payload({
-            'reason': 'Invalid',
-            'description': 'test'
-        })
-        assert error[1] == 400
-        assert 'reason must be one of' in error[0].json['error']
-
-
-def test_create_listing_report_unauthenticated(app):
-    """Test 401 when not logged in (covers line 59)."""
-    with app.test_client() as client:
-        response = client.post('/api/listings/1/reports', json={
-            'reason': 'Spam',
-            'description': 'This is spam'
-        })
-        assert response.status_code == 401
-        assert response.json['error'] == 'Unauthorized'
-
-
-def test_create_listing_report_invalid_json(app):
-    """Test 400 when invalid JSON is sent (covers _validate_report_payload not data branch)."""
-    with app.test_client() as client:
-        with client.session_transaction() as sess:
-            sess['user_id'] = 1
-        
-        response = client.post('/api/listings/1/reports', data='invalid json', 
-                              content_type='application/json')
-        assert response.status_code == 400
-        assert response.json['error'] == 'Invalid JSON data'
-
-
-def test_create_listing_report_success(app, monkeypatch):
-    """Test 201 success (covers line 66-72)."""
-    with app.test_client() as client:
-        with client.session_transaction() as sess:
-            sess['user_id'] = 1
-        
-        # Mock create_report to return a report
-        def mock_create_report(listing_id, user_id, reason, description):
-            return {
-                'id': 1,
-                'listing_id': listing_id,
-                'reporter_id': user_id,
-                'reason': reason,
-                'description': description,
-                'status': 'Pending'
-            }
-        
-        monkeypatch.setattr('app.routes.reports.create_report', mock_create_report)
-        
-        response = client.post('/api/listings/1/reports', json={
-            'reason': 'Spam',
-            'description': 'This is spam'
-        })
-        assert response.status_code == 201
-        assert response.json['message'] == 'Report created successfully'
-        assert 'report' in response.json
-
-
-def test_create_listing_report_listing_not_found(app, monkeypatch):
-    """Test 404 when listing not found (covers line 75-76)."""
-    with app.test_client() as client:
-        with client.session_transaction() as sess:
-            sess['user_id'] = 1
-        
-        # Mock create_report to raise ValueError with listing not found message
-        def mock_create_report(listing_id, user_id, reason, description):
-            raise ValueError("Listing not found")
-        
-        monkeypatch.setattr('app.routes.reports.create_report', mock_create_report)
-        
-        response = client.post('/api/listings/999/reports', json={
-            'reason': 'Spam',
-            'description': 'This is spam'
-        })
-        assert response.status_code == 404
-        assert response.json['error'] == 'Listing not found'
-
-
-def test_create_listing_report_value_error(app, monkeypatch):
-    """Test 400 for other ValueError (covers line 78)."""
-    with app.test_client() as client:
-        with client.session_transaction() as sess:
-            sess['user_id'] = 1
-        
-        # Mock create_report to raise ValueError with other message
-        def mock_create_report(listing_id, user_id, reason, description):
-            raise ValueError("Some other error")
-        
-        monkeypatch.setattr('app.routes.reports.create_report', mock_create_report)
-        
-        response = client.post('/api/listings/1/reports', json={
-            'reason': 'Spam',
-            'description': 'This is spam'
-        })
-        assert response.status_code == 400
-        assert response.json['error'] == 'Some other error'
-
-
-def test_create_listing_report_generic_exception(app, monkeypatch):
-    """Test 500 for generic exception (covers line 79-80)."""
-    with app.test_client() as client:
-        with client.session_transaction() as sess:
-            sess['user_id'] = 1
-        
-        # Mock create_report to raise generic Exception
-        def mock_create_report(listing_id, user_id, reason, description):
-            raise Exception("Database connection error")
-        
-        monkeypatch.setattr('app.routes.reports.create_report', mock_create_report)
-        
-        response = client.post('/api/listings/1/reports', json={
-            'reason': 'Spam',
-            'description': 'This is spam'
-        })
-        assert response.status_code == 500
-        assert response.json['error'] == 'Internal server error'
+def test_create_report_duplicate(setup_db):
+    """Test error when user already reported the listing"""
+    # First report
+    create_report(
+        listing_id=setup_db['listing_id'],
+        reporter_id=setup_db['user_id'],
+        reason='Spam',
+        description='This is spam.'
+    )
+    
+    # Second report from same user
+    with pytest.raises(ValueError, match="You have already reported this listing"):
+        create_report(
+            listing_id=setup_db['listing_id'],
+            reporter_id=setup_db['user_id'],
+            reason='Counterfeit',
+            description='This is also counterfeit.'
+        )

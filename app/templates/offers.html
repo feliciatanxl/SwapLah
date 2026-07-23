@@ -5,7 +5,7 @@
     <div class="page-heading">
         <div>
             <h1 class="section-title">Pending Offers</h1>
-            <p class="section-subtitle">Review cash and swap offers grouped by listing.</p>
+            <p class="section-subtitle">Review open cash and swap offers grouped by listing.</p>
         </div>
         <span class="pending-pill" id="pending-count">Loading…</span>
     </div>
@@ -86,9 +86,8 @@ function renderOffers(offers) {
     const container = document.getElementById("offers-container");
     document.getElementById("loading-state").classList.add("d-none");
 
-    const pending = offers.filter(o => o.status === "Pending");
     document.getElementById("pending-count").textContent =
-        pending.length + (pending.length === 1 ? " pending" : " pending");
+        offers.length + (offers.length === 1 ? " pending" : " pending");
 
     if (offers.length === 0) {
         container.innerHTML = "";
@@ -104,6 +103,7 @@ function renderOffers(offers) {
                 title: o.listingTitle,
                 category: o.listingCategory,
                 price: o.listingPrice,
+                seller: o.sellerDisplayName,
                 offers: []
             };
         }
@@ -119,7 +119,7 @@ function renderOffers(offers) {
                 <div>
                     <span class="condition-tag">${escHtml(group.category)}</span>
                     <h5>${escHtml(group.title)}</h5>
-                    <p class="text-muted mb-0">Listed at $${escHtml(group.price)} · ${pendingCount} pending offer${pendingCount !== 1 ? "s" : ""}</p>
+                    <p class="text-muted mb-0">Listed at $${escHtml(group.price)}${group.seller ? ` · Seller: ${escHtml(group.seller)}` : ""} · ${pendingCount} pending offer${pendingCount !== 1 ? "s" : ""}</p>
                 </div>
                 <a href="/listing/${listingId}" class="btn btn-sm btn-outline-dark">View listing</a>
             </div>
