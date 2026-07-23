@@ -124,7 +124,6 @@ def _handle_swap_offer(data, listing_id, buyer_id):
     if not swap_listing_id:
         return jsonify({"error": "swapListingId is required for a swap offer."}), 400
 
-    # Buyer must own the swap listing (active and belonging to buyer)
     if not get_active_listing_by_buyer(swap_listing_id, buyer_id):
         return jsonify({
             "error": "The selected swap item was not found in your active listings."
