@@ -227,24 +227,12 @@ def _paginate_listings(page, search="", category="", condition="", per_page=10):
 def _render_index_page(page, search, category, condition):
     """Render homepage with paginated listing data."""
     pagination = _paginate_listings(page, search, category, condition)
-    showing_start = (
-        (pagination["page"] - 1) * 10 + 1
-        if pagination["total_listings"] > 0
-        else 0
-    )
-    showing_end = min(
-        pagination["page"] * 10,
-        pagination["total_listings"],
-    )
-
     return render_template(
         "index.html",
         listings=pagination["listings"],
         page=pagination["page"],
         total_pages=pagination["total_pages"],
         total_listings=pagination["total_listings"],
-        showing_start=showing_start,
-        showing_end=showing_end,
         category_summary=get_listing_category_summary(),
         search=search,
         category=category,
