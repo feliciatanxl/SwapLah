@@ -160,6 +160,25 @@ def test_create_listing_invalid_price(client):
     assert "error" in data
 
 
+def test_create_listing_invalid_condition(client):
+    login_test_user(client)
+
+    response = client.post("/api/listings", json={
+        "title": "Calculator",
+        "description": "Invalid condition test",
+        "price": "25",
+        "category": "Electronics",
+        "condition": "Terrible",
+        "imageUrl": "[\"https://example.com/item.jpg\"]"
+    })
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data["error"] == "Invalid item condition."
+
+
 def test_create_listing_long_decimal_price(client):
     login_test_user(client)
 

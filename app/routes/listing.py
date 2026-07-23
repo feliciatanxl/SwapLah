@@ -1,5 +1,6 @@
 """Routes for listing creation, retrieval, and update."""
 
+import json
 import math
 import re
 from decimal import Decimal, InvalidOperation
@@ -12,6 +13,7 @@ listings_bp = Blueprint("listings", __name__)
 
 _PRICE_RE = re.compile(r"^\d+(\.\d{1,2})?$")
 _REQUIRED_FIELDS = ("title", "description", "price", "category", "condition")
+ALLOWED_CONDITIONS = {"New", "Like New", "Good", "Fair"}
 
 
 def _error(message, status_code):
@@ -50,6 +52,19 @@ def normalise_price(price):
     return str(Decimal(price).quantize(Decimal("0.01")))
 
 
+def _normalise_image_url_value(image_url):
+    """Return the image payload as the stored string format."""
+    if isinstance(image_url, list):
+        return json.dumps(
+            [
+                image.strip() if isinstance(image, str) else ""
+                for image in image_url
+            ]
+        )
+
+    return str(image_url or "").strip()
+
+
 def _extract_fields(data):
     """Extract and strip listing fields from the request payload."""
     image_url = data.get("imageUrl") or data.get("image_url") or ""
@@ -60,7 +75,7 @@ def _extract_fields(data):
         "price": str(data.get("price", "")).strip(),
         "category": data.get("category", "").strip(),
         "condition": data.get("condition", "").strip(),
-        "image_url": image_url.strip(),
+        "image_url": _normalise_image_url_value(image_url),
     }
 
 
@@ -69,10 +84,30 @@ def _has_missing_fields(fields):
     return any(not fields[field] for field in _REQUIRED_FIELDS) or not fields["image_url"]
 
 
+def _has_at_least_one_image(image_url):
+    """Return True when the image payload contains one or more non-empty images."""
+    try:
+        images = json.loads(image_url)
+    except json.JSONDecodeError:
+        return bool(image_url.strip())
+
+    if not isinstance(images, list):
+        return bool(str(images).strip())
+
+    return any(isinstance(image, str) and image.strip() for image in images)
+
+
+
 def _validate_listing_fields(fields):
     """Validate listing fields and return an error response if invalid."""
     if _has_missing_fields(fields):
         return _error("All fields are required.", 400)
+
+    if fields["condition"] not in ALLOWED_CONDITIONS:
+        return _error("Invalid item condition.", 400)
+
+    if not _has_at_least_one_image(fields["image_url"]):
+        return _error("At least one image is required.", 400)
 
     if not is_valid_price(fields["price"]):
         return _error("Price must be a number, Free, or Swap Only.", 400)

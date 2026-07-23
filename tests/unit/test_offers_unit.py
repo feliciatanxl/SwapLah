@@ -1,14 +1,10 @@
 """
-Unit tests for:
-  GET  /api/offers/received
-  PATCH /api/offers/<id>/accept
-  PATCH /api/offers/<id>/reject
-
-All DB calls are monkeypatched — no real database needed.
+Unit tests for POST /api/offers — cash and swap offer submission.
+All DB calls are monkeypatched so no real database is needed.
 """
 import pytest
-import app.db as db_module
 from app import create_app
+from app.routes import offers as offers_routes
 
 
 # ---------------------------------------------------------------------------
@@ -17,209 +13,278 @@ from app import create_app
 
 @pytest.fixture
 def client():
-    flask_app = create_app()
-    flask_app.config["TESTING"] = True
-    with flask_app.test_client() as c:
+    app = create_app()
+    app.config["TESTING"] = True
+    with app.test_client() as c:
         yield c
 
 
-def login_as(client, user_id):
+def login_as(client, user_id=1):
     with client.session_transaction() as sess:
         sess["user_id"] = user_id
 
 
 # ---------------------------------------------------------------------------
-# Stubs
+# Helpers / stubs
 # ---------------------------------------------------------------------------
 
-FAKE_OFFERS = [
-    {
-        "id": 1, "listing_id": 10, "buyer_id": 2, "offer_type": "cash",
-        "proposed_price": 40.0, "swap_listing_id": None, "status": "Pending",
+def make_fake_get_listing_owner(seller_id):
+    """Return a stub that always reports the given seller_id."""
+    def _stub(listing_id):
+        return seller_id
+    return _stub
+
+
+def make_fake_get_active_listing_by_buyer(owned):
+    """Return a stub: owned=True means the listing belongs to the buyer."""
+    def _stub(listing_id, buyer_id):
+        return {"id": listing_id, "seller_id": buyer_id} if owned else None
+    return _stub
+
+
+def fake_create_offer(listing_id, buyer_id, offer_type, proposed_price=None, swap_listing_id=None):
+    return {
+        "id": 99,
+        "listing_id": listing_id,
+        "buyer_id": buyer_id,
+        "offer_type": offer_type,
+        "proposed_price": proposed_price,
+        "swap_listing_id": swap_listing_id,
+        "status": "Pending",
         "created_at": "2026-06-09 10:00:00",
-        "listing_title": "Test Item", "listing_category": "Electronics",
-        "listing_price": "50.00", "buyer_display_name": "BobBuyer",
-        "swap_listing_title": None,
-    },
-    {
-        "id": 2, "listing_id": 10, "buyer_id": 3, "offer_type": "swap",
-        "proposed_price": None, "swap_listing_id": 5, "status": "Pending",
-        "created_at": "2026-06-09 10:01:00",
-        "listing_title": "Test Item", "listing_category": "Electronics",
-        "listing_price": "50.00", "buyer_display_name": "CarolBuyer",
-        "swap_listing_title": "Swap Widget",
-    },
-]
+    }
 
-FAKE_OFFER_PENDING = {
-    "id": 1, "listing_id": 10, "buyer_id": 2, "offer_type": "cash",
-    "proposed_price": 40.0, "swap_listing_id": None, "status": "Pending",
-    "created_at": "2026-06-09 10:00:00",
-}
 
-FAKE_OFFER_REJECTED = {**FAKE_OFFER_PENDING, "status": "Rejected"}
-FAKE_OFFER_ACCEPTED = {**FAKE_OFFER_PENDING, "status": "Accepted"}
+# ---------------------------------------------------------------------------
+# Auth guard
+# ---------------------------------------------------------------------------
+
+def test_submit_offer_not_logged_in(client):
+    """Unauthenticated request must be rejected with 401."""
+    response = client.post("/api/offers", json={
+        "listingId": 1,
+        "offerType": "cash",
+        "proposedPrice": 10.0,
+    })
+    assert response.status_code == 401
+    assert "error" in response.get_json()
 
 
 # ===========================================================================
-# GET /api/offers/received
+# CASH OFFER
 # ===========================================================================
 
-def test_unit_get_received_offers_success(client, monkeypatch):
-    """AC1 (view): seller receives their offers list."""
-    login_as(client, 1)
-    monkeypatch.setattr(db_module, "get_offers_for_seller", lambda sid: FAKE_OFFERS)
+def test_cash_offer_success(client, monkeypatch):
+    """AC1 / AC4 (cash): valid cash offer is recorded with status Pending."""
+    login_as(client, user_id=2)
+    monkeypatch.setattr(offers_routes, "get_listing_owner", make_fake_get_listing_owner(seller_id=1))
+    monkeypatch.setattr(offers_routes, "create_offer", fake_create_offer)
 
-    resp = client.get("/api/offers/received")
+    response = client.post("/api/offers", json={
+        "listingId": 5,
+        "offerType": "cash",
+        "proposedPrice": 20.0,
+    })
 
-    assert resp.status_code == 200
-    data = resp.get_json()
-    assert len(data["offers"]) == 2
-    assert data["offers"][0]["listingTitle"] == "Test Item"
-    assert data["offers"][1]["swapListingTitle"] == "Swap Widget"
-
-
-def test_unit_get_received_offers_unauthenticated(client):
-    """AC2 (view): unauthenticated request is rejected."""
-    resp = client.get("/api/offers/received")
-    assert resp.status_code == 401
-
-
-def test_unit_get_received_offers_empty(client, monkeypatch):
-    """AC3 (view): empty list returned when seller has no offers."""
-    login_as(client, 1)
-    monkeypatch.setattr(db_module, "get_offers_for_seller", lambda sid: [])
-
-    resp = client.get("/api/offers/received")
-
-    assert resp.status_code == 200
-    assert resp.get_json()["offers"] == []
+    assert response.status_code == 201
+    data = response.get_json()
+    assert data["message"] == "Cash offer submitted successfully."
+    assert data["offer"]["offerType"] == "cash"
+    assert data["offer"]["status"] == "Pending"      # AC3 (cash)
+    assert data["offer"]["proposedPrice"] == 20.0
 
 
-# ===========================================================================
-# PATCH /api/offers/<id>/accept
-# ===========================================================================
+def test_cash_offer_on_own_listing_rejected(client, monkeypatch):
+    """AC2 (cash): buyer must not offer on their own listing."""
+    login_as(client, user_id=1)
+    monkeypatch.setattr(offers_routes, "get_listing_owner", make_fake_get_listing_owner(seller_id=1))
 
-def test_unit_accept_offer_success(client, monkeypatch):
-    """AC1 (accept): seller accepts a pending offer."""
-    login_as(client, 1)
-    monkeypatch.setattr(db_module, "get_offer_by_id", lambda oid: FAKE_OFFER_PENDING)
-    monkeypatch.setattr(db_module, "get_listing_owner", lambda lid: 1)
-    monkeypatch.setattr(db_module, "accept_offer", lambda oid: FAKE_OFFER_ACCEPTED)
+    response = client.post("/api/offers", json={
+        "listingId": 5,
+        "offerType": "cash",
+        "proposedPrice": 20.0,
+    })
 
-    resp = client.patch("/api/offers/1/accept")
-
-    assert resp.status_code == 200
-    assert resp.get_json()["offer"]["status"] == "Accepted"
+    assert response.status_code == 403
+    assert "error" in response.get_json()
 
 
-def test_unit_accept_offer_non_owner_forbidden(client, monkeypatch):
-    """AC2 (accept): non-owner gets 403."""
-    login_as(client, 2)
-    monkeypatch.setattr(db_module, "get_offer_by_id", lambda oid: FAKE_OFFER_PENDING)
-    monkeypatch.setattr(db_module, "get_listing_owner", lambda lid: 1)
+def test_cash_offer_missing_price_rejected(client, monkeypatch):
+    """AC5 (cash): offer without proposedPrice must be rejected."""
+    login_as(client, user_id=2)
+    monkeypatch.setattr(offers_routes, "get_listing_owner", make_fake_get_listing_owner(seller_id=1))
 
-    resp = client.patch("/api/offers/1/accept")
+    response = client.post("/api/offers", json={
+        "listingId": 5,
+        "offerType": "cash",
+    })
 
-    assert resp.status_code == 403
-
-
-def test_unit_accept_offer_not_found(client, monkeypatch):
-    """Accepting non-existent offer → 404."""
-    login_as(client, 1)
-    monkeypatch.setattr(db_module, "get_offer_by_id", lambda oid: None)
-
-    resp = client.patch("/api/offers/999/accept")
-
-    assert resp.status_code == 404
+    assert response.status_code == 400
+    assert "error" in response.get_json()
 
 
-def test_unit_accept_offer_already_rejected(client, monkeypatch):
-    """Cannot accept an already-rejected offer → 409."""
-    login_as(client, 1)
-    monkeypatch.setattr(db_module, "get_offer_by_id", lambda oid: FAKE_OFFER_REJECTED)
-    monkeypatch.setattr(db_module, "get_listing_owner", lambda lid: 1)
+def test_cash_offer_invalid_price_rejected(client, monkeypatch):
+    """proposedPrice must be a non-negative number."""
+    login_as(client, user_id=2)
+    monkeypatch.setattr(offers_routes, "get_listing_owner", make_fake_get_listing_owner(seller_id=1))
 
-    resp = client.patch("/api/offers/1/accept")
+    response = client.post("/api/offers", json={
+        "listingId": 5,
+        "offerType": "cash",
+        "proposedPrice": "not-a-number",
+    })
 
-    assert resp.status_code == 409
+    assert response.status_code == 400
+    assert "error" in response.get_json()
 
 
-def test_unit_accept_offer_unauthenticated(client):
-    """Unauthenticated accept → 401."""
-    resp = client.patch("/api/offers/1/accept")
-    assert resp.status_code == 401
+def test_cash_offer_returns_201_with_offer(client, monkeypatch):
+    """AC4 (cash): POST /api/offers creates the offer and returns it."""
+    login_as(client, user_id=2)
+    monkeypatch.setattr(offers_routes, "get_listing_owner", make_fake_get_listing_owner(seller_id=1))
+    monkeypatch.setattr(offers_routes, "create_offer", fake_create_offer)
+
+    response = client.post("/api/offers", json={
+        "listingId": 5,
+        "offerType": "cash",
+        "proposedPrice": 15.0,
+    })
+
+    assert response.status_code == 201
+    data = response.get_json()
+    assert "offer" in data
+    assert data["offer"]["id"] == 99
 
 
 # ===========================================================================
-# PATCH /api/offers/<id>/reject
+# SWAP OFFER
 # ===========================================================================
 
-def test_unit_reject_offer_success(client, monkeypatch):
-    """AC1 (reject): seller rejects a pending offer."""
-    login_as(client, 1)
-    monkeypatch.setattr(db_module, "get_offer_by_id", lambda oid: FAKE_OFFER_PENDING)
-    monkeypatch.setattr(db_module, "get_listing_owner", lambda lid: 1)
-    monkeypatch.setattr(db_module, "reject_offer", lambda oid: FAKE_OFFER_REJECTED)
+def test_swap_offer_success(client, monkeypatch):
+    """AC1 (swap): valid swap offer using buyer's own active listing is recorded."""
+    login_as(client, user_id=2)
+    monkeypatch.setattr(offers_routes, "get_listing_owner", make_fake_get_listing_owner(seller_id=1))
+    monkeypatch.setattr(offers_routes, "get_active_listing_by_buyer", make_fake_get_active_listing_by_buyer(owned=True))
+    monkeypatch.setattr(offers_routes, "create_offer", fake_create_offer)
 
-    resp = client.patch("/api/offers/1/reject")
+    response = client.post("/api/offers", json={
+        "listingId": 5,
+        "offerType": "swap",
+        "swapListingId": 10,
+    })
 
-    assert resp.status_code == 200
-    assert resp.get_json()["offer"]["status"] == "Rejected"
-
-
-def test_unit_reject_offer_non_owner_forbidden(client, monkeypatch):
-    """AC2 (reject): non-owner gets 403."""
-    login_as(client, 2)
-    monkeypatch.setattr(db_module, "get_offer_by_id", lambda oid: FAKE_OFFER_PENDING)
-    monkeypatch.setattr(db_module, "get_listing_owner", lambda lid: 1)
-
-    resp = client.patch("/api/offers/1/reject")
-
-    assert resp.status_code == 403
+    assert response.status_code == 201
+    data = response.get_json()
+    assert data["message"] == "Swap offer submitted successfully."
+    assert data["offer"]["offerType"] == "swap"
+    assert data["offer"]["swapListingId"] == 10
 
 
-def test_unit_reject_offer_not_found(client, monkeypatch):
-    """Rejecting non-existent offer → 404."""
-    login_as(client, 1)
-    monkeypatch.setattr(db_module, "get_offer_by_id", lambda oid: None)
+def test_swap_offer_item_not_owned_by_buyer(client, monkeypatch):
+    """AC2 / AC3 (swap): swap item must exist in buyer's own active listings."""
+    login_as(client, user_id=2)
+    monkeypatch.setattr(offers_routes, "get_listing_owner", make_fake_get_listing_owner(seller_id=1))
+    monkeypatch.setattr(offers_routes, "get_active_listing_by_buyer", make_fake_get_active_listing_by_buyer(owned=False))
 
-    resp = client.patch("/api/offers/999/reject")
+    response = client.post("/api/offers", json={
+        "listingId": 5,
+        "offerType": "swap",
+        "swapListingId": 99,
+    })
 
-    assert resp.status_code == 404
-
-
-def test_unit_reject_offer_already_rejected(client, monkeypatch):
-    """Cannot reject an already-rejected offer → 409."""
-    login_as(client, 1)
-    monkeypatch.setattr(db_module, "get_offer_by_id", lambda oid: FAKE_OFFER_REJECTED)
-    monkeypatch.setattr(db_module, "get_listing_owner", lambda lid: 1)
-
-    resp = client.patch("/api/offers/1/reject")
-
-    assert resp.status_code == 409
+    assert response.status_code == 403
+    assert "error" in response.get_json()
 
 
-def test_unit_reject_offer_unauthenticated(client):
-    """Unauthenticated reject → 401."""
-    resp = client.patch("/api/offers/1/reject")
-    assert resp.status_code == 401
+def test_swap_offer_on_own_listing_rejected(client, monkeypatch):
+    """AC4 (swap): buyer must not swap-offer on their own listing."""
+    login_as(client, user_id=1)
+    monkeypatch.setattr(offers_routes, "get_listing_owner", make_fake_get_listing_owner(seller_id=1))
+
+    response = client.post("/api/offers", json={
+        "listingId": 5,
+        "offerType": "swap",
+        "swapListingId": 10,
+    })
+
+    assert response.status_code == 403
+    assert "error" in response.get_json()
 
 
-def test_unit_reject_does_not_touch_other_offers(client, monkeypatch):
-    """AC3 (reject): reject_offer is called once with the correct offer id."""
-    login_as(client, 1)
-    monkeypatch.setattr(db_module, "get_offer_by_id", lambda oid: FAKE_OFFER_PENDING)
-    monkeypatch.setattr(db_module, "get_listing_owner", lambda lid: 1)
+def test_swap_offer_missing_swap_listing_id(client, monkeypatch):
+    """AC2 (swap): swapListingId is required."""
+    login_as(client, user_id=2)
+    monkeypatch.setattr(offers_routes, "get_listing_owner", make_fake_get_listing_owner(seller_id=1))
 
-    rejected_ids = []
+    response = client.post("/api/offers", json={
+        "listingId": 5,
+        "offerType": "swap",
+    })
 
-    def fake_reject(oid):
-        rejected_ids.append(oid)
-        return FAKE_OFFER_REJECTED
+    assert response.status_code == 400
+    assert "error" in response.get_json()
 
-    monkeypatch.setattr(db_module, "reject_offer", fake_reject)
 
-    client.patch("/api/offers/1/reject")
+def test_swap_offer_returns_201_with_offer(client, monkeypatch):
+    """AC5 (swap): POST /api/offers creates the swap offer and returns it."""
+    login_as(client, user_id=2)
+    monkeypatch.setattr(offers_routes, "get_listing_owner", make_fake_get_listing_owner(seller_id=1))
+    monkeypatch.setattr(offers_routes, "get_active_listing_by_buyer", make_fake_get_active_listing_by_buyer(owned=True))
+    monkeypatch.setattr(offers_routes, "create_offer", fake_create_offer)
 
-    assert rejected_ids == [1]
+    response = client.post("/api/offers", json={
+        "listingId": 5,
+        "offerType": "swap",
+        "swapListingId": 10,
+    })
+
+    assert response.status_code == 201
+    data = response.get_json()
+    assert "offer" in data
+    assert data["offer"]["id"] == 99
+
+
+# ---------------------------------------------------------------------------
+# General validation
+# ---------------------------------------------------------------------------
+
+def test_invalid_offer_type(client, monkeypatch):
+    """Unknown offerType must be rejected with 400."""
+    login_as(client, user_id=2)
+    monkeypatch.setattr(offers_routes, "get_listing_owner", make_fake_get_listing_owner(seller_id=1))
+
+    response = client.post("/api/offers", json={
+        "listingId": 5,
+        "offerType": "barter",
+    })
+
+    assert response.status_code == 400
+    assert "error" in response.get_json()
+
+
+def test_missing_listing_id(client):
+    """listingId is required."""
+    login_as(client, user_id=2)
+
+    response = client.post("/api/offers", json={
+        "offerType": "cash",
+        "proposedPrice": 10.0,
+    })
+
+    assert response.status_code == 400
+    assert "error" in response.get_json()
+
+
+def test_listing_not_found(client, monkeypatch):
+    """Non-existent listing must return 404."""
+    login_as(client, user_id=2)
+    monkeypatch.setattr(offers_routes, "get_listing_owner", lambda lid: None)
+
+    response = client.post("/api/offers", json={
+        "listingId": 999,
+        "offerType": "cash",
+        "proposedPrice": 10.0,
+    })
+
+    assert response.status_code == 404
+    assert "error" in response.get_json()
