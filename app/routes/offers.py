@@ -110,6 +110,51 @@ def _get_owned_pending_offer_or_response(offer_id):
     return offer, None
 
 
+def _cash_offer_payload(data, base_offer_data):
+    """Return create_offer payload and message for a cash offer."""
+    price, err = _validate_cash_price(data.get("proposedPrice"))
+    if err:
+        return None, None, (jsonify(err[0]), err[1])
+
+    return {
+        **base_offer_data,
+        "proposed_price": price,
+    }, "Cash offer submitted successfully.", None
+
+
+def _swap_offer_payload(data, base_offer_data, buyer_id):
+    """Return create_offer payload and message for a swap offer."""
+    swap_listing_id = data.get("swapListingId")
+    if not swap_listing_id:
+        return None, None, (jsonify({
+            "error": "swapListingId is required for a swap offer."
+        }), 400)
+
+    if not db_module.get_active_listing_by_buyer(swap_listing_id, buyer_id):
+        return None, None, (jsonify({
+            "error": "The selected swap item was not found in your active listings."
+        }), 403)
+
+    return {
+        **base_offer_data,
+        "swap_listing_id": swap_listing_id,
+    }, "Swap offer submitted successfully.", None
+
+
+def _offer_payload(data, buyer_id):
+    """Return create_offer payload, success message, and optional error."""
+    base_offer_data = {
+        "listing_id": data["listingId"],
+        "buyer_id": buyer_id,
+        "offer_type": data["offerType"].strip().lower(),
+    }
+
+    if base_offer_data["offer_type"] == "cash":
+        return _cash_offer_payload(data, base_offer_data)
+
+    return _swap_offer_payload(data, base_offer_data, buyer_id)
+
+
 # ---------------------------------------------------------------------------
 # Route
 # ---------------------------------------------------------------------------
@@ -126,40 +171,9 @@ def api_create_offer():
     if err:
         return jsonify(err[0]), err[1]
 
-    buyer_id = session["user_id"]
-    listing_id = data["listingId"]
-    offer_type = data["offerType"].strip().lower()
-
-    # Fields common to create_offer()
-    offer_data = {
-        "listing_id": listing_id,
-        "buyer_id": buyer_id,
-        "offer_type": offer_type,
-    }
-
-    if offer_type == "cash":
-        price, err = _validate_cash_price(data.get("proposedPrice"))
-        if err:
-            return jsonify(err[0]), err[1]
-
-        offer_data["proposed_price"] = price
-        success_msg = "Cash offer submitted successfully."
-
-    else:  # swap
-        swap_listing_id = data.get("swapListingId")
-
-        if not swap_listing_id:
-            return jsonify({
-                "error": "swapListingId is required for a swap offer."
-            }), 400
-
-        if not db_module.get_active_listing_by_buyer(swap_listing_id, buyer_id):
-            return jsonify({
-                "error": "The selected swap item was not found in your active listings."
-            }), 403
-
-        offer_data["swap_listing_id"] = swap_listing_id
-        success_msg = "Swap offer submitted successfully."
+    offer_data, success_msg, error_response = _offer_payload(data, session["user_id"])
+    if error_response:
+        return error_response
 
     offer = db_module.create_offer(**offer_data)
 
