@@ -27,7 +27,7 @@ from app.db import (
     update_user_account,
     get_all_reports, 
 )
-import app.db as db_module  # noqa: F401 — exposes db functions for monkeypatching in tests
+import app.db as db_module 
 from app.routes.listing import listings_bp
 from app.routes.offers import offers_bp
 from app.routes.history import history_bp
@@ -543,14 +543,6 @@ def _register_simple_page_routes(app):
             return redirect_response
 
         return render_template("sell.html")
-
-    # @app.route("/admin")
-    # @admin_required
-    # def admin():
-    #     """Render admin page with reports."""
-    # reports = get_all_reports()
-    # return render_template("admin.html", reports=reports)
-
 
 def create_app():
     """Create and configure the Flask application."""
