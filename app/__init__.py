@@ -12,13 +12,17 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from app.auth import _require_admin_response
 
 from app.db import (
+    get_active_listings_by_seller,
     search_active_listings,
     get_reviews_for_user,
     get_db_connection,
     get_listing_by_id,
+    get_listing_category_summary,
     get_listings_by_seller,
+    get_sold_listings_by_seller,
     get_user_by_email,
     get_user_by_id,
+    get_user_profile_stats,
     init_db,
     update_user_account,
 )
@@ -194,6 +198,7 @@ def _render_index_page(page, search, category, condition):
         page=pagination["page"],
         total_pages=pagination["total_pages"],
         total_listings=pagination["total_listings"],
+        category_summary=get_listing_category_summary(),
         search=search,
         category=category,
         condition=condition,
@@ -350,6 +355,32 @@ def _save_profile_update(form_data):
     return redirect(url_for("profile"))
 
 
+def _render_profile_page(user):
+    """Render the profile page with marketplace stats and lists."""
+    return render_template(
+        "profile.html",
+        user=user,
+        active_listings=get_active_listings_by_seller(user["id"]),
+        sold_listings=get_sold_listings_by_seller(user["id"]),
+        profile_stats=get_user_profile_stats(user["id"]),
+        reviews=get_reviews_for_user(user["id"]),
+    )
+
+
+def _handle_profile_edit(user):
+    """Render or process the edit profile form."""
+    if request.method == "GET":
+        return render_template("edit_profile.html", user=user)
+
+    form_data = _get_profile_form_data()
+    error_response = _validate_profile_form(form_data, user)
+
+    if error_response:
+        return error_response
+
+    return _save_profile_update(form_data)
+
+
 def _register_main_routes(app):
     """Register homepage and simple listing page routes."""
 
@@ -428,7 +459,7 @@ def _register_profile_routes(app):
         if redirect_response:
             return redirect_response
 
-        return render_template("profile.html", user=user)
+        return _render_profile_page(user)
 
     @app.route("/profile/edit", methods=["GET", "POST"])
     def edit_profile():
@@ -440,16 +471,7 @@ def _register_profile_routes(app):
         if redirect_response:
             return redirect_response
 
-        if request.method == "GET":
-            return render_template("edit_profile.html", user=user)
-
-        form_data = _get_profile_form_data()
-        error_response = _validate_profile_form(form_data, user)
-
-        if error_response:
-            return error_response
-
-        return _save_profile_update(form_data)
+        return _handle_profile_edit(user)
 
 
 def _register_auth_routes(app):

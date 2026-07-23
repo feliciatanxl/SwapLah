@@ -47,68 +47,25 @@
 
         <div class="row g-3">
             <div class="col-6 col-sm-4 col-lg">
-                <div class="category-card category-card-active">
+                <a class="category-card {% if not category %}category-card-active{% endif %}" href="{{ url_for('index') }}#latest-listings">
                     <div class="category-icon"><i class="bi bi-grid"></i></div>
                     <div>
                         <h6>All</h6>
-                        <p>811 items</p>
+                        <p>{{ category_summary.total }} item{% if category_summary.total != 1 %}s{% endif %}</p>
                     </div>
-                </div>
+                </a>
             </div>
+            {% for category_row in category_summary.category_rows %}
             <div class="col-6 col-sm-4 col-lg">
-                <div class="category-card">
-                    <div class="category-icon"><i class="bi bi-book"></i></div>
+                <a class="category-card {% if category == category_row.label %}category-card-active{% endif %}" href="{{ url_for('index', category=category_row.label) }}#latest-listings">
+                    <div class="category-icon"><i class="bi {{ category_row.icon }}"></i></div>
                     <div>
-                        <h6>Textbooks</h6>
-                        <p>234 items</p>
+                        <h6>{{ category_row.label }}</h6>
+                        <p>{{ category_row.count }} item{% if category_row.count != 1 %}s{% endif %}</p>
                     </div>
-                </div>
+                </a>
             </div>
-            <div class="col-6 col-sm-4 col-lg">
-                <div class="category-card">
-                    <div class="category-icon"><i class="bi bi-laptop"></i></div>
-                    <div>
-                        <h6>Electronics</h6>
-                        <p>187 items</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-6 col-sm-4 col-lg">
-                <div class="category-card">
-                    <div class="category-icon"><i class="bi bi-prescription2"></i></div>
-                    <div>
-                        <h6>Lab Equipment</h6>
-                        <p>92 items</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-6 col-sm-4 col-lg">
-                <div class="category-card">
-                    <div class="category-icon"><i class="bi bi-pencil"></i></div>
-                    <div>
-                        <h6>Stationery</h6>
-                        <p>78 items</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-6 col-sm-4 col-lg">
-                <div class="category-card">
-                    <div class="category-icon"><i class="bi bi-gift"></i></div>
-                    <div>
-                        <h6>Free Items</h6>
-                        <p>64 items</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-6 col-sm-4 col-lg">
-                <div class="category-card">
-                    <div class="category-icon"><i class="bi bi-arrow-left-right"></i></div>
-                    <div>
-                        <h6>Swap Only</h6>
-                        <p>41 items</p>
-                    </div>
-                </div>
-            </div>
+            {% endfor %}
         </div>
     </div>
 </section>
@@ -127,12 +84,10 @@
                 placeholder="Search title or description" value="{{ request.args.get('search', '') }}">
             <select id="category" name="category" class="form-select">
                 <option value="">All categories</option>
-                <option value="Textbooks" {% if request.args.get('category')=='Textbooks' %}selected{% endif %}>
-                    Textbooks</option>
-                <option value="Electronics" {% if request.args.get('category')=='Electronics' %}selected{% endif %}>
-                    Electronics</option>
-                <option value="Lab Equipment" {% if request.args.get('category')=='Lab Equipment' %}selected{% endif %}>
-                    Lab Equipment</option>
+                {% for category_row in category_summary.category_rows %}
+                <option value="{{ category_row.label }}" {% if request.args.get('category')==category_row.label %}selected{% endif %}>
+                    {{ category_row.label }}</option>
+                {% endfor %}
             </select>
             <select id="condition" name="condition" class="form-select">
                 <option value="">All conditions</option>
