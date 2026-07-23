@@ -770,6 +770,7 @@ def get_offer_by_id(offer_id):
 TRANSACTIONS_FOR_BUYER_SQL = """
 SELECT
     transactions.id,
+    transactions.offer_id,
     transactions.transaction_type,
     transactions.amount,
     transactions.created_at,
@@ -786,6 +787,7 @@ ORDER BY transactions.created_at DESC
 TRANSACTIONS_FOR_SELLER_SQL = """
 SELECT
     transactions.id,
+    transactions.offer_id,
     transactions.transaction_type,
     transactions.amount,
     transactions.created_at,
