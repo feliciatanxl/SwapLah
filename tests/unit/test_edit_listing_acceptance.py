@@ -347,3 +347,45 @@ def test_update_listing_rejects_invalid_price(tmp_path, monkeypatch):
 
     data = response.get_json()
     assert data["error"] == "Price must be a number, Free, or Swap Only."
+
+
+def test_update_listing_rejects_invalid_condition(tmp_path, monkeypatch):
+    monkeypatch.setattr(db, "DATABASE", tmp_path / "test_swaplah.db")
+
+    app = create_app()
+    app.config["TESTING"] = True
+    app.config["SECRET_KEY"] = "test-secret"
+
+    client = app.test_client()
+
+    seller_id = create_test_user("seller@mymail.nyp.edu.sg", "S001")
+
+    listing = db.create_listing(
+        seller_id=seller_id,
+        title="Original Title",
+        description="Original Description",
+        price="10.00",
+        category="Textbooks",
+        condition="Good",
+        image_url="test-image.jpg",
+    )
+
+    login_as(client, seller_id)
+
+    response = client.put(
+        f"/api/listings/{listing['id']}",
+        json={
+            "title": "Updated Title",
+            "description": "Updated Description",
+            "price": "15",
+            "category": "Electronics",
+            "condition": "Terrible",
+            "imageUrl": "updated-image.jpg",
+        },
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+    assert data["error"] == "Invalid item condition."
+
