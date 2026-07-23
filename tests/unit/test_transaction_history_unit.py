@@ -2,7 +2,7 @@
 Unit tests for:
   GET /api/transactions
 
-All DB calls are monkeypatched — no real database needed.
+All DB calls are monkeypatched â€” no real database needed.
 """
 import pytest
 from app import create_app
@@ -152,19 +152,14 @@ def test_unit_get_history_invalid_role(client):
     assert resp.status_code == 400
 
 
-def test_unit_get_resolved_offer_outcomes_success(client, monkeypatch):
-    """Logged-in users can see accepted and rejected offer outcomes involving them."""
+def test_unit_get_resolved_offer_outcomes_forbidden_for_normal_user(client):
+    """Normal users cannot see admin offer outcomes."""
     login_as(client, 1)
-    monkeypatch.setattr(db_module, "get_resolved_offers_for_user", lambda user_id: FAKE_RESOLVED_OFFERS)
 
     resp = client.get("/api/transactions/offers")
 
-    assert resp.status_code == 200
-    data = resp.get_json()
-    assert len(data["offers"]) == 2
-    assert data["offers"][0]["status"] == "Accepted"
-    assert data["offers"][1]["status"] == "Rejected"
-    assert data["offers"][1]["swapListingTitle"] == "Notebook"
+    assert resp.status_code == 403
+    assert resp.get_json()["error"] == "Only administrators can view offer outcomes."
 
 
 def test_unit_get_resolved_offer_outcomes_admin_sees_all(client, monkeypatch):
@@ -179,16 +174,15 @@ def test_unit_get_resolved_offer_outcomes_admin_sees_all(client, monkeypatch):
         lambda uid: {"id": uid, "role": "admin", "status": "Active"},
     )
     monkeypatch.setattr(db_module, "get_all_resolved_offers", lambda: FAKE_RESOLVED_OFFERS)
-    monkeypatch.setattr(
-        db_module,
-        "get_resolved_offers_for_user",
-        lambda user_id: pytest.fail("admin should not use user-scoped resolved offers"),
-    )
 
     resp = client.get("/api/transactions/offers")
 
     assert resp.status_code == 200
-    assert len(resp.get_json()["offers"]) == 2
+    data = resp.get_json()
+    assert len(data["offers"]) == 2
+    assert data["offers"][0]["status"] == "Accepted"
+    assert data["offers"][1]["status"] == "Rejected"
+    assert data["offers"][1]["swapListingTitle"] == "Notebook"
 
 
 def test_unit_get_resolved_offer_outcomes_unauthenticated(client):

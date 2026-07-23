@@ -52,7 +52,8 @@
         </div>
     </div>
 
-    <div class="page-heading mt-5">
+    {% if session.get("role") == "admin" %}
+    <div class="page-heading mt-5" id="offerOutcomesSection">
         <div>
             <h2 class="section-title">Offer Outcomes</h2>
             <p class="section-subtitle">Accepted and rejected cash or swap offers.</p>
@@ -70,6 +71,7 @@
         <strong>No resolved offers yet</strong>
         <span>Accepted and rejected offers will appear here.</span>
     </div>
+    {% endif %}
 </section>
 
 <script>
@@ -196,7 +198,9 @@
     async function init() {
         const buyerTransactions = await loadHistory("buyer", "buyerTableCard", "buyerEmptyState", "buyerHistoryBody");
         const sellerTransactions = await loadHistory("seller", "sellerTableCard", "sellerEmptyState", "sellerHistoryBody");
+        {% if session.get("role") == "admin" %}
         await loadOfferOutcomes();
+        {% endif %}
 
         const totalSpent = buyerTransactions.reduce(function (sum, t) { return sum + (t.transactionType === "cash" ? Number(t.amount || 0) : 0); }, 0);
         const totalEarned = sellerTransactions.reduce(function (sum, t) { return sum + (t.transactionType === "cash" ? Number(t.amount || 0) : 0); }, 0);
