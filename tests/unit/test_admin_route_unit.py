@@ -29,7 +29,7 @@ def create_admin_user(app):
     conn = get_db_connection()
     conn.execute(
         'INSERT INTO users (id, student_id, first_name, last_name, display_name, email, contact_number, password_hash, role) '
-        'VALUES (1, "S10001", "Admin", "User", "AdminUser", "admin@test.com", "12345678", "hash", "admin")'
+        'VALUES (1, "S10001", "Admin", "User", "AdminUser", "admin@mymail.nyp.edu.sg", "12345678", "hash", "admin")'
     )
     conn.commit()
     conn.close()
@@ -41,7 +41,7 @@ def create_test_user(app):
     conn = get_db_connection()
     conn.execute(
         'INSERT INTO users (id, student_id, first_name, last_name, display_name, email, contact_number, password_hash, role) '
-        'VALUES (2, "S10002", "Regular", "User", "RegularUser", "user@test.com", "87654321", "hash", "user")'
+        'VALUES (2, "S10002", "Regular", "User", "RegularUser", "user@mymail.nyp.edu.sg", "87654321", "hash", "user")'
     )
     conn.commit()
     conn.close()

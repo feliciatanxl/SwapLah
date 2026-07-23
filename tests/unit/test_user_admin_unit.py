@@ -62,8 +62,8 @@ def test_get_all_users_returns_all_users_excluding_password_hash(tmp_path, monke
 
     app_db.init_db()
 
-    user1_id = create_test_user("alice@example.com", "S001", "Alice")
-    user2_id = create_test_user("bob@example.com", "S002", "Bob")
+    user1_id = create_test_user("alice@mymail.nyp.edu.sg", "S001", "Alice")
+    user2_id = create_test_user("bob@mymail.nyp.edu.sg", "S002", "Bob")
 
     users = user_admin.get_all_users()
 
@@ -75,7 +75,7 @@ def test_get_all_users_returns_all_users_excluding_password_hash(tmp_path, monke
 
     assert alice["student_id"] == "S001"
     assert alice["display_name"] == "Alice"
-    assert alice["email"] == "alice@example.com"
+    assert alice["email"] == "alice@mymail.nyp.edu.sg"
     assert alice["status"] == "Active"
     assert alice["role"] == "user"  # assuming default role is 'user'
     assert "created_at" in alice
@@ -113,7 +113,7 @@ def test_get_all_users_orders_by_created_at_desc(tmp_path, monkeypatch):
             "Old",
             "User",
             "OldUser",
-            "old@example.com",
+            "old@mymail.nyp.edu.sg",
             "91234567",
             generate_password_hash("pass"),
             "Active",
@@ -134,7 +134,7 @@ def test_get_all_users_orders_by_created_at_desc(tmp_path, monkeypatch):
             "New",
             "User",
             "NewUser",
-            "new@example.com",
+            "new@mymail.nyp.edu.sg",
             "91234567",
             generate_password_hash("pass"),
             "Active",
@@ -158,7 +158,9 @@ def test_update_user_status_flips_active_to_suspended(tmp_path, monkeypatch):
 
     app_db.init_db()
 
-    user_id = create_test_user("flip@example.com", "S005", "FlipUser", status="Active")
+    user_id = create_test_user(
+        "flip@mymail.nyp.edu.sg", "S005", "FlipUser", status="Active"
+    )
 
     updated = user_admin.update_user_status(user_id, "Suspended")
 
@@ -180,7 +182,9 @@ def test_update_user_status_flips_suspended_to_active(tmp_path, monkeypatch):
 
     app_db.init_db()
 
-    user_id = create_test_user("flip2@example.com", "S006", "FlipUser2", status="Suspended")
+    user_id = create_test_user(
+        "flip2@mymail.nyp.edu.sg", "S006", "FlipUser2", status="Suspended"
+    )
 
     updated = user_admin.update_user_status(user_id, "Active")
 
@@ -201,7 +205,9 @@ def test_update_user_status_invalid_status_raises_valueerror_no_db_change(tmp_pa
 
     app_db.init_db()
 
-    user_id = create_test_user("invalid@example.com", "S007", "InvalidUser", status="Active")
+    user_id = create_test_user(
+        "invalid@mymail.nyp.edu.sg", "S007", "InvalidUser", status="Active"
+    )
 
     with pytest.raises(ValueError, match="Invalid status"):
         user_admin.update_user_status(user_id, "Banned")

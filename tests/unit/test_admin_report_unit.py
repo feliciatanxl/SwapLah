@@ -80,7 +80,7 @@ def test_get_all_reports_join_fields(app):
         conn = get_db_connection()
         conn.execute(
             'INSERT INTO users (id, student_id, first_name, last_name, display_name, email, contact_number, password_hash) '
-            'VALUES (2, "S12345", "Test", "User", "TestUser", "test@test.com", "12345678", "hash")'
+            'VALUES (2, "S12345", "Test", "User", "TestUser", "test@mymail.nyp.edu.sg", "12345678", "hash")'
         )
         conn.commit()
         conn.close()
@@ -105,7 +105,7 @@ def test_admin_delete_reported_listing_success(app):
         conn = get_db_connection()
         conn.execute(
             'INSERT INTO users (id, student_id, first_name, last_name, display_name, email, contact_number, password_hash) '
-            'VALUES (1, "S12345", "Test", "User", "TestUser", "test@test.com", "12345678", "hash")'
+            'VALUES (1, "S12345", "Test", "User", "TestUser", "test@mymail.nyp.edu.sg", "12345678", "hash")'
         )
         conn.commit()
         conn.close()
@@ -155,7 +155,7 @@ def test_admin_delete_reported_listing_already_resolved(app):
         conn = get_db_connection()
         conn.execute(
             'INSERT INTO users (id, student_id, first_name, last_name, display_name, email, contact_number, password_hash) '
-            'VALUES (1, "S12345", "Test", "User", "TestUser", "test@test.com", "12345678", "hash")'
+            'VALUES (1, "S12345", "Test", "User", "TestUser", "test@mymail.nyp.edu.sg", "12345678", "hash")'
         )
         conn.commit()
         conn.close()

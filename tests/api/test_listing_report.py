@@ -23,14 +23,14 @@ def client(tmp_path, monkeypatch):
             # Create test user
             cursor.execute(
                 "INSERT INTO users (student_id, first_name, last_name, display_name, email, contact_number, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                ('S00000001', 'Test', 'User', 'testuser', 'test@example.com', '12345678', 'hash')
+                ('S00000001', 'Test', 'User', 'testuser', 'test@mymail.nyp.edu.sg', '12345678', 'hash')
             )
             user_id = cursor.lastrowid
 
             # Create another user (for testing different reporters)
             cursor.execute(
                 "INSERT INTO users (student_id, first_name, last_name, display_name, email, contact_number, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                ('S00000002', 'Other', 'User', 'otheruser', 'other@example.com', '87654321', 'hash')
+                ('S00000002', 'Other', 'User', 'otheruser', 'other@mymail.nyp.edu.sg', '87654321', 'hash')
             )
             other_id = cursor.lastrowid
 

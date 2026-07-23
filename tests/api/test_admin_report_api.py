@@ -19,15 +19,15 @@ def client(tmp_path, monkeypatch):
             conn = get_db_connection()
             conn.execute(
                 'INSERT INTO users (id, student_id, first_name, last_name, display_name, email, contact_number, password_hash, role) '
-                'VALUES (1, "S10001", "Admin", "User", "AdminUser", "admin@test.com", "12345678", "hash", "admin")'
+                'VALUES (1, "S10001", "Admin", "User", "AdminUser", "admin@mymail.nyp.edu.sg", "12345678", "hash", "admin")'
             )
             conn.execute(
                 'INSERT INTO users (id, student_id, first_name, last_name, display_name, email, contact_number, password_hash, role) '
-                'VALUES (2, "S10002", "Regular", "User", "RegularUser", "user@test.com", "87654321", "hash", "user")'
+                'VALUES (2, "S10002", "Regular", "User", "RegularUser", "user@mymail.nyp.edu.sg", "87654321", "hash", "user")'
             )
             conn.execute(
                 'INSERT INTO users (id, student_id, first_name, last_name, display_name, email, contact_number, password_hash, role) '
-                'VALUES (3, "S10003", "Test", "User", "TestUser", "test@test.com", "11111111", "hash", "user")'
+                'VALUES (3, "S10003", "Test", "User", "TestUser", "test@mymail.nyp.edu.sg", "11111111", "hash", "user")'
             )
             conn.commit()
             conn.close()

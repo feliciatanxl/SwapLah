@@ -3,6 +3,7 @@
 import math
 import os
 import re
+import sqlite3
 import time
 
 from flask import Flask, flash, jsonify, redirect, render_template, request, session, url_for
@@ -11,9 +12,9 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from app.auth import admin_required, _require_admin_response
 
 from app.db import (
+    create_user,
     get_active_listings_by_seller,
     search_active_listings,
-    get_db_connection,
     get_listing_by_id,
     get_listing_category_summary,
     get_listings_by_seller,
@@ -26,6 +27,7 @@ from app.db import (
     init_db,
     update_user_account,
 )
+from app.email_validation import is_valid_student_email, normalize_student_email
 import app.db as db_module  # noqa: F401 - exposes db functions for monkeypatching in tests
 from app.routes.listing import listings_bp
 from app.routes.offers import offers_bp
@@ -90,16 +92,26 @@ def _is_admin_path(path):
 
 def _handle_login():
     """Process POST login form and return a redirect or re-rendered login page."""
-    email = request.form.get("email", "").strip().lower()
+    email = request.form.get("email", "")
     password = request.form.get("password", "")
 
-    if not email or not password:
+    if not email.strip() or not password:
         flash("Please enter your email and password.", "danger")
+        return render_template("login.html")
+
+    try:
+        email = normalize_student_email(email)
+    except ValueError:
+        flash("Invalid email or password.", "danger")
         return render_template("login.html")
 
     user = get_user_by_email(email)
 
-    if user is None or not check_password_hash(user["password_hash"], password):
+    if (
+        user is None
+        or not is_valid_student_email(user["email"])
+        or not check_password_hash(user["password_hash"], password)
+    ):
         flash("Invalid email or password.", "danger")
         return render_template("login.html")
 
@@ -125,7 +137,7 @@ def _handle_register():
         flash("Please fill in all required fields.", "danger")
         return render_template("register.html")
 
-    if not form_data["email"].endswith("@mymail.nyp.edu.sg"):
+    if not is_valid_student_email(form_data["email"]):
         flash("Please use a valid NYP email ending with @mymail.nyp.edu.sg.", "danger")
         return render_template("register.html")
 
@@ -143,7 +155,7 @@ def _get_registration_form_data():
         "first_name": request.form.get("first_name", "").strip(),
         "last_name": request.form.get("last_name", "").strip(),
         "display_name": request.form.get("display_name", "").strip(),
-        "email": request.form.get("email", "").strip().lower(),
+        "email": request.form.get("email", "").strip(),
         "contact_number": request.form.get("contact_number", "").strip(),
         "password": request.form.get("password", ""),
         "confirm_password": request.form.get("confirm_password", ""),
@@ -153,35 +165,23 @@ def _get_registration_form_data():
 def _create_user_account(form_data):
     """Create a user account from validated registration form data."""
     password_hash = generate_password_hash(form_data["password"])
-    conn = None
 
     try:
-        conn = get_db_connection()
-        conn.execute(
-            """
-            INSERT INTO users (
-                student_id, first_name, last_name, display_name,
-                email, contact_number, password_hash
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                form_data["student_id"],
-                form_data["first_name"],
-                form_data["last_name"],
-                form_data["display_name"],
-                form_data["email"],
-                form_data["contact_number"],
-                password_hash,
-            ),
+        create_user(
+            form_data["student_id"],
+            form_data["first_name"],
+            form_data["last_name"],
+            form_data["display_name"],
+            form_data["email"],
+            form_data["contact_number"],
+            password_hash,
         )
-        conn.commit()
-    except Exception:  # noqa: BLE001
+    except ValueError:
+        flash("Please use a valid NYP email ending with @mymail.nyp.edu.sg.", "danger")
+        return render_template("register.html")
+    except sqlite3.IntegrityError:
         flash("Email or Student ID already exists.", "danger")
         return render_template("register.html")
-    finally:
-        if conn is not None:
-            conn.close()
 
     flash("Account created successfully. Please log in.", "success")
     return redirect(url_for("login"))

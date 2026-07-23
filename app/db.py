@@ -3,6 +3,12 @@ import sqlite3
 from datetime import datetime
 from pathlib import Path
 
+from app.email_validation import (
+    STUDENT_EMAIL_CHECK_SQL,
+    install_user_email_guards,
+    normalize_student_email,
+)
+
 DATABASE = Path(__file__).resolve().parent.parent / "swaplah.db"
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 LISTING_CATEGORIES = (
@@ -13,10 +19,11 @@ LISTING_CATEGORIES = (
     {"label": "Clothing", "icon": "bi-bag"},
 )
 
-CREATE_USERS_TABLE_SQL = """CREATE TABLE IF NOT EXISTS users (
+CREATE_USERS_TABLE_SQL = f"""CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT, student_id TEXT NOT NULL UNIQUE,
     first_name TEXT NOT NULL, last_name TEXT NOT NULL, display_name TEXT NOT NULL,
-    email TEXT NOT NULL UNIQUE, contact_number TEXT NOT NULL,
+    email TEXT NOT NULL UNIQUE CHECK ({STUDENT_EMAIL_CHECK_SQL}),
+    contact_number TEXT NOT NULL,
     password_hash TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'user',
     status TEXT NOT NULL DEFAULT 'Active', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"""
 
@@ -234,6 +241,7 @@ def init_db():
     """Create all tables if they do not exist."""
     conn = get_db_connection()
     conn.execute(CREATE_USERS_TABLE_SQL)
+    install_user_email_guards(conn)
     conn.execute(CREATE_LISTINGS_TABLE_SQL)
     ensure_listing_status_column(conn)
     conn.execute(CREATE_OFFERS_TABLE_SQL)
@@ -244,10 +252,58 @@ def init_db():
     conn.close()
 
 
-def get_user_by_email(email):
-    """Retrieve a user by email address."""
+def create_user(
+    student_id,
+    first_name,
+    last_name,
+    display_name,
+    email,
+    contact_number,
+    password_hash,
+):
+    # pylint: disable=too-many-positional-arguments
+    """Create a user with a normalized student email and return the saved row."""
+    normalized_email = normalize_student_email(email)
     conn = get_db_connection()
-    user = conn.execute("SELECT * FROM users WHERE email=:email", {"email": email}).fetchone()
+    try:
+        cursor = conn.execute(
+            """
+            INSERT INTO users (
+                student_id, first_name, last_name, display_name,
+                email, contact_number, password_hash
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                student_id,
+                first_name,
+                last_name,
+                display_name,
+                normalized_email,
+                contact_number,
+                password_hash,
+            ),
+        )
+        conn.commit()
+        user = conn.execute(
+            "SELECT * FROM users WHERE id=?", (cursor.lastrowid,)
+        ).fetchone()
+        return dict(user)
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def get_user_by_email(email):
+    """Retrieve a user by a case-insensitive canonical email."""
+    normalized_email = email.strip().lower() if isinstance(email, str) else ""
+    conn = get_db_connection()
+    user = conn.execute(
+        "SELECT * FROM users WHERE lower(email)=:email",
+        {"email": normalized_email},
+    ).fetchone()
     conn.close()
     return user
 
