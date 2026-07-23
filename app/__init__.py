@@ -53,6 +53,7 @@ PUBLIC_ENDPOINTS = {
     "api_user_reviews",
 }
 
+
 def _is_suspended_user(user):
     """Return True if the user account is suspended."""
     return user["status"] == "Suspended"
@@ -75,6 +76,7 @@ def _admin_denied_response():
 def _is_admin_path(path):
     """Return True for the admin page and all admin subpaths."""
     return path == "/admin" or path.startswith("/admin/")
+
 
 def _handle_login():
     """Process POST login form and return a redirect or re-rendered login page."""
@@ -244,6 +246,7 @@ def _get_logged_in_user_or_redirect(message):
 
     return user, None
 
+
 def _redirect_logged_out_user(message):
     """Redirect logged-out users to the login page."""
     if "user_id" not in session:
@@ -251,6 +254,7 @@ def _redirect_logged_out_user(message):
         return redirect(url_for("login"))
 
     return None
+
 
 def _is_public_endpoint(endpoint):
     """Return True if the endpoint can be accessed without login."""
@@ -287,18 +291,18 @@ def _check_session_timeout():
     return None
 
 
-def _register_session_timeout(app):
+def _register_session_timeout(flask_app):
     """Register session inactivity timeout check before each request."""
 
-    @app.before_request
+    @flask_app.before_request
     def enforce_session_timeout():
         return _check_session_timeout()
 
 
-def _register_admin_path_guard(app):
+def _register_admin_path_guard(flask_app):
     """Protect /admin and all /admin/* paths before routing."""
 
-    @app.before_request
+    @flask_app.before_request
     def enforce_admin_path_guard():
         if not _is_admin_path(request.path) or request.endpoint == "admin":
             return None
@@ -386,15 +390,15 @@ def _handle_profile_edit(user):
     return _save_profile_update(form_data)
 
 
-def _register_main_routes(app):
+def _register_main_routes(flask_app):
     """Register homepage and simple listing page routes."""
 
-    @app.route("/api/health")
+    @flask_app.route("/api/health")
     def api_health():
         """Return application health status."""
         return jsonify({"status": "ok"}), 200
 
-    @app.route("/api/users/<int:user_id>/reviews")
+    @flask_app.route("/api/users/<int:user_id>/reviews")
     def api_user_reviews(user_id):
         """Return public reviews for one user."""
         if get_user_by_id(user_id) is None:
@@ -402,7 +406,7 @@ def _register_main_routes(app):
 
         return jsonify({"reviews": get_reviews_for_user(user_id)}), 200
 
-    @app.route("/")
+    @flask_app.route("/")
     def index():
         """Render homepage with paginated listings."""
         page = request.args.get("page", 1, type=int)
@@ -411,16 +415,16 @@ def _register_main_routes(app):
         condition = request.args.get("condition", "").strip()
         return _render_index_page(page, search, category, condition)
 
-    @app.route("/listing/<int:listing_id>")
+    @flask_app.route("/listing/<int:listing_id>")
     def listing_detail(listing_id):
         """Render listing detail page."""
         return _render_listing_detail_page(listing_id)
 
 
-def _register_listing_owner_routes(app):
+def _register_listing_owner_routes(flask_app):
     """Register listing owner page routes."""
 
-    @app.route("/api/my-listings")
+    @flask_app.route("/api/my-listings")
     def api_my_listings():
         """Return the current user's listings as JSON for the swap dropdown."""
         user_id = session.get("user_id")
@@ -431,7 +435,7 @@ def _register_listing_owner_routes(app):
         listings = get_listings_by_seller(user_id)
         return jsonify(listings)
 
-    @app.route("/listing/<int:listing_id>/edit")
+    @flask_app.route("/listing/<int:listing_id>/edit")
     def edit_listing(listing_id):
         """Render edit listing page if the logged-in user owns the listing."""
         if "user_id" not in session:
@@ -451,10 +455,10 @@ def _register_listing_owner_routes(app):
         return render_template("edit_listing.html", listing=listing)
 
 
-def _register_profile_routes(app):
+def _register_profile_routes(flask_app):
     """Register profile view and edit routes."""
 
-    @app.route("/profile")
+    @flask_app.route("/profile")
     def profile():
         """Render profile page for logged-in user."""
         user, redirect_response = _get_logged_in_user_or_redirect(
@@ -466,7 +470,7 @@ def _register_profile_routes(app):
 
         return _render_profile_page(user)
 
-    @app.route("/profile/edit", methods=["GET", "POST"])
+    @flask_app.route("/profile/edit", methods=["GET", "POST"])
     def edit_profile():
         """Render and handle edit profile page."""
         user, redirect_response = _get_logged_in_user_or_redirect(
@@ -479,10 +483,10 @@ def _register_profile_routes(app):
         return _handle_profile_edit(user)
 
 
-def _register_auth_routes(app):
+def _register_auth_routes(flask_app):
     """Register authentication routes."""
 
-    @app.route("/login", methods=["GET", "POST"])
+    @flask_app.route("/login", methods=["GET", "POST"])
     def login():
         """Render login page or process login form."""
         if request.method == "GET":
@@ -490,7 +494,7 @@ def _register_auth_routes(app):
 
         return _handle_login()
 
-    @app.route("/register", methods=["GET", "POST"])
+    @flask_app.route("/register", methods=["GET", "POST"])
     def register():
         """Render register page or process registration form."""
         if request.method == "GET":
@@ -498,12 +502,12 @@ def _register_auth_routes(app):
 
         return _handle_register()
 
-    @app.route("/forgot-password")
+    @flask_app.route("/forgot-password")
     def forgot_password():
         """Render forgot password page."""
         return render_template("forgot_password.html")
 
-    @app.route("/logout")
+    @flask_app.route("/logout")
     def logout():
         """Clear session and redirect to login."""
         session.clear()
@@ -511,10 +515,10 @@ def _register_auth_routes(app):
         return redirect(url_for("login"))
 
 
-def _register_simple_page_routes(app):
+def _register_simple_page_routes(flask_app):
     """Register static page routes."""
 
-    @app.route("/offers")
+    @flask_app.route("/offers")
     def offers():
         """Render offers page for logged-in users."""
         redirect_response = _redirect_logged_out_user("Please log in to view your offers.")
@@ -524,7 +528,7 @@ def _register_simple_page_routes(app):
 
         return render_template("offers.html")
 
-    @app.route("/history")
+    @flask_app.route("/history")
     def history():
         """Render history page for logged-in users."""
         redirect_response = _redirect_logged_out_user("Please log in to view your history.")
@@ -534,7 +538,7 @@ def _register_simple_page_routes(app):
 
         return render_template("history.html")
 
-    @app.route("/sell")
+    @flask_app.route("/sell")
     def sell():
         """Render sell page for logged-in users."""
         redirect_response = _redirect_logged_out_user("Please log in to create a listing.")
