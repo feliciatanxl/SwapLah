@@ -253,13 +253,8 @@ def init_db():
 
 
 def create_user(
-    student_id,
-    first_name,
-    last_name,
-    display_name,
-    email,
-    contact_number,
-    password_hash,
+    student_id, first_name, last_name, display_name,
+    email, contact_number, password_hash,
 ):
     # pylint: disable=too-many-positional-arguments
     """Create a user with a normalized student email and return the saved row."""
