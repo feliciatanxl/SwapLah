@@ -2,6 +2,7 @@
 .venv/
 venv/
 env/
+.venv-clean/
 
 # Environment variables / secrets
 .env
@@ -33,3 +34,5 @@ Thumbs.db
 dist/
 build/
 *.egg-info/
+
+.agents/

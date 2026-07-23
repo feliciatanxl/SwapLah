@@ -76,9 +76,13 @@
                         }}</span>
                     <div>
                         <h6 class="mb-0 fw-bold">
+                            {% if listing.seller_id is defined %}
                             <a href="{{ url_for('view_profile', user_id=listing.seller_id) }}" class="text-dark text-decoration-none">
                                 {{ listing.seller_display_name or "Student Seller" }}
                             </a>
+                            {% else %}
+                            {{ listing.seller_display_name or "Student Seller" }}
+                            {% endif %}
                         </h6>
                         {% if seller_rating and seller_rating.review_count > 0 %}
                         <small class="text-muted">

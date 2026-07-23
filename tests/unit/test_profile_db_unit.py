@@ -1,3 +1,4 @@
+# pylint: disable=missing-module-docstring,missing-function-docstring,redefined-outer-name,duplicate-code
 import sqlite3
 
 import pytest
@@ -52,7 +53,7 @@ def test_get_user_by_id_returns_account_details(test_db):
     assert user["contact_number"] == "98887777"
 
 
-def test_get_user_by_id_returns_none_for_missing_user(test_db):
+def test_get_user_by_id_returns_none_for_missing_user(test_db):  # pylint: disable=unused-argument
     user = get_user_by_id(999999)
 
     assert user is None

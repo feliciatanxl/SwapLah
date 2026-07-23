@@ -1,3 +1,4 @@
+# pylint: disable=missing-module-docstring,missing-function-docstring,redefined-outer-name,duplicate-code
 import sqlite3
 
 import pytest

@@ -58,7 +58,7 @@ PUBLIC_ENDPOINTS = {
     "listings.api_get_active_listings",
     "listings.api_get_listing_detail",
     "api_health",
-    "api_user_reviews",
+    "reviews.get_user_reviews",
 }
 
 def _is_suspended_user(user):
@@ -268,7 +268,7 @@ def _render_listing_detail_page(listing_id):
         "listing_detail.html",
         listing=listing,
         listing_id=listing_id,
-        seller_rating=get_user_rating_stats(listing["seller_id"]),
+        seller_rating=get_user_rating_stats(listing["seller_id"]) if "seller_id" in listing else None,
         error_message=None,
     )
 
@@ -438,14 +438,6 @@ def _register_main_routes(app):
     def api_health():
         """Return application health status."""
         return jsonify({"status": "ok"}), 200
-
-    @app.route("/api/users/<int:user_id>/reviews")
-    def api_user_reviews(user_id):
-        """Return public reviews for one user."""
-        if get_user_by_id(user_id) is None:
-            return jsonify({"error": "User not found."}), 404
-
-        return jsonify({"reviews": get_reviews_for_user(user_id)}), 200
 
     @app.route("/")
     def index():

@@ -140,4 +140,176 @@
     </div>
 </div>
 
+<script>
+let pendingOfferId = null;
+
+function showFlash(message, type = "success") {
+    const area = document.getElementById("flash-area");
+    area.innerHTML = `<div class="alert alert-${type} alert-dismissible fade show" role="alert">
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>`;
+}
+
+function timeAgo(isoStr) {
+    const diff = Math.floor((Date.now() - new Date(isoStr + "Z").getTime()) / 1000);
+    if (diff < 60) return "just now";
+    if (diff < 3600) return Math.floor(diff / 60) + "m ago";
+    if (diff < 86400) return Math.floor(diff / 3600) + "h ago";
+    return Math.floor(diff / 86400) + "d ago";
+}
+
+function renderOffers(offers) {
+    const container = document.getElementById("offers-container");
+    document.getElementById("loading-state").classList.add("d-none");
+
+    const pending = offers.filter(o => o.status === "Pending");
+    document.getElementById("pending-count").textContent =
+        pending.length + (pending.length === 1 ? " pending" : " pending");
+
+    if (offers.length === 0) {
+        container.innerHTML = "";
+        document.getElementById("empty-state").classList.remove("d-none");
+        return;
+    }
+
+    // Group by listing
+    const groups = {};
+    for (const o of offers) {
+        if (!groups[o.listingId]) {
+            groups[o.listingId] = {
+                title: o.listingTitle,
+                category: o.listingCategory,
+                price: o.listingPrice,
+                offers: []
+            };
+        }
+        groups[o.listingId].offers.push(o);
+    }
+
+    let html = "";
+    for (const [listingId, group] of Object.entries(groups)) {
+        const pendingCount = group.offers.filter(o => o.status === "Pending").length;
+        html += `
+        <div class="listing-offer-group" id="group-${listingId}">
+            <div class="group-header">
+                <div>
+                    <span class="condition-tag">${escHtml(group.category)}</span>
+                    <h5>${escHtml(group.title)}</h5>
+                    <p class="text-muted mb-0">Listed at $${escHtml(group.price)} · ${pendingCount} pending offer${pendingCount !== 1 ? "s" : ""}</p>
+                </div>
+                <a href="/listing/${listingId}" class="btn btn-sm btn-outline-dark">View listing</a>
+            </div>
+            <div class="offer-list">
+                ${group.offers.map(renderOfferCard).join("")}
+            </div>
+        </div>`;
+    }
+    container.innerHTML = html;
+}
+
+function renderOfferCard(o) {
+    const isMuted = o.status !== "Pending";
+    const statusClass = o.status === "Pending" ? "bg-soft-yellow text-yellow"
+                      : o.status === "Accepted" ? "bg-soft-green text-green"
+                      : "bg-soft-pink text-pink";
+    const typeIcon = o.offerType === "swap"
+        ? `<span class="offer-type swap"><i class="bi bi-arrow-left-right"></i> Swap offer</span>`
+        : `<span class="offer-type price"><i class="bi bi-cash-coin"></i> Cash offer</span>`;
+    const offerDetail = o.offerType === "swap"
+        ? `Offers: <strong>${escHtml(o.swapListingTitle || "Unknown item")}</strong>`
+        : `Offer amount: <strong>$${o.proposedPrice}</strong>`;
+    const avatar = escHtml((o.buyerDisplayName || "?")[0].toUpperCase());
+    const actions = o.status === "Pending"
+        ? `<button class="btn btn-accept" onclick="openAccept(${o.id})"><i class="bi bi-check-lg"></i> Accept</button>
+           <button class="btn btn-reject" onclick="openReject(${o.id})"><i class="bi bi-x-lg"></i> Reject</button>`
+        : `<button class="btn btn-outline-dark" disabled>${escHtml(o.status)}</button>`;
+
+    return `
+    <article class="offer-card ${isMuted ? "is-muted" : ""}" id="offer-${o.id}">
+        <div class="offer-main">
+            <div class="offer-content">
+                <div class="offer-meta">
+                    <span class="status-badge bg-soft-blue text-blue"><i class="bi bi-shop"></i> Selling</span>
+                    ${typeIcon}
+                    <span class="status-badge ${statusClass}">${escHtml(o.status)}</span>
+                    <span class="offer-time">${timeAgo(o.createdAt)}</span>
+                </div>
+                <h4 class="offer-item-title">${escHtml(o.buyerDisplayName)}</h4>
+                <div class="offer-message">${offerDetail}</div>
+                <div class="offer-user"><span class="offer-avatar">${avatar}</span></div>
+            </div>
+        </div>
+        <div class="offer-actions">${actions}</div>
+    </article>`;
+}
+
+function escHtml(str) {
+    return String(str ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+function openAccept(offerId) {
+    pendingOfferId = offerId;
+    new bootstrap.Modal(document.getElementById("acceptOfferModal")).show();
+}
+
+function openReject(offerId) {
+    pendingOfferId = offerId;
+    new bootstrap.Modal(document.getElementById("rejectOfferModal")).show();
+}
+
+document.getElementById("confirmAcceptBtn").addEventListener("click", async () => {
+    if (!pendingOfferId) return;
+    bootstrap.Modal.getInstance(document.getElementById("acceptOfferModal")).hide();
+    try {
+        const res = await fetch(`/api/offers/${pendingOfferId}/accept`, { method: "PATCH" });
+        const data = await res.json();
+        if (res.ok) {
+            showFlash(data.message || "Offer accepted.");
+            loadOffers();
+        } else {
+            showFlash(data.error || "Failed to accept offer.", "danger");
+        }
+    } catch {
+        showFlash("Network error. Please try again.", "danger");
+    }
+    pendingOfferId = null;
+});
+
+document.getElementById("confirmRejectBtn").addEventListener("click", async () => {
+    if (!pendingOfferId) return;
+    bootstrap.Modal.getInstance(document.getElementById("rejectOfferModal")).hide();
+    try {
+        const res = await fetch(`/api/offers/${pendingOfferId}/reject`, { method: "PATCH" });
+        const data = await res.json();
+        if (res.ok) {
+            showFlash(data.message || "Offer rejected.", "warning");
+            loadOffers();
+        } else {
+            showFlash(data.error || "Failed to reject offer.", "danger");
+        }
+    } catch {
+        showFlash("Network error. Please try again.", "danger");
+    }
+    pendingOfferId = null;
+});
+
+async function loadOffers() {
+    try {
+        const res = await fetch("/api/offers/received");
+        if (res.status === 401) {
+            window.location.href = "/login";
+            return;
+        }
+        const data = await res.json();
+        renderOffers(data.offers || []);
+    } catch {
+        document.getElementById("loading-state").innerHTML =
+            `<strong class="text-danger">Failed to load offers. Please refresh.</strong>`;
+    }
+}
+
+loadOffers();
+</script>
+
 {% endblock %}
