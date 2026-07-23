@@ -7,12 +7,13 @@
             <h1 class="section-title">Transaction History</h1>
             <p class="section-subtitle">Completed buys, sells, swaps, and review actions.</p>
         </div>
+        <span class="status-badge bg-soft-green text-green"><i class="bi bi-check-circle"></i> Demo data</span>
     </div>
 
     <div class="row g-3 mb-4">
-        <div class="col-md-4"><div class="stats-card bg-soft-green"><small class="stats-label text-green">Total earned</small><h2 class="stats-value" id="statTotalEarned">$0</h2></div></div>
-        <div class="col-md-4"><div class="stats-card bg-soft-yellow"><small class="stats-label text-yellow">Total spent</small><h2 class="stats-value" id="statTotalSpent">$0</h2></div></div>
-        <div class="col-md-4"><div class="stats-card bg-soft-blue"><small class="stats-label text-blue">Completed deals</small><h2 class="stats-value" id="statCompletedDeals">0</h2></div></div>
+        <div class="col-md-4"><div class="stats-card bg-soft-green"><small class="stats-label text-green">Total earned</small><h2 class="stats-value">$245</h2></div></div>
+        <div class="col-md-4"><div class="stats-card bg-soft-yellow"><small class="stats-label text-yellow">Total spent</small><h2 class="stats-value">$112</h2></div></div>
+        <div class="col-md-4"><div class="stats-card bg-soft-blue"><small class="stats-label text-blue">Completed deals</small><h2 class="stats-value">8</h2></div></div>
     </div>
 
     <ul class="nav nav-pills app-tabs mb-3" id="historyTabs" role="tablist">
@@ -25,29 +26,29 @@
 
     <div class="tab-content">
         <div class="tab-pane fade show active" id="buyer-history" role="tabpanel" tabindex="0">
-            <div class="table-card d-none" id="buyerTableCard">
+            <div class="table-card">
                 <table class="table align-middle mb-0">
                     <thead><tr><th>Item</th><th>Seller</th><th>Date</th><th>Amount</th><th>Review</th></tr></thead>
                     <tbody id="buyerHistoryBody"></tbody>
                 </table>
             </div>
-            <div class="empty-state mt-4 d-none" id="buyerEmptyState">
+            <div class="empty-state mt-4">
                 <i class="bi bi-bag-check"></i>
-                <strong>No buying transactions yet</strong>
+                <strong>No more buying transactions</strong>
                 <span>Accepted purchases and swaps will appear here.</span>
             </div>
         </div>
 
         <div class="tab-pane fade" id="seller-history" role="tabpanel" tabindex="0">
-            <div class="table-card d-none" id="sellerTableCard">
+            <div class="table-card">
                 <table class="table align-middle mb-0">
                     <thead><tr><th>Item</th><th>Buyer</th><th>Date</th><th>Amount</th><th>Review</th></tr></thead>
                     <tbody id="sellerHistoryBody"></tbody>
                 </table>
             </div>
-            <div class="empty-state mt-4 d-none" id="sellerEmptyState">
+            <div class="empty-state mt-4">
                 <i class="bi bi-shop"></i>
-                <strong>No selling transactions yet</strong>
+                <strong>No more selling transactions</strong>
                 <span>Completed sales will appear here after offers are accepted.</span>
             </div>
         </div>

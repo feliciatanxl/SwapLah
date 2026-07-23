@@ -1,248 +1,75 @@
-# SwapLah
+# SwapLah - Student Co-op Marketplace
 
-SwapLah is a Flask and SQLite web application for NYP students to register, log in, manage profiles, create item listings, browse active listings, and submit offers. This repository is structured for the IT2112 Agile DevOps assignment with pytest, Selenium, Postman/Newman, Pylint, Radon, GitLab CI, SBOM generation, and security gates.
+SwapLah is a web-based marketplace built for polytechnic students to securely buy, sell, and swap pre-owned items like textbooks, lab equipment, and electronics within a trusted campus community.
 
-## Python Version
+## Local Development Setup
 
-Use Python 3.11 for GitLab CI parity. The local repository has also been verified with the bundled virtual environment on Python 3.14.
+To contribute to this project, you will need to set up a local Python Virtual Environment (venv). This ensures that all developers are using the exact same library versions and prevents conflicts with your system's global Python packages.
 
-## Local Setup
+### Prerequisites
 
-Create and activate a virtual environment:
+Ensure you have Python 3.8 or higher installed on your machine. You can check your version by running the following in your terminal: python --version
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-```
+### Step 1: Clone the Repository
 
-Install runtime dependencies:
+Clone the GitLab repository to your local machine and navigate into the project directory
 
-```powershell
-python -m pip install -r requirements.txt
-```
+` ` `git clone cd swaplah` ` `
 
-Install development dependencies:
+### Step 2: Create the Virtual Environment
 
-```powershell
-python -m pip install -r requirements-dev.txt
-```
+Create a new virtual environment named ".venv" inside the project folder. Run the following command in your terminal:
 
-## Environment Variables
+For Windows, macOS, and Linux:
 
-`SECRET_KEY` is required. The app does not use a hardcoded fallback.
+` ` `python -m venv .venv` ` `
 
-Safe local setup:
+(Note: If "python" doesn't work on macOS/Linux, try using "python3 -m venv .venv")
 
-1. Copy `.env.example` to `.env`.
-2. Set `SECRET_KEY` to a long random local value.
-3. Do not commit `.env`; it is ignored by `.gitignore`.
+### Step 3: Activate the Virtual Environment
 
-GitLab CI sets a test-only `SECRET_KEY` for automated checks. Production or deployment environments must provide their own secret through protected CI/CD variables or hosting configuration.
+You must activate the virtual environment every time you open a new terminal to work on this project.
 
-Manual GitLab setup for CI:
+For Windows (Command Prompt):
 
-1. Go to `GitLab -> Settings -> CI/CD -> Variables`.
-2. Add a variable with key `SECRET_KEY`.
-3. Enter a non-empty test/deployment value in GitLab only; do not paste the value into repository files or documentation.
-4. Set the visibility/protection options according to the branch and merge-request pipeline policy used by the project.
-5. Save the variable before running feature-branch or merge-request pipelines.
+` ` `.venv\\Scripts\\activate.bat` ` `
 
-Pytest receives its test-only key from `tests/conftest.py`. Newman and the Flask server used by the `newman-api-tests` job receive `SECRET_KEY` from the GitLab CI/CD variable environment.
+For Windows (PowerShell):
 
-## Database
+` ` `.venv\\Scripts\\Activate.ps1` ` `
 
-The SQLite database file is `swaplah.db` for local development. Tables are created automatically by `init_db()` when the Flask app starts. Local database files are ignored by Git.
+For macOS and Linux:
 
-## Run The App
+` ` `source .venv/bin/activate` ` `
 
-```powershell
-$env:SECRET_KEY = "replace-with-a-long-local-secret"
-python run.py
-```
+Success Check: You will know it is activated when you see "(.venv)" appear at the very beginning of your terminal prompt line.
 
-The app starts with Flask's development server.
+### Step 4: Install Dependencies
 
-## Test Commands
+With the virtual environment activated, install all the required Python packages listed in the requirements file
 
-Run the complete pytest suite:
+` ` `pip install -r requirements.txt` ` `
 
-```powershell
-python -m pytest
-```
+### Step 5: Environment Variables
 
-Run unit tests:
+This project requires secret keys and database configurations that should never be pushed to version control.
 
-```powershell
-python -m pytest tests/unit
-```
+1.  Duplicate the ".env.example" file.
+2.  Rename the duplicated file to ".env".
+3.  Fill in your local configuration values inside the ".env" file. (Note: Ensure your ".env" file remains listed in your ".gitignore" file so it is never uploaded to GitLab).
 
-Run API tests:
+### Step 6: Run the Application
 
-```powershell
-python -m pytest tests/api
-```
+Start the local Flask development server
 
-Run Flask UI tests:
+` ` `flask run` ` `
 
-```powershell
-python -m pytest tests/ui/flask
-```
+(Or run it directly using Python, depending on your setup)
 
-Run Selenium tests when Chrome or Chromium and a compatible driver are available:
+` ` `python run.py` ` `
 
-```powershell
-python -m pytest tests/ui/selenium
-```
+## Deactivating the Environment
 
-Run coverage:
+When you are done working and want to return to your normal system terminal, you can safely exit the virtual environment by running
 
-```powershell
-python -m pytest tests/unit --cov=app --cov-report=term-missing
-```
-
-Run Pylint:
-
-```powershell
-python -m pylint app tests scripts
-```
-
-Run Radon:
-
-```powershell
-python -m radon cc app -s
-```
-
-Run the function-length and complexity gate:
-
-```powershell
-python scripts/code_quality_gate.py
-```
-
-The gate fails if an application function exceeds 40 physical source lines or cyclomatic complexity 10.
-
-## Newman
-
-Postman assets:
-
-- Collection: `postman/swaplah-api-tests.postman_collection.json`
-- Environment: `postman/swaplah-ci.postman_environment.json`
-
-Run locally only when Node.js and Newman are installed:
-
-```powershell
-newman run postman/swaplah-api-tests.postman_collection.json --environment postman/swaplah-ci.postman_environment.json
-```
-
-GitLab CI installs Newman in the `newman-api-tests` job.
-
-## API Examples
-
-Health:
-
-```http
-GET /api/health
-```
-
-Response:
-
-```json
-{"status": "ok"}
-```
-
-Listings:
-
-```http
-GET /api/listings?page=1&search=calculator&category=Electronics&condition=Good
-GET /api/listings/1
-POST /api/listings
-PUT /api/listings/1
-DELETE /api/listings/1
-```
-
-User reviews:
-
-```http
-GET /api/users/1/reviews
-```
-
-Response for an existing user with no reviews:
-
-```json
-{"reviews": []}
-```
-
-## Admin Authorization
-
-`/admin` is protected server-side. Active admin users are allowed. Logged-in normal users and suspended users receive `403`. Unauthenticated users are redirected to login. Navigation visibility is not treated as authorization.
-
-## GitLab Pipeline
-
-Pipeline stages:
-
-- `validate`: Pylint, Radon report, function-length and complexity gate.
-- `test`: unit tests with coverage, API tests.
-- `ui-test`: Flask UI and Selenium UI tests.
-- `api-test`: Newman/Postman API tests.
-- `security`: GitLab SAST, dependency scanning, secret detection, CycloneDX SBOM, security gate.
-- `build`: reproducible source archive.
-- `deploy`: publishes the verified build archive to GitLab Generic Package Registry.
-
-## SBOM
-
-Generate locally:
-
-```powershell
-python scripts/generate_sbom.py -r requirements.txt -r requirements-dev.txt -o swaplah-sbom.cdx.json
-```
-
-GitLab publishes `swaplah-sbom.cdx.json` as both an artifact and `artifacts:reports:cyclonedx`. Download it from the `cyclonedx-sbom` job artifacts.
-
-## Security Gate
-
-GitLab security templates are included for SAST, dependency scanning, and secret detection. The `security-gate` job inspects:
-
-- `gl-sast-report.json`
-- `gl-dependency-scanning-report.json`
-- `gl-secret-detection-report.json`
-
-The gate fails when:
-
-- SAST contains a High or Critical vulnerability.
-- Dependency scanning contains a High or Critical vulnerability.
-- Secret detection contains any finding.
-- An expected report is missing.
-
-Approved exceptions should be handled manually through a documented merge request discussion and a narrow, reviewed GitLab scanner rule or project policy. Do not add broad automatic ignores.
-
-## Build Artifact
-
-Generate locally:
-
-```powershell
-python scripts/build_package.py -o dist/swaplah-build.zip
-```
-
-The archive includes application Python files, templates, static assets, Postman files, scripts, README, dependency files, and safe configuration examples. It excludes `.git`, virtual environments, caches, local databases, `.env`, SBOM output, reports, and temporary files. GitLab publishes the archive from the `build-archive` job.
-
-## Deployment
-
-The `deploy-package` job publishes `dist/swaplah-build.zip` from the `build-archive` job to GitLab Generic Package Registry. The package name is `swaplah`, the package version is the commit short SHA, and the uploaded filename remains `swaplah-build.zip`.
-
-The upload URL is built from GitLab predefined CI variables:
-
-```text
-${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/swaplah/${CI_COMMIT_SHORT_SHA}/swaplah-build.zip
-```
-
-Default-branch pipelines deploy automatically after the required earlier stages and `build-archive` pass. Merge request and feature-branch pipelines show `deploy-package` as a manual job, and the pipeline is not blocked when that manual job is not started. Tag pipelines do not deploy because this project does not define a tag-release process.
-
-The deploy job authenticates with `CI_JOB_TOKEN` using the `JOB-TOKEN` request header. No real secret, password, token, project ID, or project URL is stored in the repository.
-
-Find the package in GitLab at:
-
-```text
-GitLab -> Deploy -> Package Registry
-```
-
-This deployment does not provide a live hosted Flask URL. Live hosting would require a real hosting target such as a VM, container platform, or cloud service, plus its deployment configuration and required CI/CD variables.
+` ` `deactivate` ` `
