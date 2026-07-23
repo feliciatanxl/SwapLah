@@ -22,7 +22,7 @@ from app.db import (
     init_db,
     update_user_account,
 )
-import app.db as db_module 
+import app.db as db_module
 from app.routes.listing import listings_bp
 from app.routes.offers import offers_bp
 from app.routes.history import history_bp
