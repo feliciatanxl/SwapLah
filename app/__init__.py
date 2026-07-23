@@ -1,4 +1,4 @@
-﻿"""Flask application factory."""
+"""Flask application factory."""
 
 import math
 import os

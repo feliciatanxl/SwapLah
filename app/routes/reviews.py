@@ -1,4 +1,4 @@
-﻿"""Routes for creating buyer reviews for completed transactions."""
+"""Routes for creating buyer reviews for completed transactions."""
 from flask import Blueprint, jsonify, request, session
 
 import app.db as db_module

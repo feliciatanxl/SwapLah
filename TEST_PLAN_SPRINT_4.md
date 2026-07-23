@@ -47,7 +47,7 @@ The following items are included in Sprint 4 testing:
 - Selenium UI test for viewing another user's profile in a real browser.
 - Regression testing to ensure Sprint 1–3 features continue to pass after Sprint 4 changes.
 - Static testing using pylint.
-- Cyclomatic complexity checking using radon (where the tool can parse the file — see Section 14 for a known limitation).
+- Cyclomatic complexity checking using radon.
 - Coverage checking using pytest-cov.
 - GitLab CI/CD pipeline verification.
 - AI prompt and refinement documentation.
@@ -93,7 +93,7 @@ The following items are included in Sprint 4 testing:
 - **Purpose:** Identify functions that are difficult to test or should be refactored.
 - **Pipeline stage:** lint
 - **Rule:** If a function has complexity above 10, it is treated as high risk and should be refactored or covered with additional tests before merge.
-- **Known limitation:** `app/db.py` and `app/routes/reviews.py` currently contain a byte-order-mark (BOM) character that causes this version of `radon` to fail parsing them (`ERROR: invalid non-printable character U+FEFF`). Complexity figures for functions in these two files (Section 4.1) were therefore counted manually by inspection rather than measured by the tool, and are marked accordingly. This does not affect pylint or pytest, which parse both files without issue.
+- **Resolved limitation:** `app/db.py`, `app/__init__.py`, and `app/routes/reviews.py` previously contained a byte-order-mark (BOM) character that caused `radon` (and the CI `code-quality-gate` job's own `ast.parse` call) to fail with `invalid non-printable character U+FEFF`. This broke the `code-quality-gate` pipeline job. The BOM has been stripped from all three files, and `scripts/code_quality_gate.py` now reads source files with `utf-8-sig` so a stray BOM in any file cannot break the gate again. Complexity figures in Section 4.1 are now measured directly by `radon`.
 
 ### 3.4 Dynamic Testing
 
@@ -123,13 +123,13 @@ This section follows the Lesson 7 test plan structure by listing specific items 
 
 | Function / Helper | Related User Story | Cyclomatic Complexity | Minimum Tests Required | Risk / Priority |
 | --- | --- | ---: | ---: | --- |
-| `_rating_error()` | #44 Rating validation | 4 (manual count — see 3.3) | 7 | High — must reject missing, non-integer, boolean, out-of-range, and float ratings. |
-| `_completed_buyer_offer_error()` | #44 Completed-offer / buyer-ownership validation | 4 (manual count) | 4 | High — must reject a missing offer, a non-`Accepted` offer, and a non-buyer submitter. |
-| `_review_target_error()` | #44 Review-target validation | 3 (manual count) | 3 | High — must reject a `reviewee_id` that does not match the listing's actual seller, and accept a matching or omitted `reviewee_id`. |
-| `submit_review()` (route) | #44 Buyer reviews seller | 5 (manual count) | 8 | High — must chain login, rating, offer, and target validation correctly and persist the review with the right average-rating response. |
-| `create_review()` | #44 / #36 Review persistence | 1 (manual count) | 2 | High — must persist `reviewer_id`, `reviewed_user_id`, `rating`, and `comment` correctly, defaulting an omitted comment to an empty string. |
-| `get_user_rating_stats()` | #36 Average rating calculation | 2 (manual count) | 3 | High — must return `None` average with 0 reviews, and a numerically correct average otherwise. |
-| `get_reviews_for_user()` | Retrieve reviews for a user | 1 (manual count) | 2 | Medium — must return only reviews where the user is the reviewed party. |
+| `_rating_error()` | #44 Rating validation | 6 | 7 | High — must reject missing, non-integer, boolean, out-of-range, and float ratings. |
+| `_completed_buyer_offer_error()` | #44 Completed-offer / buyer-ownership validation | 4 | 4 | High — must reject a missing offer, a non-`Accepted` offer, and a non-buyer submitter. |
+| `_review_target_error()` | #44 Review-target validation | 4 | 3 | High — must reject a `reviewee_id` that does not match the listing's actual seller, and accept a matching or omitted `reviewee_id`. |
+| `submit_review()` (route) | #44 Buyer reviews seller | 6 | 8 | High — must chain login, rating, offer, and target validation correctly and persist the review with the right average-rating response. |
+| `create_review()` | #44 / #36 Review persistence | 2 | 2 | High — must persist `reviewer_id`, `reviewed_user_id`, `rating`, and `comment` correctly, defaulting an omitted comment to an empty string. |
+| `get_user_rating_stats()` | #36 Average rating calculation | 2 | 3 | High — must return `None` average with 0 reviews, and a numerically correct average otherwise. |
+| `get_reviews_for_user()` | Retrieve reviews for a user | 2 | 2 | Medium — must return only reviews where the user is the reviewed party. |
 | `api_user_reviews()` (route) | Retrieve reviews for a user | 2 | 3 | Medium — must 404 for an unknown user and return an empty list for a user with no reviews. |
 | `profile()` / `view_profile()` (routes) | View another user's profile | 2 / 3 | 6 | High — `is_own_profile` must be `True` only on `/profile`, and viewing your own ID via `/profile/<id>` must redirect to `/profile`. |
 | `_get_logged_in_user_or_redirect()` | View own profile | 3 | 2 | Medium — must redirect to login when logged out or when the session user no longer exists. |
@@ -201,7 +201,7 @@ Sprint 4 verification is complete when:
 - [ ] Selenium UI test passes in the CI pipeline (requires the Selenium browser service; not executable in this local environment — see Section 8).
 - [x] Test coverage is at least 60%.
 - [x] pylint score is at least 7.0/10.
-- [ ] radon complexity check passes for all files (blocked for `app/db.py` and `app/routes/reviews.py` by a pre-existing BOM encoding issue — see Section 3.3).
+- [x] radon complexity check passes for all files.
 - [ ] GitLab pipeline is green on the Merge Request.
 - [x] No new SAST or secret detection issues are introduced.
 - [x] No generated files such as `.env`, `.coverage`, `.venv`, `__pycache__`, or `swaplah.db` are committed.
@@ -274,7 +274,7 @@ Before merging any Sprint 4 Merge Request, the following regression checks must 
 | Full automated test suite (excl. Selenium) | `python -m pytest -q --ignore=tests/ui/selenium` | All implemented tests pass. |
 | Unit coverage | `python -m pytest tests/unit --cov=app --cov-fail-under=60` | Coverage is at least 60%. |
 | Linting | `python -m pylint app tests --fail-under=7.0` | Score is at least 7.0/10. |
-| Complexity | `python -m radon cc app/ -s` | No implemented function exceeds complexity 10 (excluding the two BOM-affected files noted in Section 3.3). |
+| Complexity | `python -m radon cc app/ -s` | No implemented function exceeds complexity 10. |
 | Manual buyer-review flow | API test | Buyer can submit a review for the seller of a completed offer. |
 | Manual profile view flow | Browser test | Any logged-in or logged-out user can view another user's profile, rating, and reviews. |
 | Manual Sprint 1–3 regression | Browser test | Login, registration, listings, offers, and transaction history still work. |
@@ -330,7 +330,7 @@ Before merging any Sprint 4 Merge Request, the following regression checks must 
 - [x] Code committed through a feature branch and Merge Request.
 - [ ] Merge Request reviewed and approved by at least one teammate.
 - [x] Code passes pylint with score `>= 7.0`.
-- [ ] Cyclomatic complexity confirmed by radon for all files (blocked for two files by a pre-existing BOM issue — see Section 3.3; complexity was otherwise counted manually and stays well under 10).
+- [x] Cyclomatic complexity confirmed by radon for all files.
 - [x] All implemented unit tests pass.
 - [x] All implemented API / route tests pass.
 - [x] Real-database integration tests for review submission and profile viewing pass.
@@ -358,7 +358,7 @@ Before merging any Sprint 4 Merge Request, the following regression checks must 
 
 The AI-generated draft was reviewed and refined against the actual implemented code on this branch rather than assumed behaviour. This branch implements only the buyer → seller review direction (`POST /api/reviews`, keyed by `offer_id`); it does **not** implement a seller → buyer review endpoint, and its profile page does not yet compute real marketplace stats (trust badge, response rate, sales count are placeholder values in the template). Both of these were moved to Section 2.2 (Out of Scope) rather than described as implemented, since claiming otherwise would misrepresent what this branch actually does.
 
-Cyclomatic complexity in Section 4.1 could not be measured by `radon` for `app/db.py` and `app/routes/reviews.py`, because both files contain a byte-order-mark (BOM) character that this version of `radon` fails to parse (`ERROR: invalid non-printable character U+FEFF`). Rather than omit the column or fabricate tool output, each affected function's complexity was counted manually by reading the code (counting branches/conditions +1), and is explicitly labelled "(manual count)" in the table so it is not mistaken for a radon measurement. This limitation is also called out in Section 3.3, and the corresponding radon-related Exit Criteria and Definition of Done checkboxes are left unchecked rather than marked complete.
+`app/db.py`, `app/__init__.py`, and `app/routes/reviews.py` previously contained a byte-order-mark (BOM) character that caused `radon` — and the CI `code-quality-gate` job's own `ast.parse()` call — to fail with `invalid non-printable character U+FEFF`, which was failing the pipeline. The BOM has been stripped from all three files, and `scripts/code_quality_gate.py` was updated to read source files with `utf-8-sig` (which tolerates a BOM if one is ever reintroduced) instead of plain `utf-8`. Cyclomatic complexity in Section 4.1 is now measured directly by `radon` rather than counted manually, and the corresponding Exit Criteria and Definition of Done checkboxes have been marked complete.
 
 Test case counts and IDs were cross-checked against the real test files added for this sprint (`tests/unit/test_submit_review_unit.py`, `tests/api/test_submit_review_api.py`, `tests/unit/test_profile_view_unit.py`, `tests/api/test_profile_view_api.py`), plus the pre-existing `tests/api/test_user_reviews_api.py` for review retrieval, to ensure every listed test case corresponds to an actual test.
 
