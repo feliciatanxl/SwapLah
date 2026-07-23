@@ -125,3 +125,32 @@ def test_pending_offer_cannot_be_reviewed(client, monkeypatch):
     response = client.post("/api/reviews", json={"offer_id": 3, "rating": 5})
 
     assert response.status_code == 400
+
+
+def test_review_requires_login(client):
+    """An unauthenticated request is rejected before validation runs."""
+    response = client.post("/api/reviews", json={"offer_id": 3, "rating": 5})
+
+    assert response.status_code == 401
+
+
+def test_review_rejects_missing_offer(client, monkeypatch):
+    """A review for an offer ID that does not exist is rejected."""
+    monkeypatch.setattr(db_module, "get_offer_by_id", lambda offer_id: None)
+    _login(client, 11)
+
+    response = client.post("/api/reviews", json={"offer_id": 999, "rating": 5})
+
+    assert response.status_code == 404
+
+
+def test_review_rejects_reviewee_not_matching_counterparty(client, monkeypatch):
+    """An explicit reviewee_id that is not the transaction counterparty is rejected."""
+    _stub_completed_offer(monkeypatch)
+    _login(client, 11)
+
+    response = client.post(
+        "/api/reviews", json={"offer_id": 3, "reviewee_id": 999, "rating": 5}
+    )
+
+    assert response.status_code == 400

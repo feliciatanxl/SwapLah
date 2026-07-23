@@ -99,9 +99,9 @@
                     <small class="stats-label text-yellow">
                         <i class="bi bi-star-fill"></i> Avg rating
                     </small>
-                    {% if rating.review_count > 0 %}
-                    <h2 class="fw-bold mt-2 text-dark mb-0">{{ rating.average_rating | format_rating }}<span class="text-muted fs-5">/5</span> <i class="bi bi-star-fill text-yellow fs-5"></i></h2>
-                    <p class="text-muted mb-0 mt-1">{{ rating.review_count }} review{{ 's' if rating.review_count != 1 else '' }}</p>
+                    {% if profile_stats.review_count > 0 %}
+                    <h2 class="fw-bold mt-2 text-dark mb-0">{{ profile_stats.average_rating | format_rating }}<span class="text-muted fs-5">/5</span> <i class="bi bi-star-fill text-yellow fs-5"></i></h2>
+                    <p class="text-muted mb-0 mt-1">{{ profile_stats.review_count }} review{{ 's' if profile_stats.review_count != 1 else '' }}</p>
                     {% else %}
                     <h3 class="fw-bold mt-2 text-dark mb-0 fs-4">No reviews yet</h3>
                     <p class="text-muted mb-0 mt-1">0 reviews</p>
@@ -114,7 +114,7 @@
                     <small class="stats-label text-blue">
                         <i class="bi bi-graph-up-arrow"></i> Total sales
                     </small>
-                    <h2 class="fw-bold mt-2 text-dark mb-0">37</h2>
+                    <h2 class="fw-bold mt-2 text-dark mb-0">{{ profile_stats.total_sales }}</h2>
                     <p class="text-muted mb-0 mt-1">Lifetime deals</p>
                 </div>
             </div>
@@ -124,16 +124,21 @@
                     <small class="stats-label text-pink">
                         <i class="bi bi-award"></i> Trust badge
                     </small>
-                    <h3 class="fw-bold mt-2 text-dark mb-0 fs-4">Top Seller</h3>
-                    <p class="text-muted mb-0 mt-1">Earned May 2026</p>
+                    <h3 class="fw-bold mt-2 text-dark mb-0 fs-4">{{ profile_stats.trust_badge }}</h3>
+                    <p class="text-muted mb-0 mt-1">Based on marketplace activity</p>
                 </div>
             </div>
 
             <div class="col-md-3">
                 <div class="stats-card bg-soft-green h-100">
                     <small class="stats-label text-green">Response rate</small>
-                    <h2 class="fw-bold mt-2 text-dark mb-0">98%</h2>
-                    <p class="text-muted mb-0 mt-1">Replies in &lt; 1h</p>
+                    {% if profile_stats.response_rate is not none %}
+                    <h2 class="fw-bold mt-2 text-dark mb-0">{{ profile_stats.response_rate }}%</h2>
+                    <p class="text-muted mb-0 mt-1">Offer replies</p>
+                    {% else %}
+                    <h2 class="fw-bold mt-2 text-dark mb-0">--</h2>
+                    <p class="text-muted mb-0 mt-1">No response data yet</p>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -142,19 +147,19 @@
     <ul class="nav nav-pills gap-2 my-4 profile-tabs" id="profileTabs" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link profile-tab active" id="listings-tab" data-bs-toggle="pill" data-bs-target="#listings" type="button" role="tab">
-                Active listings (2)
+                Active listings ({{ profile_stats.active_count }})
             </button>
         </li>
 
         <li class="nav-item" role="presentation">
             <button class="nav-link profile-tab" id="reviews-tab" data-bs-toggle="pill" data-bs-target="#reviews" type="button" role="tab">
-                Reviews ({{ rating.review_count }})
+                Reviews ({{ profile_stats.review_count }})
             </button>
         </li>
 
         <li class="nav-item" role="presentation">
             <button class="nav-link profile-tab" id="sold-tab" data-bs-toggle="pill" data-bs-target="#sold" type="button" role="tab">
-                Sold
+                Sold ({{ profile_stats.sold_count }})
             </button>
         </li>
     </ul>
@@ -162,34 +167,35 @@
     <div class="tab-content profile-tab-content" id="profileTabsContent">
         <div class="tab-pane fade show active" id="listings" role="tabpanel" tabindex="0">
             <div class="row g-4">
+                {% for item in active_listings %}
                 <div class="col-md-4">
-                    <div class="listing-card">
+                    <div class="listing-card listing-clickable" data-detail-url="{{ url_for('listing_detail', listing_id=item.id) }}">
                         <div class="listing-image-wrap">
-                            <img src="https://images.unsplash.com/photo-1574607383077-47ddc2dc51c4?q=80&w=700&auto=format&fit=crop" alt="Calculator">
+                            <img src="{{ item.image }}" alt="{{ item.title }}">
                         </div>
                         <div class="listing-body">
-                            <h5>Casio FX-991EX Scientific Calc</h5>
-                            <p class="text-blue fw-bold mb-0">Swap Only</p>
+                            <h5><a href="{{ url_for('listing_detail', listing_id=item.id) }}">{{ item.title }}</a></h5>
+                            <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+                                <span class="condition-tag">{{ item.category }}</span>
+                                <span class="condition-tag">{{ item.condition }}</span>
+                            </div>
+                            <p class="text-blue fw-bold mb-0">{{ item.price }}</p>
                         </div>
                     </div>
                 </div>
-
-                <div class="col-md-4">
-                    <div class="listing-card">
-                        <div class="listing-image-wrap">
-                            <img src="https://images.unsplash.com/photo-1507473885765-e6ed057f782c?q=80&w=700&auto=format&fit=crop" alt="Lamp">
-                        </div>
-                        <div class="listing-body">
-                            <h5>Minimalist LED Desk Lamp</h5>
-                            <p class="text-blue fw-bold mb-0">$15</p>
-                        </div>
+                {% else %}
+                <div class="col-12">
+                    <div class="empty-state">
+                        <i class="bi bi-box-seam"></i>
+                        <strong>No active listings yet</strong>
+                        <span>Your listed items will appear here once you create them.</span>
                     </div>
                 </div>
+                {% endfor %}
             </div>
         </div>
 
         <div class="tab-pane fade" id="reviews" role="tabpanel" tabindex="0">
-            {% if reviews %}
             <div class="d-flex flex-column gap-3">
                 {% for review in reviews %}
                 <div class="review-card">
@@ -216,17 +222,70 @@
                     <p class="mb-0 text-dark">{{ review.comment }}</p>
                     {% endif %}
                 </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-star"></i>
+                    <strong>No reviews yet</strong>
+                    <span>Reviews will appear here after the review feature records them.</span>
+                </div>
                 {% endfor %}
             </div>
-            {% else %}
-            <p class="text-muted mt-3">No reviews yet.</p>
-            {% endif %}
         </div>
 
         <div class="tab-pane fade" id="sold" role="tabpanel" tabindex="0">
-            <p class="text-muted mt-3">No sold items yet.</p>
+            <div class="row g-4">
+                {% for item in sold_listings %}
+                <div class="col-md-4">
+                    <div class="listing-card">
+                        <div class="listing-image-wrap">
+                            <img src="{{ item.image }}" alt="{{ item.title }}">
+                            <span class="listing-badge badge-verified">Sold</span>
+                        </div>
+                        <div class="listing-body">
+                            <h5>{{ item.title }}</h5>
+                            <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+                                <span class="condition-tag">{{ item.category }}</span>
+                                <span class="condition-tag">{{ item.condition }}</span>
+                            </div>
+                            <p class="text-blue fw-bold mb-1">
+                                {% if item.offer_type == "cash" and item.proposed_price is not none %}
+                                ${{ "%.2f"|format(item.proposed_price) }}
+                                {% elif item.offer_type == "swap" %}
+                                Swap accepted
+                                {% else %}
+                                {{ item.price }}
+                                {% endif %}
+                            </p>
+                            <p class="text-muted mb-0">Buyer: {{ item.buyer or "Student Buyer" }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="col-12">
+                    <div class="empty-state">
+                        <i class="bi bi-bag-check"></i>
+                        <strong>No sold items yet</strong>
+                        <span>Accepted offers will appear here automatically.</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
         </div>
     </div>
 </section>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        document.querySelectorAll(".listing-clickable").forEach(function (card) {
+            card.addEventListener("click", function (event) {
+                if (event.target.closest("a")) {
+                    return;
+                }
+
+                window.location.href = card.dataset.detailUrl;
+            });
+        });
+    });
+</script>
 
 {% endblock %}
