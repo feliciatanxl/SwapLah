@@ -143,6 +143,24 @@ def test_other_profile_shows_real_average_rating_and_review(client):
     assert "Great seller!" in html
 
 
+def test_other_profile_shows_numeric_average_and_count(client):
+    """Seeded reviews aggregate into the displayed average rating and count."""
+    test_client, test_db = client
+    owner_id = create_user(test_db, "S4000011", "RatedOwner")
+    reviewer_id = create_user(test_db, "S4000012", "Reviewer3")
+    viewer_id = create_user(test_db, "S4000013", "Viewer3")
+    create_review(test_db, owner_id, reviewer_id, rating=4)
+    create_review(test_db, owner_id, reviewer_id, rating=5)
+
+    login_as(test_client, viewer_id)
+    resp = test_client.get(f"/profile/{owner_id}")
+    html = resp.get_data(as_text=True)
+
+    assert resp.status_code == 200
+    assert "4.5" in html
+    assert "2 reviews" in html
+
+
 def test_viewing_own_id_via_profile_id_route_redirects(client):
     """Requesting /profile/<own_id> redirects to /profile."""
     test_client, test_db = client

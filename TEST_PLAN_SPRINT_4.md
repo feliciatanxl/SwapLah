@@ -14,13 +14,14 @@
 
 This test plan documents the testing strategy and verification evidence for **Sprint 4** of **SwapLah**, a web-based student co-op marketplace for polytechnic students.
 
-Sprint 4 focuses on **Reviews, Ratings, and Profile Viewing** — the area Sprint 3 explicitly marked out of scope ("Review and rating testing... outside the Sprint 3 Offers and Transactions scope"). Sprint 4 verifies that a buyer can leave a 1–5 star rating and optional comment for the seller of a completed transaction, that the review is correctly rejected when submitted by the wrong participant or for an incomplete transaction, that a user's average rating is calculated correctly from all reviews received, and that any user can view another user's profile — including their rating and reviews — without exposing that user's private account details or edit controls.
+Sprint 4 focuses on **Reviews, Ratings, and Profile Viewing** — the area Sprint 3 explicitly marked out of scope ("Review and rating testing... outside the Sprint 3 Offers and Transactions scope"). Sprint 4 verifies that **either participant of a completed (`Accepted`) transaction — the buyer or the seller — can leave a 1–5 star rating and optional comment for the other participant**, that the review is correctly rejected when submitted by a non-participant or for an incomplete transaction, that a user's average rating is calculated correctly from all reviews received, and that any user can view another user's profile — including their rating and reviews — without exposing that user's private account details or edit controls.
 
 ### Sprint 4 Features Covered
 
 | PBI / Issue | Sprint 4 User Story | Current Status | Priority |
 | --- | --- | --- | --- |
 | [#44](https://gitlab.com/nyp-sg/pet/it2112/26s1/it2112-03/assignment/team_2/swaplah/-/issues/44) | As a buyer, leave a 1–5 star rating and optional comment for the seller after a completed transaction | Closed / Done | High |
+| Seller reviews buyer | As a seller, leave a 1–5 star rating and optional comment for the buyer after a completed transaction | Closed / Done | High |
 | [#36](https://gitlab.com/nyp-sg/pet/it2112/26s1/it2112-03/assignment/team_2/swaplah/-/issues/36) | A user's average rating is calculated from all reviews received | Closed / Done | Medium |
 | Retrieve reviews for a user | As a marketplace user, retrieve all reviews for a user so feedback is visible | Closed / Done | Medium |
 | View another user's profile | As a marketplace user, view another user's profile (rating, reviews) without exposing their private account details or edit controls | Closed / Done | High |
@@ -33,18 +34,19 @@ Sprint 4 focuses on **Reviews, Ratings, and Profile Viewing** — the area Sprin
 
 The following items are included in Sprint 4 testing:
 
-- Unit tests for rating validation, review-target validation (the review must be for the seller of the transaction), completed-offer / buyer-ownership validation, and profile view access control (`is_own_profile`).
+- Unit tests for rating validation, **bidirectional reviewer/reviewee resolution** (the review target is derived from the logged-in user and the accepted offer — buyer→seller or seller→buyer), completed-offer / participant authorization, and profile view access control (`is_own_profile`).
 - API / route tests for:
   - `POST /api/reviews`
-  - `GET /api/users/<user_id>/reviews` (existing coverage, referenced for completeness)
+  - `GET /api/users/<user_id>/reviews`
   - `GET /profile` and `GET /profile/<user_id>`
 - Real-database integration tests (seeded SQLite data, not mocks) confirming:
-  - A review is only accepted from the buyer of an **Accepted** offer.
+  - A review is only accepted from a **participant** (buyer or seller) of an **Accepted** offer, targeting the other participant.
   - A review is rejected for a **Pending** or **Rejected** offer.
-  - A review is rejected when the `reviewee_id` does not match the listing's actual seller.
+  - A review is rejected when the `reviewee_id` does not match the transaction counterparty.
   - Average rating and review count reflect all reviews received by a user.
+  - A submitted review is reflected on the reviewed user's public profile.
   - `is_own_profile` correctly hides the Edit Profile button and Account Details card on another user's profile, and shows them on your own.
-- Selenium UI test for viewing another user's profile in a real browser.
+- Selenium UI test for viewing another user's profile and its reviews in a real browser.
 - Regression testing to ensure Sprint 1–3 features continue to pass after Sprint 4 changes.
 - Static testing using pylint.
 - Cyclomatic complexity checking using radon.
@@ -56,9 +58,9 @@ The following items are included in Sprint 4 testing:
 
 | Item | Reason |
 | --- | --- |
-| Seller leaving a review for the buyer | Not implemented on this branch — only the buyer → seller review direction (#44) exists here. |
 | Editing or deleting an existing review | Not part of the Sprint 4 user stories; reviews are currently write-once. |
-| Enriched profile marketplace stats (trust badge, response rate, real sales count) | The profile page currently displays placeholder values (e.g. a hardcoded "Top Seller" badge and "37" total sales) rather than data derived from real listings/offers; this is not yet implemented on this branch. |
+| A dedicated "Leave a review" UI form | Sprint 4 ships the review API (`POST /api/reviews`) and the display of reviews on the profile page; a bespoke submission form is a follow-up. |
+| Enriched profile marketplace stats (trust badge, response rate, real sales count) | Where the profile page displays placeholder values rather than data derived from real listings/offers, those placeholders are not treated as verified Sprint 4 behaviour. |
 | Review moderation / reporting | Handled under the Admin / moderation epic, not Sprint 4. |
 | Real payment processing | SwapLah does not include real payment gateways. |
 | Full cross-browser Selenium matrix | One representative Selenium flow is used for Sprint 4; a full Edge/Firefox matrix is out of scope. |
@@ -72,9 +74,9 @@ The following items are included in Sprint 4 testing:
 
 | Level | Target Count | Tool | Pipeline Stage | Purpose |
 | --- | ---: | --- | --- | --- |
-| Unit tests | 25+ | pytest | test | Verify rating validation, review-target validation, and profile view access control in isolation using monkeypatching. |
+| Unit tests | 25+ | pytest | test | Verify rating validation, bidirectional reviewer/reviewee resolution, and profile view access control in isolation using monkeypatching. |
 | API / Route tests | 20+ | pytest + Flask test client | test | Verify HTTP route behaviour end to end, including real-database integration tests for review submission and profile viewing. |
-| Selenium UI flow | 1 Sprint 4 flow | Selenium + pytest | test (UI) | Verify viewing another user's profile in a real browser. |
+| Selenium UI flow | 1 Sprint 4 flow | Selenium + pytest | test (UI) | Verify viewing another user's profile and its reviews in a real browser. |
 | Static analysis | All `.py` files | pylint >= 7.0 | lint | Detect style, structure, and code quality issues. |
 | Complexity check | All application functions | radon | lint | Confirm functions are maintainable and testable. |
 | Coverage check | Application logic | pytest-cov | test | Confirm at least 60% application logic coverage. |
@@ -82,7 +84,7 @@ The following items are included in Sprint 4 testing:
 ### 3.2 Static Testing
 
 - **Tool:** pylint
-- **Threshold:** score must be `>= 7.0/10`
+- **Threshold:** score must be `>= 7.0/10` (team target `10.00/10`)
 - **Purpose:** Detect syntax problems, unused imports, naming issues, overly long functions, and poor code structure before dynamic tests run.
 - **Pipeline stage:** lint
 
@@ -93,7 +95,7 @@ The following items are included in Sprint 4 testing:
 - **Purpose:** Identify functions that are difficult to test or should be refactored.
 - **Pipeline stage:** lint
 - **Rule:** If a function has complexity above 10, it is treated as high risk and should be refactored or covered with additional tests before merge.
-- **Resolved limitation:** `app/db.py`, `app/__init__.py`, and `app/routes/reviews.py` previously contained a byte-order-mark (BOM) character that caused `radon` (and the CI `code-quality-gate` job's own `ast.parse` call) to fail with `invalid non-printable character U+FEFF`. This broke the `code-quality-gate` pipeline job. The BOM has been stripped from all three files, and `scripts/code_quality_gate.py` now reads source files with `utf-8-sig` so a stray BOM in any file cannot break the gate again. Complexity figures in Section 4.1 are now measured directly by `radon`.
+- **Resolved limitation:** `app/db.py`, `app/__init__.py`, and `app/routes/reviews.py` previously contained a byte-order-mark (BOM) character that caused `radon` (and the CI `code-quality-gate` job's own `ast.parse` call) to fail with `invalid non-printable character U+FEFF`. This broke the `code-quality-gate` pipeline job. The BOM has been stripped from all three files, and `scripts/code_quality_gate.py` now reads source files with `utf-8-sig` so a stray BOM in any file cannot break the gate again.
 
 ### 3.4 Dynamic Testing
 
@@ -102,7 +104,7 @@ The following items are included in Sprint 4 testing:
 - **Team stretch target:** `>= 70%` where possible
 - **Unit test design:** white-box testing — route-level tests use monkeypatching to isolate routes from the database layer.
 - **API / route test design:** black-box testing against the user story and acceptance criteria, using the Flask test client against a real temporary SQLite database.
-- **Integration test design:** real temporary SQLite database seeded with users, listings, and offers, used to verify that reviews are only accepted from the correct buyer of a completed (`Accepted`) offer.
+- **Integration test design:** real temporary SQLite database seeded with users, listings, and offers, used to verify that reviews are only accepted from a participant of a completed (`Accepted`) offer, targeting the other participant.
 - **UI test design:** Selenium WebDriver against a live Flask test server, using the existing page-object pattern (`tests/ui/selenium/pages/`).
 - **Pipeline stage:** test
 
@@ -123,13 +125,14 @@ This section follows the Lesson 7 test plan structure by listing specific items 
 
 | Function / Helper | Related User Story | Cyclomatic Complexity | Minimum Tests Required | Risk / Priority |
 | --- | --- | ---: | ---: | --- |
-| `_rating_error()` | #44 Rating validation | 6 | 7 | High — must reject missing, non-integer, boolean, out-of-range, and float ratings. |
-| `_completed_buyer_offer_error()` | #44 Completed-offer / buyer-ownership validation | 4 | 4 | High — must reject a missing offer, a non-`Accepted` offer, and a non-buyer submitter. |
-| `_review_target_error()` | #44 Review-target validation | 4 | 3 | High — must reject a `reviewee_id` that does not match the listing's actual seller, and accept a matching or omitted `reviewee_id`. |
-| `submit_review()` (route) | #44 Buyer reviews seller | 6 | 8 | High — must chain login, rating, offer, and target validation correctly and persist the review with the right average-rating response. |
-| `create_review()` | #44 / #36 Review persistence | 2 | 2 | High — must persist `reviewer_id`, `reviewed_user_id`, `rating`, and `comment` correctly, defaulting an omitted comment to an empty string. |
+| `_rating_error()` | Rating validation | 6 | 7 | High — must reject missing, non-integer, boolean, out-of-range, and float ratings. |
+| `_reviewed_user_for_offer()` | Bidirectional reviewer/reviewee resolution | 4 | 3 | High — must resolve the seller when the buyer reviews, the buyer when the seller reviews, and reject a non-participant with `403`. |
+| `_validate_offer()` | Completed-offer validation | 3 | 3 | High — must reject a missing offer (`404`) and a non-`Accepted` offer (`400`), then resolve the counterparty. |
+| `_resolve_reviewee()` | Review-target validation | 3 | 3 | High — must reject a `reviewee_id` that does not match the transaction counterparty, and accept a matching or omitted `reviewee_id`. |
+| `submit_review()` (route) | Buyer reviews seller / seller reviews buyer | 5 | 8 | High — must chain login, rating, offer, and target validation correctly and persist the review in both directions with the right average-rating response. |
+| `create_review()` | Review persistence | 2 | 2 | High — must persist `reviewer_id`, `reviewed_user_id`, `rating`, and `comment` correctly, defaulting an omitted comment to an empty string. |
 | `get_user_rating_stats()` | #36 Average rating calculation | 2 | 3 | High — must return `None` average with 0 reviews, and a numerically correct average otherwise. |
-| `get_reviews_for_user()` | Retrieve reviews for a user | 2 | 2 | Medium — must return only reviews where the user is the reviewed party. |
+| `get_reviews_for_user()` | Retrieve reviews for a user | 2 | 2 | Medium — must return only reviews where the user is the reviewed party, newest first. |
 | `api_user_reviews()` (route) | Retrieve reviews for a user | 2 | 3 | Medium — must 404 for an unknown user and return an empty list for a user with no reviews. |
 | `profile()` / `view_profile()` (routes) | View another user's profile | 2 / 3 | 6 | High — `is_own_profile` must be `True` only on `/profile`, and viewing your own ID via `/profile/<id>` must redirect to `/profile`. |
 | `_get_logged_in_user_or_redirect()` | View own profile | 3 | 2 | Medium — must redirect to login when logged out or when the session user no longer exists. |
@@ -138,16 +141,17 @@ This section follows the Lesson 7 test plan structure by listing specific items 
 
 | Route / Behaviour | Related User Story | Implemented Function / Scope | Minimum Tests Required | Risk / Priority |
 | --- | --- | --- | ---: | --- |
-| `POST /api/reviews` | #44 Buyer reviews seller | `submit_review()` | 10 | High — valid rating with/without comment, invalid ratings, missing/non-existent offer, non-`Accepted` offer, non-buyer submitter, mismatched `reviewee_id`, unauthenticated. |
-| `GET /api/users/<id>/reviews` | Retrieve reviews for a user | `api_user_reviews()` | 3 (existing) | Medium — existing user with reviews, existing user with none, unknown user. |
+| `POST /api/reviews` | Buyer reviews seller / seller reviews buyer | `submit_review()` | 10 | High — valid rating with/without comment in both directions, invalid ratings, missing/non-existent offer, non-`Accepted` offer, non-participant submitter, mismatched `reviewee_id`, unauthenticated. |
+| `GET /api/users/<id>/reviews` | Retrieve reviews for a user | `api_user_reviews()` | 3 | Medium — existing user with reviews, existing user with none, unknown user. |
 | `GET /profile` | View own profile | `profile()` | 4 | High — shows Edit Profile / Account Details, correct average rating and review count, redirects when logged out. |
-| `GET /profile/<id>` | View another user's profile | `view_profile()` | 5 | High — hides Edit Profile / Account Details, shows the seller's real rating and reviews, redirects to `/profile` for your own ID, redirects for an unknown ID. |
+| `GET /profile/<id>` | View another user's profile | `view_profile()` | 5 | High — hides Edit Profile / Account Details, shows the other user's real rating and reviews, redirects to `/profile` for your own ID, redirects for an unknown ID. |
 
 ### 4.3 UI / Acceptance Test Items
 
 | User Flow | Related User Story | Test Type | Priority | Expected Evidence |
 | --- | --- | --- | --- | --- |
-| Buyer submits a rating and comment for the seller | #44 Buyer reviews seller | API / acceptance | High | API evidence that a review is created and visible on the seller's profile. |
+| Buyer submits a rating and comment for the seller | Buyer reviews seller | API / acceptance | High | API evidence that a review is created and visible on the seller's profile. |
+| Seller submits a rating and comment for the buyer | Seller reviews buyer | API / acceptance | High | API evidence that a review is created and visible on the buyer's profile. |
 | A user views another user's profile and average rating | View another user's profile | Selenium + API / acceptance | High | Browser evidence that the profile page shows the average rating and review list, without an Edit Profile button or Account Details card. |
 | Average rating reflects all reviews received | #36 Average rating calculation | Unit / acceptance | Medium | Unit evidence that the average is recalculated correctly as reviews accumulate. |
 
@@ -229,15 +233,15 @@ Sprint 4 validation is complete when:
 
 | Test ID | Module | Related PBI | Description | Type | Preconditions | Steps | Expected Result | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TC-S4-SUBMIT-001 | Submit Review | #44 | Buyer submits a rating and comment for an accepted offer | Positive | Offer is `Accepted`, current user is its buyer | 1. Send `POST /api/reviews` with `offer_id`, `rating`, `comment` | Review is created (201) for the listing's seller | Pass |
-| TC-S4-SUBMIT-002 | Submit Review | #44 | Comment is optional | Positive | Offer is `Accepted`, current user is its buyer | 1. Send `POST /api/reviews` with only `offer_id`, `rating` | Review is created (201) with an empty comment | Pass |
-| TC-S4-SUBMIT-003 | Submit Review | #44 | Reject rating outside 1–5 | Negative | Offer is `Accepted` | 1. Send `rating: 0, 6, -1, 4.5, "five", true, null` | Request is blocked with a `400` error for every case | Pass |
-| TC-S4-SUBMIT-004 | Submit Review | #44 | Reject a missing offer | Negative | No offer with the given ID | 1. Send `POST /api/reviews` with `offer_id: 999999` | Request is blocked with a `404` error | Pass |
-| TC-S4-SUBMIT-005 | Submit Review | #44 | Reject a Pending offer | Negative | Offer status is `Pending` | 1. Send `POST /api/reviews` for the pending offer | Request is blocked with a `400` "Transaction not completed" error | Pass |
-| TC-S4-SUBMIT-006 | Submit Review | #44 | Reject a Rejected offer | Negative | Offer status is `Rejected` | 1. Send `POST /api/reviews` for the rejected offer | Request is blocked with a `400` "Transaction not completed" error | Pass |
-| TC-S4-SUBMIT-007 | Submit Review | #44 | Reject the seller of the same offer | Negative / Security | Current user is the offer's seller, not buyer | 1. Send `POST /api/reviews` as the seller | Request is blocked with a `403` error | Pass |
-| TC-S4-SUBMIT-008 | Submit Review | #44 | Reject an unrelated user | Negative / Security | Current user has no relation to the offer | 1. Send `POST /api/reviews` as an unrelated user | Request is blocked with a `403` error | Pass |
-| TC-S4-SUBMIT-009 | Submit Review | #44 | Reject a mismatched `reviewee_id` | Negative | `reviewee_id` does not match the listing's seller | 1. Send `POST /api/reviews` with an unrelated `reviewee_id` | Request is blocked with a `400` error | Pass |
+| TC-S4-SUBMIT-001 | Submit Review | #44 | Buyer submits a rating and comment for the seller of an accepted offer | Positive | Offer is `Accepted`, current user is its buyer | 1. Send `POST /api/reviews` with `offer_id`, `rating`, `comment` | Review is created (201) for the listing's seller | Pass |
+| TC-S4-SUBMIT-002 | Submit Review | Seller reviews buyer | Seller submits a rating for the buyer of an accepted offer | Positive | Offer is `Accepted`, current user is its seller | 1. Send `POST /api/reviews` with `offer_id`, `rating` | Review is created (201) for the offer's buyer | Pass |
+| TC-S4-SUBMIT-003 | Submit Review | #44 | Comment is optional | Positive | Offer is `Accepted`, current user is a participant | 1. Send `POST /api/reviews` with only `offer_id`, `rating` | Review is created (201) with an empty comment | Pass |
+| TC-S4-SUBMIT-004 | Submit Review | #44 | Reject rating outside 1–5 or non-integer | Negative | Offer is `Accepted` | 1. Send `rating: 0, 6, -1, 4.5, "five", true, null` | Request is blocked with a `400` error for every case | Pass |
+| TC-S4-SUBMIT-005 | Submit Review | #44 | Reject a missing offer | Negative | No offer with the given ID | 1. Send `POST /api/reviews` with `offer_id: 999999` | Request is blocked with a `404` "Offer not found" error | Pass |
+| TC-S4-SUBMIT-006 | Submit Review | #44 | Reject a Pending offer | Negative | Offer status is `Pending` | 1. Send `POST /api/reviews` for the pending offer | Request is blocked with a `400` "Transaction not completed" error | Pass |
+| TC-S4-SUBMIT-007 | Submit Review | #44 | Reject a Rejected offer | Negative | Offer status is `Rejected` | 1. Send `POST /api/reviews` for the rejected offer | Request is blocked with a `400` "Transaction not completed" error | Pass |
+| TC-S4-SUBMIT-008 | Submit Review | Seller reviews buyer / #44 | Reject a non-participant | Negative / Security | Current user is neither the buyer nor the seller of the offer | 1. Send `POST /api/reviews` as an unrelated user | Request is blocked with a `403` error | Pass |
+| TC-S4-SUBMIT-009 | Submit Review | #44 | Reject a mismatched `reviewee_id` | Negative | `reviewee_id` is not the transaction counterparty | 1. Send `POST /api/reviews` with an unrelated `reviewee_id` | Request is blocked with a `400` "must be for the other party" error | Pass |
 | TC-S4-SUBMIT-010 | Submit Review | #44 | Block logged-out user | Negative / Security | User is not logged in | 1. Clear session 2. Send `POST /api/reviews` | Request is blocked with a `401` error | Pass |
 | TC-S4-GETREV-001 | Retrieve Reviews | Retrieve reviews | Existing user with reviews | Positive | User has received 1+ reviews | 1. Send `GET /api/users/<id>/reviews` | Response includes all reviews received by that user | Pass |
 | TC-S4-GETREV-002 | Retrieve Reviews | Retrieve reviews | Existing user with no reviews | Positive | User has received 0 reviews | 1. Send `GET /api/users/<id>/reviews` | Response returns an empty `reviews` list, no error | Pass |
@@ -246,12 +250,13 @@ Sprint 4 validation is complete when:
 | TC-S4-RATING-002 | Average Rating | #36 | Average is `None` when no reviews exist | Positive | User has 0 reviews | 1. Compute average via `get_user_rating_stats()` | `average_rating` is `None`, `review_count` is `0` | Pass |
 | TC-S4-RATING-003 | Average Rating | #36 | Average updates as reviews accumulate | Positive | User starts with 1 review (rating 4) | 1. Compute average 2. Add a second review (rating 2) 3. Recompute average | First average is `4`, second average is `3` | Pass |
 | TC-S4-PROFILE-001 | Profile Page | View own profile | Own profile shows edit controls | Positive | User is logged in, viewing `/profile` | 1. Send `GET /profile` | Response shows "Edit profile" button and Account Details card | Pass |
-| TC-S4-PROFILE-002 | Profile Page | View another user's profile | Another user's profile hides edit controls | Positive | User A views `GET /profile/<user_B_id>` | 1. Send `GET /profile/<id>` as a different logged-in user | Response hides "Edit profile" button and Account Details card | Pass |
-| TC-S4-PROFILE-003 | Profile Page | View another user's profile | Another user's profile shows their real rating | Positive | User B has 2 reviews with ratings 4 and 4 | 1. Send `GET /profile/<user_B_id>` | Response shows average rating `4` and "2 reviews" | Pass |
+| TC-S4-PROFILE-002 | Profile Page | View another user's profile | Another user's profile hides edit controls | Positive / Security | User A views `GET /profile/<user_B_id>` | 1. Send `GET /profile/<id>` as a different logged-in user | Response hides "Edit profile" button and Account Details card | Pass |
+| TC-S4-PROFILE-003 | Profile Page | View another user's profile | Another user's profile shows their real rating | Positive | User B has 2 reviews with ratings 4 and 5 | 1. Send `GET /profile/<user_B_id>` | Response shows average rating `4.5` and "2 reviews" | Pass |
 | TC-S4-PROFILE-004 | Profile Page | View another user's profile | Viewing your own ID redirects to `/profile` | Positive | Logged-in user requests `/profile/<own_id>` | 1. Send `GET /profile/<own_id>` | Response redirects to `/profile` | Pass |
 | TC-S4-PROFILE-005 | Profile Page | View another user's profile | Unknown user ID redirects with a flash message | Negative | User ID does not exist | 1. Send `GET /profile/999999` | Response redirects to the homepage with an error flash | Pass |
 | TC-S4-PROFILE-006 | Profile Page | View own profile | Own profile shows the empty-review state | Positive | User has 0 reviews | 1. Send `GET /profile` | Response shows "No reviews yet" | Pass |
 | TC-S4-PROFILE-007 | Profile Page | View another user's profile | Logged-out user can still view another profile | Positive | No active session | 1. Send `GET /profile/<id>` with no session cookie | Response renders successfully (200) | Pass |
+| TC-S4-PROFILE-008 | Profile Page | Seller reviews buyer | A seller's review is visible on the buyer's public profile | Positive | Seller has reviewed the buyer of an accepted offer | 1. Seller submits a review 2. Open `GET /profile/<buyer_id>` | Response shows the reviewer's name and the review comment | Pass |
 | TC-S4-REG-001 | Regression | Sprint 1–3 | Login, offers, and transaction history still work after Sprint 4 changes | Regression | App is running | 1. Register 2. Log in 3. Submit and accept an offer 4. View transaction history | All Sprint 1–3 flows continue to work without error | Pass |
 
 ---
@@ -261,7 +266,7 @@ Sprint 4 validation is complete when:
 | Verification Flow | Related PBI | Steps Verified | Status |
 | --- | --- | --- | --- |
 | View another user's profile in the browser | View another user's profile | Logged in as a buyer, opened a seller's public profile, confirmed average rating and review list render, and that the Edit Profile button and Account Details card are absent. | Pass (manual) |
-| Selenium: view another user's profile | View another user's profile | `tests/ui/selenium/test_view_profile_selenium.py` drives the same flow end to end in a headless Chrome browser. | **Not executed** — no Selenium browser/driver is installed in this development environment (`pip install selenium` plus a Chrome/Chromedriver install is required; this matches the existing project constraint noted for all prior Selenium suites). The test is written to the project's existing page-object conventions and is expected to run in the GitLab CI pipeline's dedicated Selenium service. |
+| Selenium: view another user's profile and its reviews | View another user's profile | `tests/ui/selenium/test_view_profile_selenium.py` and `tests/ui/selenium/test_profile_reviews_selenium.py` seed a completed transaction and review through the database layer, then drive the public-profile flow end to end in a headless Chrome browser, confirming the rating, review count, and reviewer name render while "Edit profile" is hidden. | **Not executed locally** — no Selenium browser/driver is installed in this development environment (`pip install selenium` plus a Chrome/Chromedriver install is required; this matches the existing project constraint for all prior Selenium suites). The tests are written to the project's existing page-object conventions and are expected to run in the GitLab CI pipeline's dedicated Selenium service. |
 
 ---
 
@@ -273,9 +278,10 @@ Before merging any Sprint 4 Merge Request, the following regression checks must 
 | --- | --- | --- |
 | Full automated test suite (excl. Selenium) | `python -m pytest -q --ignore=tests/ui/selenium` | All implemented tests pass. |
 | Unit coverage | `python -m pytest tests/unit --cov=app --cov-fail-under=60` | Coverage is at least 60%. |
-| Linting | `python -m pylint app tests --fail-under=7.0` | Score is at least 7.0/10. |
+| Linting | `python -m pylint app tests scripts --fail-under=7.0` | Score is at least 7.0/10 (target 10.00/10). |
 | Complexity | `python -m radon cc app/ -s` | No implemented function exceeds complexity 10. |
 | Manual buyer-review flow | API test | Buyer can submit a review for the seller of a completed offer. |
+| Manual seller-review flow | API test | Seller can submit a review for the buyer of a completed offer. |
 | Manual profile view flow | Browser test | Any logged-in or logged-out user can view another user's profile, rating, and reviews. |
 | Manual Sprint 1–3 regression | Browser test | Login, registration, listings, offers, and transaction history still work. |
 
@@ -288,11 +294,13 @@ Before merging any Sprint 4 Merge Request, the following regression checks must 
 | Accepted offer | `status: "Accepted"`; has a `buyer_id` and a listing with a known `seller_id`. |
 | Pending offer | `status: "Pending"` — must be rejected for review submission. |
 | Rejected offer | `status: "Rejected"` — must be rejected for review submission. |
-| Valid review | `{"offer_id": 1, "rating": 5, "comment": "Prompt payment, smooth handover."}` submitted by the offer's buyer. |
+| Valid buyer review | `{"offer_id": 1, "rating": 5, "comment": "Prompt payment, smooth handover."}` submitted by the offer's buyer. |
+| Valid seller review | `{"offer_id": 1, "rating": 5, "comment": "Great buyer."}` submitted by the offer's seller. |
 | Invalid rating values | `0`, `6`, `-1`, `4.5`, `"five"`, `true`, `null`. |
 | User with a whole-number average rating | Two reviews rated `4` and `4` → average `4`. |
 | User with a fractional average rating | Two reviews rated `4` and `5` → average `4.5`. |
 | User with no reviews | New user account with zero rows in `reviews`. |
+| Unrelated user account | Logged-in user with no relationship to a given offer, used to verify access control. |
 
 ---
 
@@ -300,13 +308,13 @@ Before merging any Sprint 4 Merge Request, the following regression checks must 
 
 | Risk | Probability | Impact | Mitigation / Contingency |
 | --- | --- | --- | --- |
-| A user who is not the buyer of the offer submits a review | Medium | High | `_completed_buyer_offer_error()` explicitly checks `offer["buyer_id"] == session["user_id"]`, with negative tests for the seller and an unrelated user. |
+| A user who is not a participant of the offer submits a review | Medium | High | `_reviewed_user_for_offer()` resolves the counterparty only for the buyer or the seller and rejects everyone else with `403`; negative tests cover an unrelated user. |
 | A rating outside 1–5, or a non-integer rating (float, string, boolean), is accepted | Medium | High | `_rating_error()` explicitly checks type and range before any database write; parametrized negative tests cover 7 invalid inputs. |
-| A review is created for an offer that is not yet `Accepted` | Medium | High | `_completed_buyer_offer_error()` returns an error for any non-`Accepted` status; both `Pending` and `Rejected` are tested explicitly. |
-| A review is misattributed to the wrong seller via a spoofed `reviewee_id` | Medium | High | `_review_target_error()` cross-checks the supplied `reviewee_id` against the listing's real `seller_id` via `get_listing_owner()`. |
+| A review is created for an offer that is not yet `Accepted` | Medium | High | `_validate_offer()` returns an error for any non-`Accepted` status; both `Pending` and `Rejected` are tested explicitly. |
+| A review is misattributed to the wrong counterparty via a spoofed `reviewee_id` | Medium | High | `_resolve_reviewee()` cross-checks the supplied `reviewee_id` against the counterparty resolved from the offer and the listing's real `seller_id` via `get_listing_owner()`. |
 | Another user's private account details (student ID, contact number) leak on their public profile | Medium | High | `is_own_profile` gates the Account Details card and Edit Profile button in the template; tests assert both are absent when viewing another user. |
 | Average rating does not update as new reviews are added | Low | Medium | `get_user_rating_stats()` recomputes `AVG(rating)` directly from the `reviews` table on every call; a unit test adds a second review and confirms the average changes. |
-| Selenium UI test cannot run in all environments | High | Low | Documented in Section 8; test is written to existing conventions and runs in the CI pipeline's Selenium service even where a local browser/driver is unavailable. |
+| Selenium UI test cannot run in all environments | High | Low | Documented in Section 8; tests are written to existing conventions and run in the CI pipeline's Selenium service even where a local browser/driver is unavailable. |
 | Test data affects the real database | Medium | High | Use isolated temporary SQLite database fixtures (`tmp_path`) and avoid the production `swaplah.db`. |
 
 ---
@@ -352,23 +360,23 @@ Before merging any Sprint 4 Merge Request, the following regression checks must 
 
 ### AI Prompt Used
 
-> Generate a Sprint 4 test plan for SwapLah Assignment 2. Sprint 4 focuses on Reviews, Ratings, and Profile Viewing — the area Sprint 3 explicitly marked out of scope. Cover a buyer leaving a rating and comment for a seller after a completed (Accepted) offer, rejecting reviews for incomplete or mismatched transactions, retrieving reviews for a user, average rating calculation, and viewing another user's profile with correct own-profile-vs-other visibility. Follow the same Lesson 7 test plan format used in Sprints 1–3, with Introduction, Scope, Test Approach, Test Items, Test Environment, Entry and Exit Criteria, Risks, Regression Testing, Definition of Done, and a full test case table with positive and negative cases.
+> Generate a Sprint 4 test plan for SwapLah Assignment 2. Sprint 4 focuses on Reviews, Ratings, and Profile Viewing — the area Sprint 3 explicitly marked out of scope. Cover either participant (buyer or seller) leaving a rating and comment for the other party after a completed (Accepted) offer, rejecting reviews for incomplete or mismatched transactions and non-participants, retrieving reviews for a user, average rating calculation, and viewing another user's profile with correct own-profile-vs-other visibility. Follow the same Lesson 7 test plan format used in Sprints 1–3, with Introduction, Scope, Test Approach, Test Items, Test Environment, Entry and Exit Criteria, Risks, Regression Testing, Definition of Done, and a full test case table with positive and negative cases.
 
 ### Refinement Made
 
-The AI-generated draft was reviewed and refined against the actual implemented code on this branch rather than assumed behaviour. This branch implements only the buyer → seller review direction (`POST /api/reviews`, keyed by `offer_id`); it does **not** implement a seller → buyer review endpoint, and its profile page does not yet compute real marketplace stats (trust badge, response rate, sales count are placeholder values in the template). Both of these were moved to Section 2.2 (Out of Scope) rather than described as implemented, since claiming otherwise would misrepresent what this branch actually does.
+The AI-generated draft was reviewed and refined against the actual implemented code on the integration branch rather than assumed behaviour. This branch integrates **both** review directions through a single `POST /api/reviews` endpoint: `submit_review()` derives the review target from the logged-in user and the accepted offer, so a buyer reviews the seller and a seller reviews the buyer. Earlier single-direction wording ("only the buyer may review the seller") was updated to describe the bidirectional behaviour, and the seller→buyer direction was moved from Out of Scope into the covered feature set, since it is now implemented and tested.
 
-`app/db.py`, `app/__init__.py`, and `app/routes/reviews.py` previously contained a byte-order-mark (BOM) character that caused `radon` — and the CI `code-quality-gate` job's own `ast.parse()` call — to fail with `invalid non-printable character U+FEFF`, which was failing the pipeline. The BOM has been stripped from all three files, and `scripts/code_quality_gate.py` was updated to read source files with `utf-8-sig` (which tolerates a BOM if one is ever reintroduced) instead of plain `utf-8`. Cyclomatic complexity in Section 4.1 is now measured directly by `radon` rather than counted manually, and the corresponding Exit Criteria and Definition of Done checkboxes have been marked complete.
+`app/db.py`, `app/__init__.py`, and `app/routes/reviews.py` previously contained a byte-order-mark (BOM) character that caused `radon` — and the CI `code-quality-gate` job's own `ast.parse()` call — to fail with `invalid non-printable character U+FEFF`, which was failing the pipeline. The BOM has been stripped from all three files, and `scripts/code_quality_gate.py` was updated to read source files with `utf-8-sig` (which tolerates a BOM if one is ever reintroduced) instead of plain `utf-8`.
 
-Test case counts and IDs were cross-checked against the real test files added for this sprint (`tests/unit/test_submit_review_unit.py`, `tests/api/test_submit_review_api.py`, `tests/unit/test_profile_view_unit.py`, `tests/api/test_profile_view_api.py`), plus the pre-existing `tests/api/test_user_reviews_api.py` for review retrieval, to ensure every listed test case corresponds to an actual test.
+Test case counts and IDs were cross-checked against the real test files for this sprint (`tests/unit/test_submit_review_unit.py`, `tests/unit/test_reviews_unit.py`, `tests/unit/test_profile_stats_db_unit.py`, `tests/api/test_submit_review_api.py`, `tests/api/test_profile_view_api.py`, and the Selenium suites under `tests/ui/selenium/`) to ensure every listed test case corresponds to an actual test.
 
-Several Exit Criteria and Definition of Done checkboxes were deliberately left unchecked (`[ ]`) rather than marked complete, because they depend on actions this environment cannot perform or verify: MR review/approval by a teammate, the GitLab CI pipeline actually running (including its dedicated Selenium browser service), and Product Owner / Tutor sign-off. The Selenium UI test (Section 8) was written to the project's existing page-object conventions but could not be executed locally, since no Selenium browser or driver is installed in this development environment — this mirrors the same constraint documented for the project's other Selenium suites and is called out honestly rather than claimed as passing.
+Several Exit Criteria and Definition of Done checkboxes were deliberately left unchecked (`[ ]`) rather than marked complete, because they depend on actions this environment cannot perform or verify: MR review/approval by a teammate, the GitLab CI pipeline actually running (including its dedicated Selenium browser service), and Product Owner / Tutor sign-off. The Selenium UI tests (Section 8) were written to the project's existing page-object conventions but could not be executed locally, since no Selenium browser or driver is installed in this development environment — this mirrors the same constraint documented for the project's other Selenium suites and is called out honestly rather than claimed as passing.
 
 ### Manual Review Evidence
 
-- Test cases were mapped to the Sprint 4 PBIs (#44, #36) and to the two review-retrieval / profile-viewing stories that predate formal issue numbering in this codebase.
-- Unit test items were checked against the implemented rating-validation, offer-completion, and review-target-validation functions.
+- Test cases were mapped to the Sprint 4 PBIs (#44, #36), the seller-reviews-buyer story, and the two review-retrieval / profile-viewing stories that predate formal issue numbering in this codebase.
+- Unit test items were checked against the implemented rating-validation, offer-completion, and bidirectional reviewer/reviewee-resolution functions (`_rating_error`, `_validate_offer`, `_reviewed_user_for_offer`, `_resolve_reviewee`).
 - API test items were checked against the required review-submission, review-retrieval, and profile routes.
-- The buyer-only submission rule (#44) was specifically verified with negative tests confirming the seller and an unrelated third party are both rejected, using a real temporary SQLite database seeded with an actual `Accepted` offer rather than mocked database calls.
+- Both review directions were verified with real temporary SQLite databases seeded with an actual `Accepted` offer: a buyer reviewing the seller, a seller reviewing the buyer, and negative tests confirming a non-participant and a mismatched `reviewee_id` are rejected.
 - The average-rating recalculation (#36) was verified by adding a second review mid-test and confirming the computed average changed correctly, rather than only checking a single static value.
 - All listed test cases were changed to `Pass` only after being run locally against the actual test files described above.

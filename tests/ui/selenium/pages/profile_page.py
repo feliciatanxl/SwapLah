@@ -16,7 +16,6 @@ class ProfilePage(BasePage):
         """Open the profile page."""
         return self.open("/profile")
 
-
     def open_profile_for(self, user_id):
         """Open another user's public profile page."""
         return self.open(f"/profile/{user_id}")

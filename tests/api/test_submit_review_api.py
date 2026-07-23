@@ -2,7 +2,9 @@
 API integration tests for POST /api/reviews.
 
 Uses a real temporary SQLite database with seeded users, listings, and
-offers, exercising the actual accept_offer() -> submit_review() path.
+offers, exercising the actual accept_offer() -> submit_review() path for
+both buyer-reviews-seller and seller-reviews-buyer, and the effect of a
+saved review on the reviewed user's public profile stats.
 """
 import sqlite3
 
@@ -173,7 +175,7 @@ def test_review_rejected_for_nonexistent_offer(client):
 
 
 # ===========================================================================
-# AC3: review is linked to the seller and their profile
+# AC3: review is linked to the correct party and their profile
 # ===========================================================================
 
 def test_review_is_linked_to_seller_profile(client):
@@ -198,7 +200,7 @@ def test_review_is_linked_to_seller_profile(client):
 
 
 def test_review_rejects_mismatched_reviewee_id(client):
-    """An explicit reviewee_id that does not match the listing's seller is rejected."""
+    """An explicit reviewee_id that does not match the transaction counterparty is rejected."""
     test_client, test_db = client
     _seller_id, buyer_id, offer_id = seed_accepted_offer(test_db)
     unrelated_id = create_user(test_db, "S3000007", "Unrelated")
@@ -212,7 +214,7 @@ def test_review_rejects_mismatched_reviewee_id(client):
 
 
 # ===========================================================================
-# AC4: rating outside 1-5 is rejected
+# AC4: rating outside 1-5, or non-integer, is rejected
 # ===========================================================================
 
 @pytest.mark.parametrize("bad_rating", [0, 6, -1, 4.5, "five", True, None])
@@ -240,19 +242,24 @@ def test_review_rejects_missing_rating(client):
 
 
 # ===========================================================================
-# AC5: only the buyer of the completed offer may submit the review
+# AC5: either participant of the completed offer may submit the review
 # ===========================================================================
 
-def test_seller_cannot_submit_review_for_own_offer(client):
-    """The seller of this offer is not its buyer -> rejected."""
+def test_seller_can_submit_review_for_buyer(client):
+    """The seller of the offer's listing may review the buyer -> 201."""
     test_client, test_db = client
-    seller_id, _buyer_id, offer_id = seed_accepted_offer(test_db)
+    seller_id, buyer_id, offer_id = seed_accepted_offer(test_db)
     login_as(test_client, seller_id)
 
-    resp = test_client.post("/api/reviews", json={"offer_id": offer_id, "rating": 5})
+    resp = test_client.post(
+        "/api/reviews",
+        json={"offer_id": offer_id, "rating": 5, "comment": "Great buyer."},
+    )
 
-    assert resp.status_code == 403
-    assert "error" in resp.get_json()
+    assert resp.status_code == 201
+    data = resp.get_json()
+    assert data["review"]["reviewed_user_id"] == buyer_id
+    assert data["review"]["reviewer_id"] == seller_id
 
 
 def test_unrelated_user_cannot_submit_review(client):
@@ -275,6 +282,50 @@ def test_unauthenticated_user_cannot_submit_review(client):
     resp = test_client.post("/api/reviews", json={"offer_id": offer_id, "rating": 5})
 
     assert resp.status_code == 401
+
+
+# ===========================================================================
+# Profile integration: a saved review shows on the reviewed user's profile
+# ===========================================================================
+
+def test_submitted_review_updates_reviewed_users_profile_stats(client):
+    """A buyer's review is reflected in the seller's public profile stats."""
+    test_client, test_db = client
+    seller_id, buyer_id, offer_id = seed_accepted_offer(test_db)
+    login_as(test_client, buyer_id)
+
+    response = test_client.post(
+        "/api/reviews", json={"offer_id": offer_id, "rating": 4, "comment": "Smooth trade"}
+    )
+
+    assert response.status_code == 201
+    body = response.get_json()
+    assert body["average_rating"] == 4
+    assert body["review_count"] == 1
+
+    profile_response = test_client.get(f"/profile/{seller_id}")
+    assert profile_response.status_code == 200
+    assert b"1 review" in profile_response.data
+    assert b"Smooth trade" in profile_response.data
+
+
+def test_seller_review_of_buyer_appears_on_buyers_profile(client):
+    """A seller-authored review is visible on the buyer's public profile."""
+    test_client, test_db = client
+    seller_id, buyer_id, offer_id = seed_accepted_offer(test_db, seller_name="SellerTwo")
+    login_as(test_client, seller_id)
+
+    response = test_client.post(
+        "/api/reviews", json={"offer_id": offer_id, "rating": 5, "comment": "Great buyer"}
+    )
+    assert response.status_code == 201
+
+    login_as(test_client, 999999)
+    profile_response = test_client.get(f"/profile/{buyer_id}")
+
+    assert profile_response.status_code == 200
+    assert b"SellerTwo" in profile_response.data
+    assert b"Great buyer" in profile_response.data
 
 
 # ===========================================================================

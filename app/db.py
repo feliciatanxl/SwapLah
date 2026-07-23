@@ -354,6 +354,7 @@ def get_listing_by_id(listing_id):
 
     return _attach_images(dict(listing))
 
+
 def ensure_listing_status_column(conn):
     """Add the listing status column if it does not already exist."""
     columns = conn.execute("PRAGMA table_info(listings)").fetchall()
@@ -750,7 +751,6 @@ def create_offer(listing_id, buyer_id, offer_type, proposed_price=None, swap_lis
     conn.close()
     return dict(offer)
 
-
 def get_offers_for_seller(seller_id):
     """Return all offers received on listings owned by seller_id, newest first."""
     conn = get_db_connection()
@@ -854,6 +854,7 @@ def reject_offer(offer_id):
     offer = conn.execute("SELECT * FROM offers WHERE id = ?", (offer_id,)).fetchone()
     conn.close()
     return dict(offer)
+
 
 def accept_offer(offer_id):
     """

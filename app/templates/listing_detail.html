@@ -81,8 +81,8 @@
                             </a>
                         </h6>
                         {% if seller_rating and seller_rating.review_count > 0 %}
-                        <small class="text-muted"><i class="bi bi-star-fill text-warning"></i>
-                            {{ seller_rating.average_rating }} average rating ·
+                        <small class="text-muted">
+                            {{ seller_rating.average_rating | format_rating }} <i class="bi bi-star-fill text-warning"></i> average rating ·
                             {{ seller_rating.review_count }} review{{ 's' if seller_rating.review_count != 1 else '' }}</small>
                         {% else %}
                         <small class="text-muted"><i class="bi bi-star text-warning"></i> No reviews yet</small>

@@ -221,24 +221,36 @@ def test_submit_review_rejects_missing_body(client):
 
 
 # ===========================================================================
-# AC5: only the buyer of the completed offer may submit the review
+# AC5: either participant of the completed offer may submit the review
 # ===========================================================================
 
-def test_submit_review_rejects_seller_of_same_offer(client, monkeypatch):
-    """The seller is not the buyer of this offer -> 403."""
-    login_as(client, 1)  # seller_id, not buyer_id (2) of FAKE_ACCEPTED_OFFER
+def test_submit_review_allows_seller_to_review_buyer(client, monkeypatch):
+    """The seller of the offer's listing may review the buyer -> 201."""
+    login_as(client, 1)  # seller_id (listing owner) of FAKE_ACCEPTED_OFFER
     monkeypatch.setattr(reviews_routes.db_module, "get_offer_by_id", lambda oid: FAKE_ACCEPTED_OFFER)
+    monkeypatch.setattr(reviews_routes.db_module, "get_listing_owner", lambda lid: 1)
+    monkeypatch.setattr(reviews_routes.db_module, "get_user_rating_stats", lambda uid: FAKE_STATS)
+
+    captured = {}
+
+    def fake_create_review(**kwargs):
+        captured.update(kwargs)
+        return FAKE_CREATED_REVIEW
+
+    monkeypatch.setattr(reviews_routes.db_module, "create_review", fake_create_review)
 
     resp = client.post("/api/reviews", json={"offer_id": 1, "rating": 5})
 
-    assert resp.status_code == 403
-    assert "error" in resp.get_json()
+    assert resp.status_code == 201
+    assert captured["reviewer_id"] == 1
+    assert captured["reviewed_user_id"] == 2  # the buyer of the offer
 
 
 def test_submit_review_rejects_unrelated_user(client, monkeypatch):
-    """A user unrelated to the offer -> 403."""
+    """A user who is neither the buyer nor the seller -> 403."""
     login_as(client, 999)
     monkeypatch.setattr(reviews_routes.db_module, "get_offer_by_id", lambda oid: FAKE_ACCEPTED_OFFER)
+    monkeypatch.setattr(reviews_routes.db_module, "get_listing_owner", lambda lid: 1)
 
     resp = client.post("/api/reviews", json={"offer_id": 1, "rating": 5})
 

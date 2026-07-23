@@ -1,4 +1,5 @@
-"""Routes for creating buyer reviews for completed transactions."""
+"""Routes for creating reviews after completed transactions."""
+
 from flask import Blueprint, jsonify, request, session
 
 import app.db as db_module
@@ -7,81 +8,85 @@ reviews_bp = Blueprint("reviews", __name__)
 
 
 def _rating_error(rating):
-    """Return a validation error tuple for invalid ratings, otherwise None."""
+    """Return a validation error for an invalid rating, otherwise None."""
     if rating is None:
-        return {"error": "Rating is required"}, 400
-
+        return "Rating is required"
     if not isinstance(rating, int) or isinstance(rating, bool):
-        return {"error": "Rating must be a whole number from 1 to 5"}, 400
-
+        return "Rating must be a whole number from 1 to 5"
     if rating < 1 or rating > 5:
-        return {"error": "Rating must be between 1 and 5"}, 400
-
+        return "Rating must be between 1 and 5"
     return None
 
 
-def _review_target_error(offer, reviewee_id):
-    """Return a validation error if the review target does not match the seller."""
+def _reviewed_user_for_offer(offer, current_user_id):
+    """Return the transaction counterparty ID and any authorization error."""
     seller_id = db_module.get_listing_owner(offer["listing_id"])
 
     if seller_id is None:
-        return None, ({"error": "Listing not found"}, 404)
+        return None, ("Listing not found", 404)
+    if current_user_id == offer["buyer_id"]:
+        return seller_id, None
+    if current_user_id == seller_id:
+        return offer["buyer_id"], None
+    return None, ("Only participants of this transaction can leave a review", 403)
 
-    if reviewee_id is not None and reviewee_id != seller_id:
-        return None, ({"error": "Review must be for the seller of this transaction"}, 400)
 
-    return seller_id, None
+def _validate_offer(offer_id, current_user_id):
+    """Return the reviewed user for an accepted offer or an API error."""
+    offer = db_module.get_offer_by_id(offer_id)
 
-
-def _completed_buyer_offer_error(offer):
-    """Return a validation error when the offer is not reviewable by this buyer."""
     if offer is None:
-        return {"error": "Offer not found"}, 404
-
+        return None, ("Offer not found", 404)
     if offer["status"] != "Accepted":
-        return {"error": "Transaction not completed"}, 400
+        return None, ("Transaction not completed", 400)
+    return _reviewed_user_for_offer(offer, current_user_id)
 
-    if offer["buyer_id"] != session["user_id"]:
-        return {"error": "Only the buyer of this transaction can leave a review"}, 403
 
-    return None
+def _resolve_reviewee(offer_id, current_user_id, requested_reviewee_id):
+    """Return the reviewee ID for a review, or an API error."""
+    reviewed_user_id, offer_error = _validate_offer(offer_id, current_user_id)
+
+    if offer_error:
+        return None, offer_error
+    if requested_reviewee_id is not None and requested_reviewee_id != reviewed_user_id:
+        return None, ("Review must be for the other party of this transaction", 400)
+    return reviewed_user_id, None
 
 
 @reviews_bp.route("/api/reviews", methods=["POST"])
 def submit_review():
-    """Create a seller review from the buyer of an accepted offer."""
+    """Create a review from either participant for the other participant."""
     if "user_id" not in session:
         return jsonify({"error": "Login required"}), 401
 
     data = request.get_json(silent=True) or {}
     rating = data.get("rating")
-    rating_error = _rating_error(rating)
+    error = _rating_error(rating)
 
-    if rating_error:
-        return jsonify(rating_error[0]), rating_error[1]
+    if error:
+        return jsonify({"error": error}), 400
 
-    offer = db_module.get_offer_by_id(data.get("offer_id"))
-    offer_error = _completed_buyer_offer_error(offer)
+    reviewee_id, review_error = _resolve_reviewee(
+        data.get("offer_id"), session["user_id"], data.get("reviewee_id")
+    )
 
-    if offer_error:
-        return jsonify(offer_error[0]), offer_error[1]
-
-    reviewed_user_id, target_error = _review_target_error(offer, data.get("reviewee_id"))
-
-    if target_error:
-        return jsonify(target_error[0]), target_error[1]
+    if review_error:
+        message, status_code = review_error
+        return jsonify({"error": message}), status_code
 
     review = db_module.create_review(
         reviewer_id=session["user_id"],
-        reviewed_user_id=reviewed_user_id,
+        reviewed_user_id=reviewee_id,
         rating=rating,
         comment=data.get("comment", ""),
     )
-    stats = db_module.get_user_rating_stats(reviewed_user_id)
+    stats = db_module.get_user_rating_stats(reviewee_id)
 
-    return jsonify({
-        "message": "Review submitted successfully",
-        "review": review,
-        "average_rating": stats["average_rating"],
-        "review_count": stats["review_count"],
-    }), 201
+    return jsonify(
+        {
+            "message": "Review submitted successfully",
+            "review": review,
+            "average_rating": stats["average_rating"],
+            "review_count": stats["review_count"],
+        }
+    ), 201
