@@ -42,6 +42,17 @@ def _validate_offer(offer_id, current_user_id):
     return _reviewed_user_for_offer(offer, current_user_id)
 
 
+def _resolve_reviewee(offer_id, current_user_id, requested_reviewee_id):
+    """Return the reviewee ID for a review, or an API error."""
+    reviewed_user_id, offer_error = _validate_offer(offer_id, current_user_id)
+
+    if offer_error:
+        return None, offer_error
+    if requested_reviewee_id is not None and requested_reviewee_id != reviewed_user_id:
+        return None, ("Review must be for the other party of this transaction", 400)
+    return reviewed_user_id, None
+
+
 @reviews_bp.route("/api/reviews", methods=["POST"])
 def submit_review():
     """Create a review from either participant for the other participant."""
@@ -55,21 +66,13 @@ def submit_review():
     if error:
         return jsonify({"error": error}), 400
 
-    reviewed_user_id, offer_error = _validate_offer(
-        data.get("offer_id"), session["user_id"]
+    reviewee_id, review_error = _resolve_reviewee(
+        data.get("offer_id"), session["user_id"], data.get("reviewee_id")
     )
 
-    if offer_error:
-        message, status_code = offer_error
+    if review_error:
+        message, status_code = review_error
         return jsonify({"error": message}), status_code
-
-    reviewee_id = data.get("reviewee_id")
-    if reviewee_id is None:
-        reviewee_id = reviewed_user_id
-    elif reviewee_id != reviewed_user_id:
-        return jsonify(
-            {"error": "Review must be for the other party of this transaction"}
-        ), 400
 
     review = db_module.create_review(
         reviewer_id=session["user_id"],

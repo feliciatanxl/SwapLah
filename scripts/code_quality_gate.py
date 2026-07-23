@@ -38,7 +38,7 @@ def _python_files(root: Path):
 
 def _function_lengths(path: Path):
     """Yield function length measurements for one Python file."""
-    source = path.read_text(encoding="utf-8")
+    source = path.read_text(encoding="utf-8-sig")
     tree = ast.parse(source)
 
     for node in ast.walk(tree):
@@ -48,7 +48,7 @@ def _function_lengths(path: Path):
 
 def _complexities(path: Path):
     """Yield cyclomatic complexity measurements for one Python file."""
-    source = path.read_text(encoding="utf-8")
+    source = path.read_text(encoding="utf-8-sig")
 
     for block in cc_visit(source):
         yield block.name, block.complexity
