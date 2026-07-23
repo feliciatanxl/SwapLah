@@ -124,19 +124,11 @@ def _handle_swap_offer(data, listing_id, buyer_id):
     if not swap_listing_id:
         return jsonify({"error": "swapListingId is required for a swap offer."}), 400
 
-    # FIX: buyer must own the swap listing (active and belonging to buyer)
-    if not db_module.get_active_listing_by_seller(swap_listing_id, buyer_id):
-
+    # Buyer must own the swap listing (active and belonging to buyer)
     if not get_active_listing_by_buyer(swap_listing_id, buyer_id):
         return jsonify({
             "error": "The selected swap item was not found in your active listings."
         }), 403
-
-    # Prevent swapping with the same listing
-    if swap_listing_id == listing_id:
-        return jsonify({"error": "Cannot swap with the same listing."}), 400
-
-    offer = db_module.create_offer(
 
     offer = create_offer(
         listing_id=listing_id,

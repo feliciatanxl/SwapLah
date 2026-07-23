@@ -25,8 +25,8 @@ from app.db import (
     get_user_profile_stats,
     init_db,
     update_user_account,
-    get_all_reports, 
-)
+    get_all_reports,
+    )
 import app.db as db_module # noqa: F401 — exposes db functions for monkeypatching in tests
 from app.routes.listing import listings_bp
 from app.routes.offers import offers_bp
@@ -567,7 +567,7 @@ def create_app():
     app.register_blueprint(listings_bp)
     app.register_blueprint(offers_bp)
     app.register_blueprint(history_bp)
-    app.register_blueprint(admin_bp) 
+    app.register_blueprint(admin_bp)
     app.register_blueprint(reports_bp)
 
     return app
