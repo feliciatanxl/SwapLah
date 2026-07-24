@@ -186,7 +186,7 @@ ALL_RESOLVED_OFFERS_SQL = (
 )
 
 TRANSACTIONS_FOR_BUYER_SQL = (
-    "SELECT transactions.id,transactions.transaction_type,transactions.amount,"
+    "SELECT transactions.id,transactions.offer_id,transactions.transaction_type,transactions.amount,"
     "transactions.created_at,listings.title AS listing_title,"
     "listings.category AS listing_category,"
     "seller.display_name AS counterparty_display_name FROM transactions "
@@ -196,7 +196,7 @@ TRANSACTIONS_FOR_BUYER_SQL = (
 )
 
 TRANSACTIONS_FOR_SELLER_SQL = (
-    "SELECT transactions.id,transactions.transaction_type,transactions.amount,"
+    "SELECT transactions.id,transactions.offer_id,transactions.transaction_type,transactions.amount,"
     "transactions.created_at,listings.title AS listing_title,"
     "listings.category AS listing_category,"
     "buyer.display_name AS counterparty_display_name FROM transactions "

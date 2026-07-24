@@ -10,6 +10,7 @@ def _format_transaction(transaction):
     """Serialise a transaction row dict to a JSON-safe dict."""
     return {
         "id": transaction["id"],
+        "offerId": transaction.get("offer_id"),
         "listingTitle": transaction["listing_title"],
         "listingCategory": transaction["listing_category"],
         "counterpartyDisplayName": transaction["counterparty_display_name"],
