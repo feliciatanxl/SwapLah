@@ -21,7 +21,7 @@ def _requirement_lines(path: Path, seen: set[Path] | None = None):
 
     seen.add(path)
 
-    for raw_line in path.read_text(encoding="utf-8").splitlines():
+    for raw_line in path.read_text(encoding="utf-8-sig").splitlines():
         line = raw_line.strip()
 
         if not line or line.startswith("#"):

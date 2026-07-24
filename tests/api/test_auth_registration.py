@@ -1,12 +1,12 @@
+# pylint: disable=missing-module-docstring,missing-function-docstring,redefined-outer-name,duplicate-code
 import sqlite3
+import sys
+from pathlib import Path
 
 import pytest
 
 import app.db as db_module
 from app import create_app
-
-import sys
-from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 

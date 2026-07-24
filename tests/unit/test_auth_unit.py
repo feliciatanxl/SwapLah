@@ -55,13 +55,13 @@ def test_require_admin_response_invalid_user(app, monkeypatch):
     """Test _require_admin_response returns Forbidden for non-admin user."""
     with app.test_request_context():
         session['user_id'] = 1
-        
+
         # Mock get_user_by_id to return non-admin user
         def mock_get_user_by_id(user_id):
             return {"id": 1, "role": "user", "status": "Active"}
-        
+
         monkeypatch.setattr('app.auth.get_user_by_id', mock_get_user_by_id)
-        
+
         response = _require_admin_response()
         # Should be Forbidden
         if isinstance(response, tuple):
@@ -76,13 +76,13 @@ def test_require_admin_response_valid_admin(app, monkeypatch):
     """Test _require_admin_response returns None for valid admin."""
     with app.test_request_context():
         session['user_id'] = 1
-        
+
         # Mock get_user_by_id to return admin user
         def mock_get_user_by_id(user_id):
             return {"id": 1, "role": "admin", "status": "Active"}
-        
+
         monkeypatch.setattr('app.auth.get_user_by_id', mock_get_user_by_id)
-        
+
         response = _require_admin_response()
         assert response is None
 
@@ -91,17 +91,17 @@ def test_admin_required_decorator_valid(app, monkeypatch):
     """Test admin_required decorator allows valid admin."""
     with app.test_request_context():
         session['user_id'] = 1
-        
+
         # Mock get_user_by_id to return admin user
         def mock_get_user_by_id(user_id):
             return {"id": 1, "role": "admin", "status": "Active"}
-        
+
         monkeypatch.setattr('app.auth.get_user_by_id', mock_get_user_by_id)
-        
+
         @admin_required
         def test_view():
             return "Success", 200
-        
+
         response = test_view()
         assert response == ("Success", 200)
 
@@ -113,7 +113,7 @@ def test_admin_required_decorator_no_session(app):
         @admin_required
         def test_view():
             return "Success", 200
-        
+
         response = test_view()
         # Should be a redirect
         if isinstance(response, tuple):
@@ -126,17 +126,17 @@ def test_admin_required_decorator_invalid_user(app, monkeypatch):
     """Test admin_required decorator returns Forbidden for non-admin."""
     with app.test_request_context():
         session['user_id'] = 1
-        
+
         # Mock get_user_by_id to return non-admin user
         def mock_get_user_by_id(user_id):
             return {"id": 1, "role": "user", "status": "Active"}
-        
+
         monkeypatch.setattr('app.auth.get_user_by_id', mock_get_user_by_id)
-        
+
         @admin_required
         def test_view():
             return "Success", 200
-        
+
         response = test_view()
         # Should be Forbidden
         if isinstance(response, tuple):

@@ -1,5 +1,7 @@
 """API tests for user review retrieval."""
 
+# pylint: disable=redefined-outer-name
+
 import sqlite3
 
 import pytest
@@ -51,7 +53,7 @@ def seed_user(test_db, student_id, email, display_name):
 
 
 def seed_review(test_db, reviewed_user_id, reviewer_id):
-    """Create one review for a user."""
+    """Create one review for the reviewed user from the reviewer."""
     conn = sqlite3.connect(test_db)
     conn.execute(
         """

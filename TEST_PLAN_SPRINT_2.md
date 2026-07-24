@@ -2,9 +2,9 @@
 
 ## Sprint 2, Version 2.1.0
 
-**Team:** Team 2 — SwapLah  
-**Team members:** TAN XIU LI, FELICIA; TAN YU EN, CHARLISA; ELIJAH ONG; LEOVALAN LUCIO RICHARD; LUCAS WONG SI JIE  
-**Date created:** 12 Jun 2026  
+**Team:** Team 2 — SwapLah
+**Team members:** TAN XIU LI, FELICIA; TAN YU EN, CHARLISA; ELIJAH ONG; LEOVALAN LUCIO RICHARD; LUCAS WONG SI JIE
+**Date created:** 12 Jun 2026
 **Last updated:** 15 Jul 2026
 **GitLab project:** https://gitlab.com/nyp-sg/pet/it2112/26s1/it2112-03/assignment/team_2/swaplah
 

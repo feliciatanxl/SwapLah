@@ -64,14 +64,14 @@
                                 </td>
                                 <td class="text-end action-cell-{{ report.id }}">
                                     {% if report.status == 'Pending' %}
-                                        <button class="btn btn-sm btn-outline-dark dismiss-report-btn" 
+                                        <button class="btn btn-sm btn-outline-dark dismiss-report-btn"
                                                 data-report-id="{{ report.id }}"
-                                                data-bs-toggle="modal" 
+                                                data-bs-toggle="modal"
                                                 data-bs-target="#dismissReportModal">
                                             <i class="bi bi-check2-circle"></i> Dismiss
                                         </button>
-                                        <button class="btn btn-sm btn-danger delete-listing-btn" 
-                                                data-bs-toggle="modal" 
+                                        <button class="btn btn-sm btn-danger delete-listing-btn"
+                                                data-bs-toggle="modal"
                                                 data-bs-target="#deleteListingModal"
                                                 data-report-id="{{ report.id }}"
                                                 data-listing-title="{{ report.listing_title }}">
@@ -223,11 +223,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const dismissReportIdInput = document.getElementById('dismissReportId');
     const confirmDismissBtn = document.getElementById('confirmDismissReport');
     let dismissModalInstance = null;
-    
+
     // Initialize modal instance
     if (dismissModal) {
         dismissModalInstance = new bootstrap.Modal(dismissModal);
-        
+
         // When dismiss modal is shown, set the report ID
         dismissModal.addEventListener('show.bs.modal', function(event) {
             const button = event.relatedTarget;
@@ -236,17 +236,17 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-    
+
     // Handle dismiss confirmation
     if (confirmDismissBtn) {
         confirmDismissBtn.addEventListener('click', function() {
             const reportId = dismissReportIdInput.value;
             const button = this;
-            
+
             // Disable button and show loading state
             button.disabled = true;
             button.textContent = 'Processing...';
-            
+
             fetch(`/admin/reports/${reportId}/dismiss`, {
                 method: 'POST',
                 headers: {
@@ -273,14 +273,14 @@ document.addEventListener('DOMContentLoaded', function() {
                             statusBadge.className = `status-badge bg-soft-green text-green status-badge-${reportId}`;
                             statusBadge.textContent = 'Dismissed';
                         }
-                        
+
                         // Replace action buttons with "Resolved" text
                         const actionCell = row.querySelector(`.action-cell-${reportId}`);
                         if (actionCell) {
                             actionCell.innerHTML = '<span class="text-muted">Resolved</span>';
                         }
                     }
-                    
+
                     // Update the pending count in stats
                     const pendingCountElement = document.querySelector('.stats-card.bg-soft-yellow .stats-value');
                     if (pendingCountElement) {
@@ -289,12 +289,12 @@ document.addEventListener('DOMContentLoaded', function() {
                             pendingCountElement.textContent = currentCount - 1;
                         }
                     }
-                    
+
                     // Close modal
                     if (dismissModalInstance) {
                         dismissModalInstance.hide();
                     }
-                    
+
                     // Show success message
                     console.log('Report dismissed successfully:', data);
                 } else {
@@ -313,7 +313,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
-    
+
     // --- DELETE LISTING FUNCTIONALITY (keeping your existing code) ---
     const deleteModal = document.getElementById('deleteListingModal');
     if (deleteModal) {
@@ -321,19 +321,19 @@ document.addEventListener('DOMContentLoaded', function() {
             const button = event.relatedTarget;
             const reportId = button.getAttribute('data-report-id');
             const listingTitle = button.getAttribute('data-listing-title');
-            
+
             document.getElementById('deleteReportId').value = reportId;
             document.getElementById('deleteListingTitle').textContent = listingTitle || 'Unknown Listing';
         });
     }
-    
+
     document.getElementById('confirmDeleteListing').addEventListener('click', function() {
         const reportId = document.getElementById('deleteReportId').value;
         const button = this;
-        
+
         button.disabled = true;
         button.textContent = 'Processing...';
-        
+
         fetch(`/admin/reports/${reportId}/delete-listing`, {
             method: 'POST',
             headers: {
@@ -346,7 +346,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Close modal
                 const modal = bootstrap.Modal.getInstance(document.getElementById('deleteListingModal'));
                 if (modal) modal.hide();
-                
+
                 // Reload the page to refresh the reports table
                 window.location.reload();
             } else {
@@ -361,14 +361,14 @@ document.addEventListener('DOMContentLoaded', function() {
             button.textContent = 'Soft-delete Listing';
         });
     });
-    
+
     // --- SEARCH FUNCTIONALITY ---
     const searchInput = document.getElementById('admin_report_search');
     if (searchInput) {
         searchInput.addEventListener('keyup', function() {
             const search = this.value.toLowerCase();
             const rows = document.querySelectorAll('#reports-panel tbody tr');
-            
+
             rows.forEach(row => {
                 const text = row.textContent.toLowerCase();
                 row.style.display = text.includes(search) ? '' : 'none';

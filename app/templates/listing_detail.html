@@ -75,9 +75,22 @@
                     <span class="avatar-mini">{{ listing.seller_display_name[0] if listing.seller_display_name else "S"
                         }}</span>
                     <div>
-                        <h6 class="mb-0 fw-bold">{{ listing.seller_display_name or "Student Seller" }}</h6>
-                        <small class="text-muted"><i class="bi bi-star-fill text-warning"></i> 4.9 average rating · 24
-                            reviews</small>
+                        <h6 class="mb-0 fw-bold">
+                            {% if listing.seller_id is defined %}
+                            <a href="{{ url_for('view_profile', user_id=listing.seller_id) }}" class="text-dark text-decoration-none">
+                                {{ listing.seller_display_name or "Student Seller" }}
+                            </a>
+                            {% else %}
+                            {{ listing.seller_display_name or "Student Seller" }}
+                            {% endif %}
+                        </h6>
+                        {% if seller_rating and seller_rating.review_count > 0 %}
+                        <small class="text-muted">
+                            {{ seller_rating.average_rating | format_rating }} <i class="bi bi-star-fill text-warning"></i> average rating ·
+                            {{ seller_rating.review_count }} review{{ 's' if seller_rating.review_count != 1 else '' }}</small>
+                        {% else %}
+                        <small class="text-muted"><i class="bi bi-star text-warning"></i> No reviews yet</small>
+                        {% endif %}
                     </div>
                 </div>
                 <div class="info-list mt-3">
@@ -178,7 +191,7 @@
                     </div>
                     <div class="mb-3">
                         <label for="report_description" class="form-label">Description *</label>
-                        <textarea id="report_description" name="report_description" class="form-control" rows="4" 
+                        <textarea id="report_description" name="report_description" class="form-control" rows="4"
                                   placeholder="Please provide details about the issue..." required></textarea>
                         <div class="form-text">Minimum 10 characters</div>
                     </div>
@@ -354,28 +367,28 @@
                 // Reset messages
                 reportError.classList.add("d-none");
                 reportSuccess.classList.add("d-none");
-                
+
                 // Get form data
                 const reason = document.getElementById("report_reason").value;
                 const description = document.getElementById("report_description").value.trim();
-                
+
                 // Validate
                 if (!reason) {
                     reportError.textContent = "Please select a reason.";
                     reportError.classList.remove("d-none");
                     return;
                 }
-                
+
                 if (!description || description.length < 10) {
                     reportError.textContent = "Description must be at least 10 characters.";
                     reportError.classList.remove("d-none");
                     return;
                 }
-                
+
                 // Disable button while submitting
                 reportBtn.disabled = true;
                 reportBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Submitting...';
-                
+
                 try {
                     const response = await fetch(`/api/listings/${LISTING_ID}/reports`, {
                         method: "POST",
@@ -388,17 +401,17 @@
                             description: description
                         })
                     });
-                    
+
                     const data = await response.json();
-                    
+
                     if (!response.ok) {
                         throw new Error(data.error || "Failed to submit report.");
                     }
-                    
+
                     // Success
                     reportSuccess.textContent = data.message || "Report submitted successfully!";
                     reportSuccess.classList.remove("d-none");
-                    
+
                     // Reset form and close modal after delay
                     document.getElementById("reportForm").reset();
                     setTimeout(() => {
@@ -408,7 +421,7 @@
                         reportBtn.disabled = false;
                         reportBtn.innerHTML = '<i class="bi bi-flag"></i> Submit Report';
                     }, 2000);
-                    
+
                 } catch (err) {
                     reportError.textContent = err.message;
                     reportError.classList.remove("d-none");

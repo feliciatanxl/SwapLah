@@ -1,3 +1,4 @@
+# pylint: disable=missing-module-docstring,missing-function-docstring,redefined-outer-name,duplicate-code
 import sqlite3
 
 import pytest
@@ -89,7 +90,9 @@ def test_update_user_account_can_update_password_hash(test_db):
     assert user["password_hash"] != "Password123"
 
 
-def test_update_user_account_does_not_change_missing_user(test_db):
+def test_update_user_account_does_not_change_missing_user(  # pylint: disable=unused-argument
+    test_db,
+):
     update_user_account(
         user_id=999999,
         first_name="Ghost",
