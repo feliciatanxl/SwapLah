@@ -101,6 +101,15 @@ def test_history_page_posts_reviews_using_offer_id(client):
     assert "comment: comment" in page
 
 
+def test_history_page_declares_review_state_once(client):
+    """The inline script must not fail parsing due to duplicate let bindings."""
+    login_as(client)
+
+    page = client.get("/history").get_data(as_text=True)
+
+    assert page.count("let pendingReviewOfferId = null;") == 1
+
+
 def test_history_page_does_not_use_removed_review_routes(client):
     """The old transaction-specific review routes are not reintroduced."""
     login_as(client)
