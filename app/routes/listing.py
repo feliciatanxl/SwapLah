@@ -6,12 +6,13 @@ from decimal import Decimal, InvalidOperation
 
 from flask import Blueprint, jsonify, request, session
 
-from app.db import ( create_listing, get_db_connection, get_listing_by_id, update_listing, soft_delete_listing)
+from app.db import create_listing, get_db_connection, get_listing_by_id, update_listing, soft_delete_listing
 
 listings_bp = Blueprint("listings", __name__)
 
 _PRICE_RE = re.compile(r"^\d+(\.\d{1,2})?$")
 _REQUIRED_FIELDS = ("title", "description", "price", "category", "condition")
+_ALLOWED_CONDITIONS = {"New", "Like New", "Good", "Fair"}
 
 
 def _error(message, status_code):
@@ -77,6 +78,9 @@ def _validate_listing_fields(fields):
     if not is_valid_price(fields["price"]):
         return _error("Price must be a number, Free, or Swap Only.", 400)
 
+    if fields["condition"] not in _ALLOWED_CONDITIONS:
+        return _error("Invalid item condition.", 400)
+
     return None
 
 
@@ -130,6 +134,7 @@ def _handle_update_error(error):
 
     return None
 
+
 def _handle_delete_error(error):
     """Return the correct response for listing delete errors."""
     if error == "not_found":
@@ -148,6 +153,7 @@ def _get_page_args():
     page = max(page, 1)
     offset = (page - 1) * per_page
     return page, per_page, offset
+
 
 def _build_listing_filters(search="", category="", condition=""):
     """Return SQL WHERE clause and params for listing filters."""
@@ -191,8 +197,10 @@ def _count_active_listings(db, search="", category="", condition=""):
     return row["count"]
 
 
-def _fetch_active_listing_rows(db, per_page, offset, search="", category="", condition=""):
+def _fetch_active_listing_rows(db, pagination, filters):
     """Return one page of active listings matching filters."""
+    per_page, offset = pagination
+    search, category, condition = filters
     where_clause, params = _build_listing_filters(search, category, condition)
     params.extend([per_page, offset])
 
@@ -208,6 +216,7 @@ def _fetch_active_listing_rows(db, per_page, offset, search="", category="", con
         """,
         params,
     ).fetchall()
+
 
 def _active_listing_json(row):
     """Convert one active listing row into API JSON format."""
@@ -250,11 +259,8 @@ def api_get_active_listings():
     total_listings = _count_active_listings(db, search, category, condition)
     rows = _fetch_active_listing_rows(
         db,
-        per_page,
-        offset,
-        search,
-        category,
-        condition,
+        (per_page, offset),
+        (search, category, condition),
     )
     db.close()
 

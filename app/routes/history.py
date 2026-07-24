@@ -50,6 +50,10 @@ def _format_resolved_offer(offer):
     }
 
 
+# ---------------------------------------------------------------------------
+# GET /api/transactions - view completed transaction history
+# ---------------------------------------------------------------------------
+
 @history_bp.route("/api/transactions", methods=["GET"])
 def api_get_transactions():
     """Return the logged-in user's completed transactions for one role."""
@@ -70,14 +74,13 @@ def api_get_transactions():
 
 @history_bp.route("/api/transactions/offers", methods=["GET"])
 def api_get_resolved_offers():
-    """Return accepted and rejected offer outcomes for history."""
+    """Return accepted and rejected offer outcomes for active admins."""
     if "user_id" not in session:
         return jsonify({"error": "Login required"}), 401
 
     user_id = session["user_id"]
-    if _is_active_admin(user_id):
-        offers = db_module.get_all_resolved_offers()
-    else:
-        offers = db_module.get_resolved_offers_for_user(user_id)
+    if not _is_active_admin(user_id):
+        return jsonify({"error": "Only administrators can view offer outcomes."}), 403
 
+    offers = db_module.get_all_resolved_offers()
     return jsonify({"offers": [_format_resolved_offer(offer) for offer in offers]}), 200
