@@ -19,6 +19,12 @@ def client():
         yield test_client
 
 
+@pytest.fixture(autouse=True)
+def _stub_duplicate_check(monkeypatch):
+    """Keep the duplicate-review pre-check off the real database in these unit tests."""
+    monkeypatch.setattr(db_module, "has_reviewed_offer", lambda *args, **kwargs: False)
+
+
 def _login(client, user_id):
     """Set the logged-in user for a review request."""
     with client.session_transaction() as session:
@@ -67,6 +73,7 @@ def test_seller_can_review_buyer_after_accepted_offer(client, monkeypatch):
 
     assert response.status_code == 201
     assert captured == {
+        "offer_id": 3,
         "reviewer_id": 11,
         "reviewed_user_id": 22,
         "rating": 5,

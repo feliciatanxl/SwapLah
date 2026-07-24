@@ -128,6 +128,46 @@
                     placeholder="Repeat new password"
                 >
             </div>
+
+            <div class="col-12"><hr class="my-1"></div>
+
+            <div class="col-md-6">
+                <label for="profile_image_url" class="form-label">Profile Picture URL</label>
+                <input
+                    id="profile_image_url"
+                    name="profile_image_url"
+                    type="url"
+                    class="form-control"
+                    value="{{ user.profile_image_url or '' }}"
+                    placeholder="https://example.com/avatar.jpg"
+                >
+                <p class="helper-text">Leave blank to use a generated avatar based on your display name.</p>
+                <img
+                    id="profile_image_preview"
+                    class="image-preview-avatar mt-2 {{ '' if user.profile_image_url else 'd-none' }}"
+                    src="{{ user.profile_image_url or '' }}"
+                    alt="Profile picture preview"
+                >
+            </div>
+
+            <div class="col-md-6">
+                <label for="cover_image_url" class="form-label">Profile Background URL</label>
+                <input
+                    id="cover_image_url"
+                    name="cover_image_url"
+                    type="url"
+                    class="form-control"
+                    value="{{ user.cover_image_url or '' }}"
+                    placeholder="https://example.com/cover.jpg"
+                >
+                <p class="helper-text">Leave blank to use the default background.</p>
+                <img
+                    id="cover_image_preview"
+                    class="image-preview-cover mt-2 {{ '' if user.cover_image_url else 'd-none' }}"
+                    src="{{ user.cover_image_url or '' }}"
+                    alt="Profile background preview"
+                >
+            </div>
         </div>
 
         <div class="form-actions">
@@ -136,5 +176,32 @@
         </div>
     </form>
 </section>
+
+<script>
+    (function () {
+        function bindPreview(inputId, previewId) {
+            var input = document.getElementById(inputId);
+            var preview = document.getElementById(previewId);
+            if (!input || !preview) return;
+
+            function update() {
+                var value = input.value.trim();
+                if (value) {
+                    preview.src = value;
+                    preview.classList.remove("d-none");
+                } else {
+                    preview.removeAttribute("src");
+                    preview.classList.add("d-none");
+                }
+            }
+
+            input.addEventListener("input", update);
+            preview.addEventListener("error", function () { preview.classList.add("d-none"); });
+        }
+
+        bindPreview("profile_image_url", "profile_image_preview");
+        bindPreview("cover_image_url", "cover_image_preview");
+    })();
+</script>
 
 {% endblock %}

@@ -1,18 +1,18 @@
 {% extends "base.html" %}
 {% block content %}
+{% import "_avatar.html" as ui %}
 
 <section class="profile-page container-xl py-4">
     <div class="page-card profile-card overflow-hidden">
-        <div class="profile-header"></div>
+        <div class="profile-header">
+            {% if user.cover_image_url %}
+            <img src="{{ user.cover_image_url }}" alt="" class="profile-cover-img" onerror="this.style.display='none'">
+            {% endif %}
+        </div>
 
         <div class="profile-identity">
             <div class="profile-person">
-                <img
-                    src="{{ url_for('static', filename='images/profile.jpg') }}"
-                    class="profile-avatar"
-                    alt="Profile"
-                    onerror="this.src='https://ui-avatars.com/api/?name={{ user.display_name | urlencode }}&background=030213&color=fff&size=160'"
-                >
+                {{ ui.user_avatar(user.profile_image_url, user.display_name, "profile-avatar", generated_fallback=true) }}
                 <div>
                     <h2 class="profile-name">
                         {{ user.display_name }}
@@ -23,7 +23,7 @@
                     <p class="text-muted mb-0">
                         {{ user.email }}
                         <span class="mx-2">·</span>
-                        <i class="bi bi-calendar3"></i> Joined {{ user.created_at }}
+                        <i class="bi bi-calendar3"></i> Joined {{ user.created_at | sg_date }}
                     </p>
                 </div>
             </div>
@@ -201,9 +201,7 @@
                 <div class="review-card">
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <div class="d-flex gap-3 align-items-center">
-                            <div class="offer-avatar bg-soft-blue text-blue">
-                                {{ review.reviewer_name[0] if review.reviewer_name else "?" }}
-                            </div>
+                            {{ ui.user_avatar(review.reviewer_profile_image_url, review.reviewer_name, "offer-avatar bg-soft-blue text-blue") }}
                             <div>
                                 <h6 class="fw-bold mb-0">{{ review.reviewer_name or "Former user" }}</h6>
                                 <div class="text-warning">
@@ -216,7 +214,7 @@
                                 </div>
                             </div>
                         </div>
-                        <span class="text-muted">{{ review.created_at }}</span>
+                        <span class="text-muted">{{ review.created_at | sg_datetime }}</span>
                     </div>
                     {% if review.comment %}
                     <p class="mb-0 text-dark">{{ review.comment }}</p>

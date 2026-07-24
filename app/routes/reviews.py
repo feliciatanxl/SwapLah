@@ -6,6 +6,8 @@ import app.db as db_module
 
 reviews_bp = Blueprint("reviews", __name__)
 
+DUPLICATE_REVIEW_MESSAGE = "You have already reviewed this transaction"
+
 
 def _rating_error(rating):
     """Return a validation error for an invalid rating, otherwise None."""
@@ -53,6 +55,37 @@ def _resolve_reviewee(offer_id, current_user_id, requested_reviewee_id):
     return reviewed_user_id, None
 
 
+def _create_review_response(offer_id, reviewer_id, reviewee_id, rating, data):
+    """Persist a review for an accepted offer, returning 201 or a 409 conflict.
+
+    Duplicate reviews are blocked both by an application pre-check and by a
+    database unique index, so concurrent requests cannot both succeed.
+    """
+    if db_module.has_reviewed_offer(offer_id, reviewer_id):
+        return jsonify({"error": DUPLICATE_REVIEW_MESSAGE}), 409
+
+    try:
+        review = db_module.create_review(
+            offer_id=offer_id,
+            reviewer_id=reviewer_id,
+            reviewed_user_id=reviewee_id,
+            rating=rating,
+            comment=data.get("comment", ""),
+        )
+    except db_module.DuplicateReviewError:
+        return jsonify({"error": DUPLICATE_REVIEW_MESSAGE}), 409
+
+    stats = db_module.get_user_rating_stats(reviewee_id)
+    return jsonify(
+        {
+            "message": "Review submitted successfully",
+            "review": review,
+            "average_rating": stats["average_rating"],
+            "review_count": stats["review_count"],
+        }
+    ), 201
+
+
 @reviews_bp.route("/api/reviews", methods=["POST"])
 def submit_review():
     """Create a review from either participant for the other participant."""
@@ -66,30 +99,16 @@ def submit_review():
     if error:
         return jsonify({"error": error}), 400
 
+    offer_id = data.get("offer_id")
     reviewee_id, review_error = _resolve_reviewee(
-        data.get("offer_id"), session["user_id"], data.get("reviewee_id")
+        offer_id, session["user_id"], data.get("reviewee_id")
     )
 
     if review_error:
         message, status_code = review_error
         return jsonify({"error": message}), status_code
 
-    review = db_module.create_review(
-        reviewer_id=session["user_id"],
-        reviewed_user_id=reviewee_id,
-        rating=rating,
-        comment=data.get("comment", ""),
-    )
-    stats = db_module.get_user_rating_stats(reviewee_id)
-
-    return jsonify(
-        {
-            "message": "Review submitted successfully",
-            "review": review,
-            "average_rating": stats["average_rating"],
-            "review_count": stats["review_count"],
-        }
-    ), 201
+    return _create_review_response(offer_id, session["user_id"], reviewee_id, rating, data)
 
 
 @reviews_bp.route("/api/users/<int:user_id>/reviews", methods=["GET"])

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
+{% import "_avatar.html" as ui %}
 
 <section class="page-shell">
     {% if listing is not defined or listing is none %}
@@ -43,7 +44,7 @@
                     <h2 class="detail-price">{{ listing.price }}</h2>
                 </div>
                 <p class="text-muted">
-                    <i class="bi bi-geo-alt"></i> NYP Campus · Listed {{ listing.listing_date }} ·
+                    <i class="bi bi-geo-alt"></i> NYP Campus · Listed {{ listing.listing_date | sg_datetime }} ·
                     <span class="condition-tag">{{ listing.condition }}</span>
                 </p>
                 <hr>
@@ -72,8 +73,7 @@
             <aside class="page-card sticky-card">
                 <h5 class="fw-bold mb-3">Seller Contact</h5>
                 <div class="seller-profile">
-                    <span class="avatar-mini">{{ listing.seller_display_name[0] if listing.seller_display_name else "S"
-                        }}</span>
+                    {{ ui.user_avatar(listing.seller_profile_image_url, listing.seller_display_name, "avatar-mini") }}
                     <div>
                         <h6 class="mb-0 fw-bold">
                             {% if listing.seller_id is defined %}

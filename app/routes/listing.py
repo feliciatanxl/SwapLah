@@ -156,8 +156,12 @@ def _get_page_args():
 
 
 def _build_listing_filters(search="", category="", condition=""):
-    """Return SQL WHERE clause and params for listing filters."""
-    clauses = ["status = 'Active'"]
+    """Return SQL WHERE clause and params for listing filters.
+
+    Columns are qualified with ``listings.`` so the clause is safe to reuse in
+    the seller-joined query where a bare ``status`` would otherwise be ambiguous.
+    """
+    clauses = ["listings.status = 'Active'"]
     params = []
 
     if search:
@@ -165,19 +169,19 @@ def _build_listing_filters(search="", category="", condition=""):
         clauses.append(
             """
             (
-                LOWER(title) LIKE LOWER(?)
-                OR LOWER(description) LIKE LOWER(?)
+                LOWER(listings.title) LIKE LOWER(?)
+                OR LOWER(listings.description) LIKE LOWER(?)
             )
             """
         )
         params.extend([keyword, keyword])
 
     if category:
-        clauses.append("category = ?")
+        clauses.append("listings.category = ?")
         params.append(category)
 
     if condition:
-        clauses.append("item_condition = ?")
+        clauses.append("listings.item_condition = ?")
         params.append(condition)
 
     return " AND ".join(clauses), params
@@ -206,12 +210,15 @@ def _fetch_active_listing_rows(db, pagination, filters):
 
     return db.execute(
         f"""
-        SELECT id, seller_id, title, description, price, category,
-               item_condition AS condition, image_url, listing_date,
-               last_modified_timestamp, status
+        SELECT listings.id, listings.seller_id, listings.title, listings.description,
+               listings.price, listings.category, listings.item_condition AS condition,
+               listings.image_url, listings.listing_date,
+               listings.last_modified_timestamp, listings.status,
+               users.profile_image_url AS seller_profile_image_url
         FROM listings
+        LEFT JOIN users ON listings.seller_id = users.id
         WHERE {where_clause}
-        ORDER BY listing_date DESC
+        ORDER BY listings.listing_date DESC
         LIMIT ? OFFSET ?
         """,
         params,
@@ -232,6 +239,7 @@ def _active_listing_json(row):
         "listingDate": row["listing_date"],
         "lastModifiedTimestamp": row["last_modified_timestamp"],
         "status": row["status"],
+        "sellerProfileImageUrl": row["seller_profile_image_url"],
     }
 
 
@@ -360,6 +368,7 @@ def api_get_listing_detail(listing_id):
                     "displayName": listing["seller_display_name"],
                     "email": listing["seller_email"],
                     "contactNumber": listing["seller_contact_number"],
+                    "profileImageUrl": listing.get("seller_profile_image_url"),
                 },
             }
         }

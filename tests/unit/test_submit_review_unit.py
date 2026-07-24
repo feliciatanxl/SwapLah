@@ -18,6 +18,14 @@ def client():
         yield c
 
 
+@pytest.fixture(autouse=True)
+def _stub_duplicate_check(monkeypatch):
+    """Keep the duplicate-review pre-check off the real database in these unit tests."""
+    monkeypatch.setattr(
+        reviews_routes.db_module, "has_reviewed_offer", lambda *args, **kwargs: False
+    )
+
+
 def login_as(client, user_id):
     with client.session_transaction() as sess:
         sess["user_id"] = user_id
