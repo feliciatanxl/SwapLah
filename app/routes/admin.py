@@ -6,6 +6,7 @@ from app.db import (
     admin_delete_reported_listing,
     dismiss_report,
     get_all_reports,
+    get_listing_category_summary,
     get_report_by_id,
 )
 from app.user_admin import get_all_users, update_user_status
@@ -19,7 +20,13 @@ def admin_dashboard():
     """Render the admin moderation dashboard with all reports and users."""
     reports = get_all_reports()
     users = get_all_users()
-    return render_template("admin.html", reports=reports, users=users)
+    active_listings_count = get_listing_category_summary()["total"]
+    return render_template(
+        "admin.html",
+        reports=reports,
+        users=users,
+        active_listings_count=active_listings_count,
+    )
 
 
 @admin_bp.route("/reports")

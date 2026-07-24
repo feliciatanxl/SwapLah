@@ -11,10 +11,12 @@
     </div>
 
     <div class="row g-3 my-4">
-        <div class="col-md-3"><div class="stats-card"><small class="stats-label">Total Users</small><h2 class="stats-value">2,412</h2></div></div>
-        <div class="col-md-3"><div class="stats-card"><small class="stats-label">Active Listings</small><h2 class="stats-value">811</h2></div></div>
-        <div class="col-md-3"><div class="stats-card bg-soft-yellow"><small class="stats-label text-yellow">Reports Pending</small><h2 class="stats-value">{{ reports|selectattr('status', 'equalto', 'Pending')|list|length }}</h2></div></div>
-        <div class="col-md-3"><div class="stats-card bg-soft-pink"><small class="stats-label text-pink">Suspended Users</small><h2 class="stats-value">1</h2></div></div>
+        <div class="row g-3 my-4">
+            <div class="col-md-3"><div class="stats-card"><small class="stats-label">Total Users</small><h2 class="stats-value">{{ users|length }}</h2></div></div>
+            <div class="col-md-3"><div class="stats-card"><small class="stats-label">Active Listings</small><h2 class="stats-value">{{ active_listings_count }}</h2></div></div>
+            <div class="col-md-3"><div class="stats-card bg-soft-yellow"><small class="stats-label text-yellow">Reports Pending</small><h2 class="stats-value">{{ reports|selectattr('status', 'equalto', 'Pending')|list|length }}</h2></div></div>
+            <div class="col-md-3"><div class="stats-card bg-soft-pink"><small class="stats-label text-pink">Suspended Users</small><h2 class="stats-value">{{ users|selectattr('status', 'equalto', 'Suspended')|list|length }}</h2></div></div>
+        </div>
     </div>
 
     <ul class="nav nav-pills app-tabs mb-3" id="adminTabs" role="tablist">
