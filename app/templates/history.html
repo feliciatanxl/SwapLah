@@ -16,17 +16,18 @@
     </div>
 
     <ul class="nav nav-pills app-tabs mb-3" id="historyTabs" role="tablist">
-        <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#buyer-history" type="button">Buyer History</button></li>
-        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#seller-history" type="button">Seller History</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#buyer-history" type="button">Buying History</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#seller-history" type="button">Selling History</button></li>
     </ul>
 
     <div id="historyError" class="alert alert-danger d-none" role="alert"></div>
+    <div id="historyFlash"></div>
 
     <div class="tab-content">
         <div class="tab-pane fade show active" id="buyer-history" role="tabpanel" tabindex="0">
             <div class="table-card d-none" id="buyerTableCard">
                 <table class="table align-middle mb-0">
-                    <thead><tr><th>Item</th><th>Seller</th><th>Date</th><th>Amount</th></tr></thead>
+                    <thead><tr><th>Item</th><th>Seller</th><th>Date</th><th>Amount</th><th>Review</th></tr></thead>
                     <tbody id="buyerHistoryBody"></tbody>
                 </table>
             </div>
@@ -40,7 +41,7 @@
         <div class="tab-pane fade" id="seller-history" role="tabpanel" tabindex="0">
             <div class="table-card d-none" id="sellerTableCard">
                 <table class="table align-middle mb-0">
-                    <thead><tr><th>Item</th><th>Buyer</th><th>Date</th><th>Amount</th></tr></thead>
+                    <thead><tr><th>Item</th><th>Buyer</th><th>Date</th><th>Amount</th><th>Review</th></tr></thead>
                     <tbody id="sellerHistoryBody"></tbody>
                 </table>
             </div>
@@ -74,6 +75,36 @@
     {% endif %}
 </section>
 
+<!-- Leave a review modal -->
+<div class="modal fade" id="reviewBuyerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content confirm-modal">
+            <div class="modal-header">
+                <h5 class="modal-title">Leave a review for <span id="reviewBuyerName"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <label for="reviewRating" class="form-label">Rating</label>
+                <select id="reviewRating" class="form-select mb-3">
+                    <option value="5">5 - Excellent</option>
+                    <option value="4">4 - Good</option>
+                    <option value="3">3 - Average</option>
+                    <option value="2">2 - Poor</option>
+                    <option value="1">1 - Very poor</option>
+                </select>
+                <label for="reviewComment" class="form-label">Comment (optional)</label>
+                <textarea id="reviewComment" class="form-control" rows="3"
+                    placeholder="Share your experience with this buyer..."></textarea>
+                <div id="reviewModalError" class="alert alert-danger mt-3 d-none"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-dark" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-accent" id="confirmReviewBtn">Submit Review</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 (function () {
     function escapeHtml(value) {
@@ -100,7 +131,14 @@
         return date.toLocaleDateString("en-SG", { day: "2-digit", month: "short", year: "numeric" });
     }
 
-    function renderRows(tbodyId, transactions, counterpartyLabel) {
+    function renderReviewCell(t) {
+        return "<button type=\"button\" class=\"btn btn-sm btn-outline-primary review-btn\" " +
+            "data-offer-id=\"" + t.offerId + "\" " +
+            "data-counterparty-name=\"" + escapeHtml(t.counterpartyDisplayName) + "\">" +
+            "Leave a review</button>";
+    }
+
+    function renderRows(tbodyId, transactions) {
         const tbody = document.getElementById(tbodyId);
         tbody.innerHTML = transactions.map(function (t) {
             return "<tr>" +
@@ -108,6 +146,7 @@
                 "<td>" + escapeHtml(t.counterpartyDisplayName) + "</td>" +
                 "<td>" + escapeHtml(formatDate(t.createdAt)) + "</td>" +
                 "<td>" + escapeHtml(formatAmount(t)) + "</td>" +
+                "<td>" + renderReviewCell(t) + "</td>" +
                 "</tr>";
         }).join("");
     }
@@ -143,6 +182,13 @@
         errorBox.classList.remove("d-none");
     }
 
+    function showFlash(message, type) {
+        const flashBox = document.getElementById("historyFlash");
+        flashBox.innerHTML = "<div class=\"alert alert-" + (type || "success") +
+            " alert-dismissible fade show\" role=\"alert\">" + escapeHtml(message) +
+            "<button type=\"button\" class=\"btn-close\" data-bs-dismiss=\"alert\"></button></div>";
+    }
+
     async function loadHistory(role, tableCardId, emptyStateId, tbodyId) {
         try {
             const res = await fetch("/api/transactions?role=" + role);
@@ -160,7 +206,7 @@
             } else {
                 document.getElementById(emptyStateId).classList.add("d-none");
                 document.getElementById(tableCardId).classList.remove("d-none");
-                renderRows(tbodyId, transactions, role === "buyer" ? "Seller" : "Buyer");
+                renderRows(tbodyId, transactions);
             }
             return transactions;
         } catch (err) {
@@ -210,6 +256,71 @@
         document.getElementById("statTotalEarned").textContent = "$" + totalEarned.toFixed(0);
         document.getElementById("statCompletedDeals").textContent = String(completedDeals);
     }
+
+    let pendingReviewOfferId = null;
+
+    function openReviewModal(offerId, counterpartyName) {
+        pendingReviewOfferId = offerId;
+        document.getElementById("reviewBuyerName").textContent = counterpartyName;
+        document.getElementById("reviewRating").value = "5";
+        document.getElementById("reviewComment").value = "";
+        document.getElementById("reviewModalError").classList.add("d-none");
+        new bootstrap.Modal(document.getElementById("reviewBuyerModal")).show();
+    }
+
+    function markRowAsReviewed(offerId) {
+        const button = document.querySelector('[data-offer-id="' + offerId + '"]');
+        if (!button) return;
+        button.outerHTML = '<span class="status-badge bg-soft-green text-green">' +
+            '<i class="bi bi-check-circle-fill"></i> Reviewed</span>';
+    }
+
+    function showModalError(message) {
+        const errorBox = document.getElementById("reviewModalError");
+        errorBox.textContent = message;
+        errorBox.classList.remove("d-none");
+    }
+
+    function handleReviewButtonClick(event) {
+        const button = event.target.closest(".review-btn");
+        if (!button) return;
+        openReviewModal(button.dataset.offerId, button.dataset.counterpartyName);
+    }
+
+    document.getElementById("buyerHistoryBody").addEventListener("click", handleReviewButtonClick);
+    document.getElementById("sellerHistoryBody").addEventListener("click", handleReviewButtonClick);
+
+    document.getElementById("confirmReviewBtn").addEventListener("click", async function () {
+        if (pendingReviewOfferId === null) return;
+
+        const rating = parseInt(document.getElementById("reviewRating").value, 10);
+        const comment = document.getElementById("reviewComment").value.trim();
+
+        try {
+            const res = await fetch("/api/reviews", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    offer_id: Number(pendingReviewOfferId),
+                    rating: rating,
+                    comment: comment,
+                }),
+            });
+            const data = await res.json();
+
+            if (!res.ok) {
+                showModalError(data.error || "Unable to submit review.");
+                return;
+            }
+
+            bootstrap.Modal.getInstance(document.getElementById("reviewBuyerModal")).hide();
+            markRowAsReviewed(pendingReviewOfferId);
+            showFlash("Review submitted successfully.");
+            pendingReviewOfferId = null;
+        } catch (err) {
+            showModalError("Network error. Please try again.");
+        }
+    });
 
     document.addEventListener("DOMContentLoaded", init);
 })();

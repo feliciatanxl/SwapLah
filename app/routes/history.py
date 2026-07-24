@@ -1,15 +1,19 @@
-"""Routes for viewing a user's transaction history."""
+"""Routes for viewing a user's transaction and resolved-offer history."""
+
 from flask import Blueprint, jsonify, request, session
 
 import app.db as db_module
 
 history_bp = Blueprint("history", __name__)
 
+VALID_ROLES = ("buyer", "seller")
+
 
 def _format_transaction(transaction):
-    """Serialise a transaction row dict to a JSON-safe dict."""
+    """Serialise a transaction row to the history page's JSON contract."""
     return {
         "id": transaction["id"],
+        "offerId": transaction.get("offer_id"),
         "listingTitle": transaction["listing_title"],
         "listingCategory": transaction["listing_category"],
         "counterpartyDisplayName": transaction["counterparty_display_name"],
@@ -29,7 +33,7 @@ def _is_active_admin(user_id):
 
 
 def _format_resolved_offer(offer):
-    """Serialise an accepted or rejected offer for the transaction history page."""
+    """Serialise an accepted or rejected offer for the history page."""
     return {
         "id": offer["id"],
         "listingId": offer["listing_id"],
@@ -47,37 +51,32 @@ def _format_resolved_offer(offer):
 
 
 # ---------------------------------------------------------------------------
-# GET /api/transactions  â€”  view completed transaction history
+# GET /api/transactions - view completed transaction history
 # ---------------------------------------------------------------------------
 
 @history_bp.route("/api/transactions", methods=["GET"])
 def api_get_transactions():
-    """
-    Return the logged-in user's completed transactions.
+    """Return the logged-in user's completed transactions for one role."""
+    if "user_id" not in session:
+        return jsonify({"error": "Login required"}), 401
 
-    Query string `role` selects buyer or seller history (defaults to buyer).
-    """
-    if not session.get("user_id"):
-        return jsonify({"error": "You must be logged in to view your transaction history."}), 401
+    role = request.args.get("role", "buyer")
+    if role not in VALID_ROLES:
+        return jsonify({"error": "role must be 'buyer' or 'seller'"}), 400
 
-    role = request.args.get("role", "buyer").lower()
-    if role not in ("buyer", "seller"):
-        return jsonify({"error": "role must be 'buyer' or 'seller'."}), 400
-
-    user_id = session["user_id"]
-    transactions = db_module.get_transactions_for_user(user_id, role)
+    transactions = db_module.get_transactions_for_user(session["user_id"], role)
 
     return jsonify({
         "role": role,
-        "transactions": [_format_transaction(t) for t in transactions],
+        "transactions": [_format_transaction(row) for row in transactions],
     }), 200
 
 
 @history_bp.route("/api/transactions/offers", methods=["GET"])
 def api_get_resolved_offers():
     """Return accepted and rejected offer outcomes for active admins."""
-    if not session.get("user_id"):
-        return jsonify({"error": "You must be logged in to view your transaction history."}), 401
+    if "user_id" not in session:
+        return jsonify({"error": "Login required"}), 401
 
     user_id = session["user_id"]
     if not _is_active_admin(user_id):

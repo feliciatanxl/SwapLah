@@ -86,8 +86,9 @@ function renderOffers(offers) {
     const container = document.getElementById("offers-container");
     document.getElementById("loading-state").classList.add("d-none");
 
+    const pending = offers.filter(o => o.status === "Pending");
     document.getElementById("pending-count").textContent =
-        offers.length + (offers.length === 1 ? " pending" : " pending");
+        pending.length + (pending.length === 1 ? " pending" : " pending");
 
     if (offers.length === 0) {
         container.innerHTML = "";
@@ -153,6 +154,7 @@ function renderOfferCard(o) {
         <div class="offer-main">
             <div class="offer-content">
                 <div class="offer-meta">
+                    <span class="status-badge bg-soft-blue text-blue"><i class="bi bi-shop"></i> Selling</span>
                     ${typeIcon}
                     <span class="status-badge ${statusClass}">${escHtml(o.status)}</span>
                     <span class="offer-time">${timeAgo(o.createdAt)}</span>

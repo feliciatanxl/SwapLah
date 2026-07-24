@@ -1,11 +1,11 @@
 # Test Plan — SwapLah
 
-## Sprint 1, Version 1.0.0
+## Sprint 1, Version 1.1.0
 
 **Team:** Team 2 — SwapLah
 **Team members:** Felicia, Charlisa, Lucas, Lucio, Elijah
 **Date created:** 12 Jun 2026
-**Last updated:** 15 Jul 2026
+**Last updated:** 24 Jul 2026
 **GitLab project:** `https://gitlab.com/nyp-sg/pet/it2112/26s1/it2112-03/assignment/team_2/swaplah`
 
 ---
@@ -18,7 +18,7 @@ Sprint 1 focuses on **User Account Management and Authentication**. These featur
 
 This Sprint adds and verifies the following features:
 
-* Student account registration with NYP email validation (#1)
+* Student account registration with exact `@mymail.nyp.edu.sg` email-domain validation (#1)
 * Secure login for registered users (#2)
 * View account details for logged-in users (#3)
 * Update account details except Email and Student ID (#16)
@@ -43,6 +43,7 @@ This Sprint adds and verifies the following features:
 * Page Object Model structure for Sprint 1 Selenium UI tests under `tests/ui/selenium/pages/`
 * GitLab CI/CD pipeline verification
 * GitLab Test Cases linked to related Sprint 1 PBIs
+* Defence-in-depth verification to ensure email-domain validation cannot be bypassed through direct user-creation helpers or legacy database records
 
 ### Out of Scope
 
@@ -64,9 +65,9 @@ This Sprint adds and verifies the following features:
 
 | Level             |              Target Count | Tool                       | Pipeline Stage |
 | ----------------- | ------------------------: | -------------------------- | -------------- |
-| Unit tests        |                     10–15 | pytest                     | test           |
-| API / Route tests |                     10–15 | pytest + Flask test client | test           |
-| UI smoke tests    |                       1–2 | pytest / Flask test client | test           |
+| Unit tests        |                       20+ | pytest                     | test           |
+| API / Route tests |                       15+ | pytest + Flask test client | test           |
+| UI regression tests |                      5+ | pytest / Flask test client | test           |
 | Sprint 1 Selenium E2E tests |              5 | Selenium WebDriver + Page Object Model + headless Chrome | test |
 | Static analysis   |           All `.py` files | pylint >= 10.0             | validate       |
 | Complexity check  | All application functions | radon                      | validate       |
@@ -111,9 +112,10 @@ This Sprint adds and verifies the following features:
 | Function / Route               | Related PBI | Complexity | Minimum Tests | Priority |
 | ------------------------------ | ----------- | ---------: | ------------: | -------- |
 | `/register`                    | #1          |     Medium |             4 | High     |
-| `_handle_register()`           | #1          |     Medium |             4 | High     |
+| `_handle_register()`           | #1          |     Medium |             6 | High     |
+| User-creation email validation boundary | #1 | Medium | 4 | High |
 | `/login`                       | #2          |     Medium |             4 | High     |
-| `_handle_login()`              | #2, #19     |     Medium |             5 | High     |
+| `_handle_login()`              | #2, #19     |     Medium |             6 | High     |
 | `/profile`                     | #3, #18     |        Low |             3 | High     |
 | `/profile/edit`                | #16, #18    |     Medium |             5 | High     |
 | `get_user_by_email()`          | #2, #19     |        Low |             2 | High     |
@@ -197,10 +199,16 @@ Sprint 1 validation is complete when:
 | TC-S1-REG-003     | Registration    | #1          | Reject empty required fields                  | Negative            | User is on register page                           | 1. Open `/register` 2. Leave one or more required fields empty 3. Submit form                                                                               | Account is not created and required field error message is displayed                                | Pass              |
 | TC-S1-REG-004     | Registration    | #1          | Reject duplicate email or Student ID          | Negative            | Existing account already exists                    | 1. Register a user successfully 2. Submit another registration using the same email or Student ID                                                           | Registration fails and duplicate account error message is displayed                                 | Pass              |
 | TC-S1-REG-005     | Registration    | #1          | Store password as hash instead of plaintext   | Security / Unit     | User registration function is available            | 1. Register a user with a known password 2. Inspect stored password value in test database                                                                  | Stored password is not equal to plaintext password and can be verified using password hash checking | Pass              |
+| TC-S1-REG-006     | Registration    | #1          | Reject staff-style `@nyp.edu.sg` email        | Negative / Security | User is on register page                           | 1. Open `/register` 2. Enter `student@nyp.edu.sg` 3. Submit form                                                                                              | Registration is rejected because the address is not an NYP student `@mymail.nyp.edu.sg` email      | Pass              |
+| TC-S1-REG-007     | Registration    | #1          | Reject spoofed domain suffix                   | Negative / Security | User is on register page                           | 1. Open `/register` 2. Enter `student@mymail.nyp.edu.sg.attacker.com` 3. Submit form                                                                          | Registration is rejected because the email does not end exactly with `@mymail.nyp.edu.sg`          | Pass              |
+| TC-S1-REG-008     | Registration    | #1          | Handle uppercase student email consistently   | Edge / Security     | Email normalisation policy is implemented          | 1. Submit a valid student email containing uppercase characters 2. Inspect stored email and login behaviour                                                   | Email is handled consistently according to the agreed lower-case normalisation policy               | To verify after hardening fix |
+| TC-S1-REG-009     | Registration DB | #1          | Reject invalid domain through user-creation helper | Negative / Unit | Direct user-creation helper is available           | 1. Call the database/helper function directly with `student@nyp.edu.sg` 2. Check return value and database                                                     | Helper rejects the account and no invalid-domain user record is stored                              | To verify after hardening fix |
+| TC-S1-REG-010     | Registration DB | #1          | Reject invalid domain at database boundary    | Negative / Security | Safe schema migration or database validation exists | 1. Attempt an invalid-domain insert through the supported database boundary 2. Inspect existing user data                                                      | Invalid insert is rejected without dropping or corrupting existing user records                     | To verify if DB constraint is adopted |
 | TC-S1-LOGIN-001   | Login           | #2          | Login with valid credentials                  | Positive            | Registered active user exists                      | 1. Open `/login` 2. Enter valid email and password 3. Submit form                                                                                           | User logs in successfully, session is created, and user is redirected to profile or protected page  | Pass              |
 | TC-S1-LOGIN-002   | Login           | #2          | Reject wrong password                         | Negative            | Registered user exists                             | 1. Open `/login` 2. Enter valid email but wrong password 3. Submit form                                                                                     | Login fails and invalid email or password message is shown                                          | Pass              |
 | TC-S1-LOGIN-003   | Login           | #2          | Reject missing credentials                    | Negative            | User is on login page                              | 1. Open `/login` 2. Submit form with missing email or password                                                                                              | Login fails and required credentials message is shown                                               | Pass              |
 | TC-S1-LOGIN-004   | Login           | #2          | Create correct session after successful login | Positive            | Registered active user exists                      | 1. Login with valid credentials 2. Check session data                                                                                                       | Session contains user ID, email, display name, and role                                             | Pass              |
+| TC-S1-LOGIN-005   | Login Security  | #2, #19     | Reject legacy invalid-domain account          | Negative / Security | Test database contains a legacy user whose email is not under `@mymail.nyp.edu.sg` | 1. Insert or seed the legacy record using a test-only fixture 2. Attempt login with the correct password                                                       | Login is rejected under the chosen security policy and the session is not created                   | To verify after hardening fix |
 | TC-S1-SUSP-001    | Suspended Login | #19         | Block suspended user from logging in          | Negative / Security | Suspended user account exists                      | 1. Open `/login` 2. Enter suspended user credentials 3. Submit form                                                                                         | Login is blocked and suspended account message is shown                                             | Pass |
 | TC-S1-SUSP-002    | Suspended Login | #19         | Allow active user to log in                   | Positive            | Active registered user exists                      | 1. Open `/login` 2. Enter active user credentials 3. Submit form                                                                                            | Active user logs in successfully                                                                    | Pass |
 | TC-S1-PROF-001    | Profile         | #3          | View account details when logged in           | Positive            | User is logged in                                  | 1. Login 2. Open `/profile`                                                                                                                                 | Student ID, First Name, Last Name, Display Name, Email, and Contact Number are displayed            | Pass              |
@@ -245,7 +253,26 @@ This section only documents Sprint 1 account-management and authentication flows
 | `profile_page.py` | Profile, edit profile, and logout actions |
 
 
-## 9. Regression Testing
+## 9. Email-Domain Defence-in-Depth Verification
+
+The normal registration form already validates the NYP student email domain. A manual database insertion or an internal helper call may bypass route-only validation if the same rule is not enforced at the user-creation boundary. This is an administrative or code-level bypass rather than a normal browser-user exploit, but it is included for defence in depth.
+
+### Required final behaviour
+
+* Only emails ending exactly with `@mymail.nyp.edu.sg` are accepted.
+* Email comparison and storage follow one documented normalisation policy.
+* `@nyp.edu.sg` and suffix-spoofed domains are rejected.
+* Direct user-creation helpers enforce the same rule as the registration route.
+* Existing SQLite data must not be dropped or reset when applying a schema or migration improvement.
+* The team must decide and document whether legacy invalid-domain accounts are blocked at login or handled through an administrative cleanup process.
+
+### Status rule
+
+The new hardening cases must remain **To verify** until the implementation is merged and the focused unit/API tests pass in GitLab CI. They must not be marked Pass based only on the planned behaviour.
+
+---
+
+## 10. Regression Testing
 
 Before merging any Sprint 1 Merge Request, the following regression checks must pass:
 
@@ -262,16 +289,18 @@ Before merging any Sprint 1 Merge Request, the following regression checks must 
 | Manual protected page flow  | Browser test                                                | Logged-out user cannot access protected pages      |
 | Manual session timeout flow | Browser test / simulated test                               | Inactive session expires after 30 minutes          |
 | Sprint 1 Selenium UI suite   | `python -m pytest tests/ui/selenium/test_registration_selenium.py tests/ui/selenium/test_login_logout_selenium.py tests/ui/selenium/test_profile_update_selenium.py tests/ui/selenium/test_session_timeout_selenium.py tests/ui/selenium/test_suspended_login_selenium.py` | 5 Sprint 1 Selenium tests pass in headless browser |
+| Email-domain security regression | `python -m pytest tests/unit tests/api -k "email or register or login" -v` | Valid student emails pass; staff, spoofed, direct-helper, and legacy invalid-domain cases behave according to the documented policy |
 
 ---
 
-## 10. Risks
+## 11. Risks
 
 | Risk                                                | Probability | Impact | Mitigation                                                           |
 | --------------------------------------------------- | ----------- | ------ | -------------------------------------------------------------------- |
 | Duplicate email or Student ID handling fails        | Medium      | High   | Add negative registration tests for duplicate records                |
 | Password is stored in plaintext                     | Low         | High   | Verify password is hashed before storing                             |
 | Non-NYP email is accepted                           | Medium      | High   | Add validation and negative test case                                |
+| Route-only email validation is bypassed through a direct helper or manual database insert | Low | High | Enforce the exact domain rule at the user-creation boundary, add focused tests, and use a non-destructive migration approach |
 | Logged-out users can access protected pages         | Medium      | High   | Add route guards and negative access-control tests                   |
 | Suspended users can still log in                    | Medium      | High   | Check user status during login and add suspended user tests          |
 | Session timeout is not enforced correctly           | Medium      | High   | Add timeout logic and tests simulating inactivity                    |
@@ -282,7 +311,7 @@ Before merging any Sprint 1 Merge Request, the following regression checks must 
 
 ---
 
-## 11. Related Links
+## 12. Related Links
 
 * [Sprint board](/-/boards)
 * [CI/CD pipelines](/-/pipelines)
@@ -295,28 +324,28 @@ Before merging any Sprint 1 Merge Request, the following regression checks must 
 
 ---
 
-## 12. Sprint 1 Definition of Done
+## 13. Sprint 1 Definition of Done
 
 ### Verification
 
 * [x] Code passes pylint with score 10.00/10 against the 10.0 target.
 * [x] Cyclomatic complexity per function does not exceed 10.
-* [x] All unit tests pass: 77 passed.
-* [x] All API / route tests pass: 70 passed.
-* [x] UI smoke tests and Sprint 1 Selenium headless browser tests pass.
+* [x] Latest integration baseline passes 427 combined unit and API tests.
+* [x] Latest local Flask/UI regression run passes 8 tests.
+* [ ] Re-run the Selenium browser suite in GitLab CI after the final integration and email-hardening changes.
 * [x] Test coverage is at least 75% for the current A-band gate and at least 60% for the assignment minimum.
 * [ ] Pipeline is green on the Merge Request, including validate, test, ui-test, api-test, security, build, and deploy jobs (user-reported, not repository-verifiable locally).
 
 ### Validation
 
 * [ ] Acceptance Criteria are confirmed with Product Owner / Tutor.
-* [ ] All Sprint 1 test cases are updated to Passing status.
+* [ ] All completed Sprint 1 test cases are updated to Passing status; newly added email-hardening cases remain To verify until their implementation and CI evidence are available.
 * [ ] At least one teammate has reviewed and approved the Merge Request.
 * [ ] Related issue is moved to Done only after the MR is merged.
 
 ---
 
-## 13. AI Prompt and Refinement Evidence
+## 14. AI Prompt and Refinement Evidence
 
 ### AI Prompt Used
 
@@ -326,28 +355,35 @@ Before merging any Sprint 1 Merge Request, the following regression checks must 
 
 The AI-generated test plan was reviewed and refined to match the actual Sprint 1 GitLab issues used by the SwapLah team: #1, #2, #3, #16, #17, #18, and #19. The test cases were adjusted to match the team’s acceptance criteria and implementation status. Earlier drafts used Pending / Not Run for items that had not yet been verified; this final update removes outdated wording that implied current Sprint 1 repository tests were still pending. The plan now distinguishes the 60% assignment minimum from the 75% A-band/current pipeline threshold.
 The test plan was later updated after Sprint 1 Selenium UI automation was added. The UI testing scope was expanded from simple Flask smoke tests to include 5 Sprint 1 Selenium end-to-end tests running in a headless browser. The Selenium tests were also refactored using the Page Object Model pattern, where shared locators and page actions are stored under `tests/ui/selenium/pages/`. This update was made to align the Sprint 1 test plan with the actual authentication and account-management UI test evidence.
+On 24 Jul 2026, the plan was further updated after the team identified that route-level email validation could potentially be bypassed by a direct user-creation helper or manual SQLite insertion. Additional defence-in-depth cases were added for exact-domain matching, spoofed suffixes, helper-level validation, optional database-boundary enforcement, uppercase normalisation, and legacy invalid-domain login behaviour. These new cases are intentionally marked To verify until the hardening implementation is merged and tested.
 
 ---
 
-## 14. Final Repository Evidence Update
+## 15. Final Repository Evidence Update
 
-Evidence captured on 15 Jul 2026 from the current repository:
+Latest integration evidence available on 24 Jul 2026:
 
-| Evidence item | Final value |
+| Evidence item | Current value |
 | --- | --- |
-| Full pytest suite | 159 passed |
-| Unit tests | 77 passed |
-| Unit coverage | 77% |
-| API tests | 70 passed |
-| Flask UI tests | 2 passed |
-| Selenium tests | 10 passed |
+| Integration branch | `integration/lucas-sprint4-reviews` |
+| Combined unit and API tests | 427 passed |
+| Flask/UI regression tests | 8 passed |
+| Total latest local regression result | 435 passed |
 | Pylint target and result | Target 10.0; result 10.00/10 |
-| Highest cyclomatic complexity | B(7), `_common_error` in `app/routes/offers.py` |
-| Longest application function | 38 lines, `_register_simple_page_routes` in `app/__init__.py` |
-| Code-quality gate | Passed |
+| Unit coverage gate | Minimum 75% in CI |
+| Assignment minimum coverage | 60% |
+| Selenium browser suite | Not rerun locally after the latest integration; must be confirmed by the GitLab `selenium-ui-tests` job |
+| Conflict status | No unmerged paths or conflict markers in the resolved integration branch |
+| Code-quality check | `git diff --cached --check` clean during final merge verification |
 | Development dependencies | `requirements-dev.txt` |
-| Selenium pipeline job name | `selenium-ui-tests` |
-| Pipeline stages | validate, test, ui-test, api-test, security, build, deploy |
+| Pipeline stages | validate, test, ui-test, api-test, security, security-gate, build, deploy |
 
-Current pipeline jobs in `.gitlab-ci.yml`: `pylint-application`, `code-quality-gate`, `pytest-unit-tests`, `pytest-api-tests`, `selenium-ui-tests`, `newman-api-tests`, `semgrep-sast`, `secret_detection`, `gemnasium-python-dependency_scanning`, `cyclonedx-sbom`, `security-gate`, `build-archive`, and `deploy-package`.
+Current pipeline jobs expected in `.gitlab-ci.yml` include `pylint-application`, `code-quality-gate`, `pytest-unit-tests`, `pytest-api-tests`, `selenium-ui-tests`, `newman-api-tests`, `semgrep-sast`, `secret_detection`, `gemnasium-python-dependency_scanning`, `cyclonedx-sbom`, `security-gate`, `build-archive`, and `deploy-package`.
 
+### Final evidence still required before marking every item complete
+
+* A green pipeline on the final integration Merge Request.
+* Unit coverage reported at or above 75%.
+* The Selenium browser job passing against the final integrated commit.
+* Focused email-domain hardening tests passing after the security fix is implemented.
+* GitLab Test Case records updated with the latest Passed / To verify statuses.

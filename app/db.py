@@ -3,6 +3,12 @@ import sqlite3
 from datetime import datetime
 from pathlib import Path
 
+from app.email_validation import (
+    STUDENT_EMAIL_CHECK_SQL,
+    install_user_email_guards,
+    normalize_student_email,
+)
+
 DATABASE = Path(__file__).resolve().parent.parent / "swaplah.db"
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 LISTING_CATEGORIES = (
@@ -13,10 +19,11 @@ LISTING_CATEGORIES = (
     {"label": "Clothing", "icon": "bi-bag"},
 )
 
-CREATE_USERS_TABLE_SQL = """CREATE TABLE IF NOT EXISTS users (
+CREATE_USERS_TABLE_SQL = f"""CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT, student_id TEXT NOT NULL UNIQUE,
     first_name TEXT NOT NULL, last_name TEXT NOT NULL, display_name TEXT NOT NULL,
-    email TEXT NOT NULL UNIQUE, contact_number TEXT NOT NULL,
+    email TEXT NOT NULL UNIQUE CHECK ({STUDENT_EMAIL_CHECK_SQL}),
+    contact_number TEXT NOT NULL,
     password_hash TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'user',
     status TEXT NOT NULL DEFAULT 'Active', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"""
 
@@ -186,7 +193,7 @@ ALL_RESOLVED_OFFERS_SQL = (
 )
 
 TRANSACTIONS_FOR_BUYER_SQL = (
-    "SELECT transactions.id,transactions.transaction_type,transactions.amount,"
+    "SELECT transactions.id,transactions.offer_id,transactions.transaction_type,transactions.amount,"
     "transactions.created_at,listings.title AS listing_title,"
     "listings.category AS listing_category,"
     "seller.display_name AS counterparty_display_name FROM transactions "
@@ -196,7 +203,7 @@ TRANSACTIONS_FOR_BUYER_SQL = (
 )
 
 TRANSACTIONS_FOR_SELLER_SQL = (
-    "SELECT transactions.id,transactions.transaction_type,transactions.amount,"
+    "SELECT transactions.id,transactions.offer_id,transactions.transaction_type,transactions.amount,"
     "transactions.created_at,listings.title AS listing_title,"
     "listings.category AS listing_category,"
     "buyer.display_name AS counterparty_display_name FROM transactions "
@@ -234,6 +241,7 @@ def init_db():
     """Create all tables if they do not exist."""
     conn = get_db_connection()
     conn.execute(CREATE_USERS_TABLE_SQL)
+    install_user_email_guards(conn)
     conn.execute(CREATE_LISTINGS_TABLE_SQL)
     ensure_listing_status_column(conn)
     conn.execute(CREATE_OFFERS_TABLE_SQL)
@@ -244,10 +252,53 @@ def init_db():
     conn.close()
 
 
-def get_user_by_email(email):
-    """Retrieve a user by email address."""
+def create_user(
+    student_id, first_name, last_name, display_name,
+    email, contact_number, password_hash,
+):
+    # pylint: disable=too-many-positional-arguments
+    """Create a user with a normalized student email and return the saved row."""
+    normalized_email = normalize_student_email(email)
     conn = get_db_connection()
-    user = conn.execute("SELECT * FROM users WHERE email=:email", {"email": email}).fetchone()
+    try:
+        cursor = conn.execute(
+            """
+            INSERT INTO users (
+                student_id, first_name, last_name, display_name,
+                email, contact_number, password_hash
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                student_id,
+                first_name,
+                last_name,
+                display_name,
+                normalized_email,
+                contact_number,
+                password_hash,
+            ),
+        )
+        conn.commit()
+        user = conn.execute(
+            "SELECT * FROM users WHERE id=?", (cursor.lastrowid,)
+        ).fetchone()
+        return dict(user)
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def get_user_by_email(email):
+    """Retrieve a user by a case-insensitive canonical email."""
+    normalized_email = email.strip().lower() if isinstance(email, str) else ""
+    conn = get_db_connection()
+    user = conn.execute(
+        "SELECT * FROM users WHERE lower(email)=:email",
+        {"email": normalized_email},
+    ).fetchone()
     conn.close()
     return user
 
@@ -580,12 +631,22 @@ def get_reviews_for_user(user_id):
     """Return public reviews for a user, newest first."""
     conn = get_db_connection()
     rows = conn.execute(
-        "SELECT reviews.id,reviews.reviewed_user_id,reviews.reviewer_id,"
-        "reviews.rating,reviews.comment,reviews.created_at,"
-        "users.display_name AS reviewer_display_name FROM reviews "
-        "LEFT JOIN users ON reviews.reviewer_id=users.id "
-        "WHERE reviews.reviewed_user_id=? ORDER BY reviews.created_at DESC, reviews.id DESC",
-        (user_id,)
+        """
+        SELECT
+            reviews.id,
+            reviews.reviewed_user_id,
+            reviews.reviewer_id,
+            reviews.rating,
+            reviews.comment,
+            reviews.created_at,
+            users.display_name AS reviewer_display_name,
+            users.display_name AS reviewer_name
+        FROM reviews
+        LEFT JOIN users ON reviews.reviewer_id = users.id
+        WHERE reviews.reviewed_user_id = ?
+        ORDER BY reviews.created_at DESC, reviews.id DESC
+        """,
+        (user_id,),
     ).fetchall()
     conn.close()
     return [dict(row) for row in rows]
@@ -630,7 +691,6 @@ def create_offer(listing_id, buyer_id, offer_type, proposed_price=None, swap_lis
     offer = conn.execute("SELECT * FROM offers WHERE id=?", (cursor.lastrowid,)).fetchone()
     conn.close()
     return dict(offer)
-
 
 def get_offers_for_seller(seller_id):
     """Return pending offers received on listings owned by seller_id, newest first."""
@@ -802,6 +862,45 @@ def get_report_by_id(report_id):
     return dict(row) if row else None
 
 
+def get_user_rating_stats(user_id):
+    """Return the average rating and review count received by a user."""
+    conn = get_db_connection()
+    row = conn.execute(
+        """
+        SELECT
+            AVG(rating) AS average_rating,
+            COUNT(*) AS review_count
+        FROM reviews
+        WHERE reviewed_user_id = ?
+        """,
+        (user_id,),
+    ).fetchone()
+    conn.close()
+    review_count = row["review_count"]
+
+    return {
+        "average_rating": round(row["average_rating"], 1) if review_count > 0 else None,
+        "review_count": review_count,
+    }
+
+
+def create_review(reviewer_id, reviewed_user_id, rating, comment=""):
+    """Create a review for a user and return the saved review."""
+    conn = get_db_connection()
+    cursor = conn.execute(
+        """
+        INSERT INTO reviews (reviewed_user_id, reviewer_id, rating, comment)
+        VALUES (?, ?, ?, ?)
+        """,
+        (reviewed_user_id, reviewer_id, rating, comment or ""),
+    )
+    conn.commit()
+    review = conn.execute(
+        "SELECT * FROM reviews WHERE id = ?",
+        (cursor.lastrowid,),
+    ).fetchone()
+    conn.close()
+    return dict(review)
 def _get_pending_report_for_deletion(conn, report_id):
     """Return pending report row or None if not found/not pending."""
     report = conn.execute(

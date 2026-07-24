@@ -3,8 +3,8 @@
 import math
 import os
 import re
+import sqlite3
 import time
-from functools import wraps
 
 from flask import Flask, flash, jsonify, redirect, render_template, request, session, url_for
 from dotenv import load_dotenv
@@ -12,27 +12,39 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from app.auth import admin_required, _require_admin_response
 
 from app.db import (
+    create_user,
     get_active_listings_by_seller,
     search_active_listings,
-    get_reviews_for_user,
-    get_db_connection,
     get_listing_by_id,
     get_listing_category_summary,
     get_listings_by_seller,
+    get_reviews_for_user,
     get_sold_listings_by_seller,
     get_user_by_email,
     get_user_by_id,
     get_user_profile_stats,
+    get_user_rating_stats,
     init_db,
     update_user_account,
     get_all_reports,
-    )
-import app.db as db_module # noqa: F401 â€” exposes db functions for monkeypatching in tests
+)
+from app.email_validation import is_valid_student_email, normalize_student_email
+import app.db as db_module  # noqa: F401 - exposes db functions for monkeypatching in tests
 from app.routes.listing import listings_bp
 from app.routes.offers import offers_bp
 from app.routes.history import history_bp
+from app.routes.reviews import reviews_bp
 from app.routes.admin import admin_bp
 from app.routes.reports import reports_bp
+
+
+def _format_rating(value):
+    """Format a rating number, dropping a trailing '.0' (e.g. 4.0 -> '4')."""
+    if value is None:
+        return ""
+    if float(value) == int(value):
+        return str(int(value))
+    return str(value)
 
 
 SESSION_TIMEOUT_SECONDS = 30 * 60
@@ -42,6 +54,7 @@ SESSION_TIMEOUT_MESSAGE = "Session expired due to inactivity. Please log in agai
 PUBLIC_ENDPOINTS = {
     "index",
     "listing_detail",
+    "view_profile",
     "login",
     "register",
     "forgot_password",
@@ -50,7 +63,7 @@ PUBLIC_ENDPOINTS = {
     "listings.api_get_active_listings",
     "listings.api_get_listing_detail",
     "api_health",
-    "api_user_reviews",
+    "reviews.get_user_reviews",
 }
 
 
@@ -80,16 +93,26 @@ def _is_admin_path(path):
 
 def _handle_login():
     """Process POST login form and return a redirect or re-rendered login page."""
-    email = request.form.get("email", "").strip().lower()
+    email = request.form.get("email", "")
     password = request.form.get("password", "")
 
-    if not email or not password:
+    if not email.strip() or not password:
         flash("Please enter your email and password.", "danger")
+        return render_template("login.html")
+
+    try:
+        email = normalize_student_email(email)
+    except ValueError:
+        flash("Invalid email or password.", "danger")
         return render_template("login.html")
 
     user = get_user_by_email(email)
 
-    if user is None or not check_password_hash(user["password_hash"], password):
+    if (
+        user is None
+        or not is_valid_student_email(user["email"])
+        or not check_password_hash(user["password_hash"], password)
+    ):
         flash("Invalid email or password.", "danger")
         return render_template("login.html")
 
@@ -115,7 +138,7 @@ def _handle_register():
         flash("Please fill in all required fields.", "danger")
         return render_template("register.html")
 
-    if not form_data["email"].endswith("@mymail.nyp.edu.sg"):
+    if not is_valid_student_email(form_data["email"]):
         flash("Please use a valid NYP email ending with @mymail.nyp.edu.sg.", "danger")
         return render_template("register.html")
 
@@ -133,7 +156,7 @@ def _get_registration_form_data():
         "first_name": request.form.get("first_name", "").strip(),
         "last_name": request.form.get("last_name", "").strip(),
         "display_name": request.form.get("display_name", "").strip(),
-        "email": request.form.get("email", "").strip().lower(),
+        "email": request.form.get("email", "").strip(),
         "contact_number": request.form.get("contact_number", "").strip(),
         "password": request.form.get("password", ""),
         "confirm_password": request.form.get("confirm_password", ""),
@@ -143,35 +166,23 @@ def _get_registration_form_data():
 def _create_user_account(form_data):
     """Create a user account from validated registration form data."""
     password_hash = generate_password_hash(form_data["password"])
-    conn = None
 
     try:
-        conn = get_db_connection()
-        conn.execute(
-            """
-            INSERT INTO users (
-                student_id, first_name, last_name, display_name,
-                email, contact_number, password_hash
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                form_data["student_id"],
-                form_data["first_name"],
-                form_data["last_name"],
-                form_data["display_name"],
-                form_data["email"],
-                form_data["contact_number"],
-                password_hash,
-            ),
+        create_user(
+            form_data["student_id"],
+            form_data["first_name"],
+            form_data["last_name"],
+            form_data["display_name"],
+            form_data["email"],
+            form_data["contact_number"],
+            password_hash,
         )
-        conn.commit()
-    except Exception:  # noqa: BLE001
+    except ValueError:
+        flash("Please use a valid NYP email ending with @mymail.nyp.edu.sg.", "danger")
+        return render_template("register.html")
+    except sqlite3.IntegrityError:
         flash("Email or Student ID already exists.", "danger")
         return render_template("register.html")
-    finally:
-        if conn is not None:
-            conn.close()
 
     flash("Account created successfully. Please log in.", "success")
     return redirect(url_for("login"))
@@ -235,6 +246,7 @@ def _render_listing_detail_page(listing_id):
         "listing_detail.html",
         listing=listing,
         listing_id=listing_id,
+        seller_rating=get_user_rating_stats(listing["seller_id"]) if "seller_id" in listing else None,
         error_message=None,
     )
 
@@ -372,7 +384,7 @@ def _save_profile_update(form_data):
     return redirect(url_for("profile"))
 
 
-def _render_profile_page(user):
+def _render_profile_page(user, is_own_profile):
     """Render the profile page with marketplace stats and lists."""
     return render_template(
         "profile.html",
@@ -381,6 +393,7 @@ def _render_profile_page(user):
         sold_listings=get_sold_listings_by_seller(user["id"]),
         profile_stats=get_user_profile_stats(user["id"]),
         reviews=get_reviews_for_user(user["id"]),
+        is_own_profile=is_own_profile,
     )
 
 
@@ -405,14 +418,6 @@ def _register_main_routes(flask_app):
     def api_health():
         """Return application health status."""
         return jsonify({"status": "ok"}), 200
-
-    @flask_app.route("/api/users/<int:user_id>/reviews")
-    def api_user_reviews(user_id):
-        """Return public reviews for one user."""
-        if get_user_by_id(user_id) is None:
-            return jsonify({"error": "User not found."}), 404
-
-        return jsonify({"reviews": get_reviews_for_user(user_id)}), 200
 
     @flask_app.route("/")
     def index():
@@ -476,7 +481,21 @@ def _register_profile_routes(flask_app):
         if redirect_response:
             return redirect_response
 
-        return _render_profile_page(user)
+        return _render_profile_page(user, is_own_profile=True)
+
+    @flask_app.route("/profile/<int:user_id>")
+    def view_profile(user_id):
+        """Render another user's public profile page."""
+        if session.get("user_id") == user_id:
+            return redirect(url_for("profile"))
+
+        user = get_user_by_id(user_id)
+
+        if user is None:
+            flash("This user does not exist.", "danger")
+            return redirect(url_for("index"))
+
+        return _render_profile_page(user, is_own_profile=False)
 
     @flask_app.route("/profile/edit", methods=["GET", "POST"])
     def edit_profile():
@@ -561,6 +580,7 @@ def create_app():
     load_dotenv()
     app = Flask(__name__)
     app.config["SECRET_KEY"] = _load_secret_key()
+    app.jinja_env.filters["format_rating"] = _format_rating
     init_db()
 
     _register_main_routes(app)
@@ -575,6 +595,7 @@ def create_app():
     app.register_blueprint(listings_bp)
     app.register_blueprint(offers_bp)
     app.register_blueprint(history_bp)
+    app.register_blueprint(reviews_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(reports_bp)
 
