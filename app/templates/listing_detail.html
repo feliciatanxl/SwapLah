@@ -103,6 +103,9 @@
 
                 <div id="offer-feedback" class="alert d-none mb-3" role="alert"></div>
 
+                {% if listing.price != "Swap Only" %}
+                <hr>
+
                 <!-- Cash Offer -->
                 <h5 class="fw-bold">Submit Cash Offer</h5>
                 <label for="cash_offer_amount" class="form-label">Cash offer</label>
@@ -115,6 +118,10 @@
                     <i class="bi bi-cash-coin"></i> Submit Cash Offer
                 </button>
 
+                <hr>
+                {% else %}
+                <hr>
+                {% endif %}
                 <hr>
 
                 <!-- Swap Offer -->
