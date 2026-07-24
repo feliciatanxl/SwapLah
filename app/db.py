@@ -24,6 +24,8 @@ DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 class DuplicateReviewError(Exception):
     """Raised when a reviewer tries to review the same offer more than once."""
+
+
 LISTING_CATEGORIES = (
     {"label": "Textbooks", "icon": "bi-book"},
     {"label": "Electronics", "icon": "bi-laptop"},

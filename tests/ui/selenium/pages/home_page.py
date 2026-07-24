@@ -1,5 +1,7 @@
 """Page object for the homepage and listing filters."""
 
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
 from selenium.webdriver.common.by import By
 
 from tests.ui.selenium.pages.base_page import BasePage
@@ -26,13 +28,32 @@ class HomePage(BasePage):
 
     def open_clear_filter_link(self, locator):
         """Open the clear-filter link href directly to avoid stale element errors."""
-        element = self.find(locator)
-        href = element.get_attribute("href")
+        filter_name = {
+            self.CLEAR_CATEGORY: "category",
+            self.CLEAR_CONDITION: "condition",
+        }[locator]
+
+        current_url = urlsplit(self.browser.current_url)
+        query = urlencode(
+            [
+                (key, value)
+                for key, value in parse_qsl(current_url.query, keep_blank_values=True)
+                if key not in {filter_name, "page"} and value
+            ]
+        )
+        href = urlunsplit(
+            (
+                current_url.scheme,
+                current_url.netloc,
+                current_url.path or "/",
+                query,
+                "latest-listings",
+            )
+        )
 
         assert href, "Clear filter link must have a href."
 
         self.browser.get(href)
-        self.find(self.CATEGORY)
         return self
 
     def clear_category_filter(self):
