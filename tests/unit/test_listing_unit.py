@@ -160,6 +160,22 @@ def test_create_listing_invalid_price(client):
     assert "error" in data
 
 
+def test_create_listing_invalid_condition(client):
+    login_test_user(client)
+
+    response = client.post("/api/listings", json={
+        "title": "Calculator",
+        "description": "Invalid condition test",
+        "price": "25",
+        "category": "Electronics",
+        "condition": "Terrible",
+        "imageUrl": "[\"https://example.com/item.jpg\"]"
+    })
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "Invalid item condition."
+
+
 def test_create_listing_long_decimal_price(client):
     login_test_user(client)
 
@@ -210,6 +226,23 @@ def test_create_listing_invalid_request_body(client):
     data = response.get_json()
 
     assert "error" in data
+
+
+def test_update_listing_rejects_invalid_condition(client):
+    login_test_user(client)
+
+    response = client.put("/api/listings/1", json={
+        "title": "Calculator",
+        "description": "Invalid condition update",
+        "price": "25",
+        "category": "Electronics",
+        "condition": "Terrible",
+        "imageUrl": "[\"https://example.com/item.jpg\"]"
+    })
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "Invalid item condition."
+
 
 def test_delete_listing_success(client, monkeypatch):
     """Owner can soft-delete their own listing."""

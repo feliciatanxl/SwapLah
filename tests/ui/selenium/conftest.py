@@ -105,7 +105,7 @@ def browser(tmp_path):
     selenium_remote_url = os.getenv("SELENIUM_REMOTE_URL")
 
     if selenium_remote_url:
-        driver = webdriver.Remote(
+        driver = webdriver.Remote(  # pylint: disable=not-callable
             command_executor=selenium_remote_url,
             options=options,
         )
@@ -123,7 +123,10 @@ def browser(tmp_path):
             options.binary_location = chrome_binary
 
         service = Service(chromedriver_path) if chromedriver_path else Service()
-        driver = webdriver.Chrome(service=service, options=options)
+        driver = webdriver.Chrome(  # pylint: disable=not-callable
+            service=service,
+            options=options,
+        )
 
     yield driver
 
