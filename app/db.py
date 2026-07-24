@@ -133,6 +133,7 @@ OFFERS_FOR_SELLER_SQL = (
     "offers.proposed_price,offers.swap_listing_id,offers.status,"
     "offers.created_at,listings.title AS listing_title,"
     "listings.category AS listing_category,listings.price AS listing_price,"
+    "listings.seller_id AS seller_id,"
     "buyer.display_name AS buyer_display_name,seller.display_name AS seller_display_name,"
     "swap_listing.title AS swap_listing_title FROM offers "
     "JOIN listings ON offers.listing_id=listings.id "
@@ -147,6 +148,7 @@ ALL_OFFERS_SQL = (
     "offers.proposed_price,offers.swap_listing_id,offers.status,"
     "offers.created_at,listings.title AS listing_title,"
     "listings.category AS listing_category,listings.price AS listing_price,"
+    "listings.seller_id AS seller_id,"
     "buyer.display_name AS buyer_display_name,seller.display_name AS seller_display_name,"
     "swap_listing.title AS swap_listing_title FROM offers "
     "JOIN listings ON offers.listing_id=listings.id "
@@ -171,7 +173,7 @@ RESOLVED_OFFERS_FOR_USER_SQL = (
     "ORDER BY offers.created_at DESC"
 )
 
-ALL_RESOLVED_OFFERS_SQL = (
+ALL_RESOLVED_OFFERS_SQL  = (
     "SELECT offers.id,offers.listing_id,offers.buyer_id,offers.offer_type,"
     "offers.proposed_price,offers.swap_listing_id,offers.status,"
     "offers.created_at,listings.title AS listing_title,"
@@ -698,7 +700,7 @@ def _create_transaction_for_offer(conn, offer):
 
 
 def accept_offer(offer_id):
-    """Accept a pending offer, reject others, mark listing sold, and create transaction."""
+    """Accept a pending offer, reject others, mark listing(s) sold, and create transaction."""
     conn = get_db_connection()
     offer = conn.execute("SELECT * FROM offers WHERE id=?", (offer_id,)).fetchone()
     offer = dict(offer)
@@ -708,6 +710,10 @@ def accept_offer(offer_id):
         (offer["listing_id"], offer_id)
     )
     conn.execute("UPDATE listings SET status='Sold' WHERE id=?", (offer["listing_id"],))
+
+    if offer["offer_type"] == "swap" and offer["swap_listing_id"]:
+        conn.execute("UPDATE listings SET status='Sold' WHERE id=?", (offer["swap_listing_id"],))
+
     _create_transaction_for_offer(conn, offer)
     conn.commit()
     updated = conn.execute("SELECT * FROM offers WHERE id=?", (offer_id,)).fetchone()

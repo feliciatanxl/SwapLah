@@ -54,6 +54,7 @@
                 <h5 class="modal-title">Reject offer?</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
+            <div id="offers-config" data-current-user-id="{{ session.get('user_id')|tojson }}" style="display:none"></div>
             <div class="modal-body">This will mark the offer as <strong>Rejected</strong>. Other pending offers remain unchanged.</div>
             <div class="modal-footer">
                 <button class="btn btn-outline-dark" data-bs-dismiss="modal">Cancel</button>
@@ -64,6 +65,7 @@
 </div>
 
 <script>
+const CURRENT_USER_ID = JSON.parse(document.getElementById("offers-config").dataset.currentUserId);
 let pendingOfferId = null;
 
 function showFlash(message, type = "success") {
@@ -143,10 +145,13 @@ function renderOfferCard(o) {
         ? `Offers: <strong>${escHtml(o.swapListingTitle || "Unknown item")}</strong>`
         : `Offer amount: <strong>$${o.proposedPrice}</strong>`;
     const avatar = escHtml((o.buyerDisplayName || "?")[0].toUpperCase());
-    const actions = o.status === "Pending"
+    const isOwner = o.sellerId === CURRENT_USER_ID;
+    const actions = (o.status === "Pending" && isOwner)
         ? `<button class="btn btn-accept" onclick="openAccept(${o.id})"><i class="bi bi-check-lg"></i> Accept</button>
            <button class="btn btn-reject" onclick="openReject(${o.id})"><i class="bi bi-x-lg"></i> Reject</button>`
-        : `<button class="btn btn-outline-dark" disabled>${escHtml(o.status)}</button>`;
+        : (o.status === "Pending"
+            ? `<span class="text-muted">Not your listing</span>`
+            : `<button class="btn btn-outline-dark" disabled>${escHtml(o.status)}</button>`);
 
     return `
     <article class="offer-card ${isMuted ? "is-muted" : ""}" id="offer-${o.id}">

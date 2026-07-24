@@ -68,6 +68,7 @@ def _format_received_offer(offer):
         "listingTitle": offer["listing_title"],
         "listingCategory": offer["listing_category"],
         "listingPrice": offer["listing_price"],
+        "sellerId": offer["seller_id"],
         "buyerDisplayName": offer["buyer_display_name"],
         "sellerDisplayName": offer.get("seller_display_name"),
         "swapListingTitle": offer["swap_listing_title"],
