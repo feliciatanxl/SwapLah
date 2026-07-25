@@ -555,7 +555,14 @@ def _register_profile_routes(flask_app):
 
     @flask_app.route("/profile/<int:user_id>")
     def view_profile(user_id):
-        """Render another user's public profile page."""
+        """Render another user's profile page for logged-in users."""
+        redirect_response = _redirect_logged_out_user(
+            "Please log in to view user profiles."
+        )
+
+        if redirect_response:
+            return redirect_response
+
         if session.get("user_id") == user_id:
             return redirect(url_for("profile"))
 

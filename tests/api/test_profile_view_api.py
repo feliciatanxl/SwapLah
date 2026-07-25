@@ -185,11 +185,12 @@ def test_unknown_user_profile_redirects_to_index(client):
     assert resp.headers["Location"].endswith("/")
 
 
-def test_logged_out_user_can_view_another_profile(client):
-    """Viewing another user's profile does not require being logged in."""
+def test_logged_out_user_cannot_view_another_profile(client):
+    """Viewing another user's profile requires being logged in."""
     test_client, test_db = client
     seller_id = create_user(test_db, "S4000010", "Seller")
 
     resp = test_client.get(f"/profile/{seller_id}")
 
-    assert resp.status_code == 200
+    assert resp.status_code == 302
+    assert "/login" in resp.headers["Location"]

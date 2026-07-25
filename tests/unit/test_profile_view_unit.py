@@ -177,8 +177,8 @@ def test_unknown_user_id_redirects_to_index(monkeypatch):
     assert resp.headers["Location"].endswith("/")
 
 
-def test_logged_out_user_can_view_another_users_profile(monkeypatch):
-    """Viewing another user's profile does not require being logged in."""
+def test_logged_out_user_cannot_view_another_users_profile(monkeypatch):
+    """Viewing another user's profile requires being logged in."""
     client = _client(monkeypatch)
     monkeypatch.setattr(app_module, "get_user_by_id", lambda uid: FAKE_OTHER_USER)
     monkeypatch.setattr(app_module, "get_user_profile_stats", lambda uid: FAKE_STATS_WITH_REVIEWS)
@@ -186,4 +186,5 @@ def test_logged_out_user_can_view_another_users_profile(monkeypatch):
 
     resp = client.get("/profile/2")
 
-    assert resp.status_code == 200
+    assert resp.status_code == 302
+    assert "/login" in resp.headers["Location"]

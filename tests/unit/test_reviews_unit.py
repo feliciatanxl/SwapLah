@@ -185,6 +185,7 @@ def test_get_user_reviews_returns_reviews(monkeypatch):
     """Existing users receive their review list."""
     reviews = [{"id": 1, "rating": 5, "comment": "Reliable campus seller."}]
     client = _reviews_client(monkeypatch, reviews=reviews)
+    _login(client, 1)
 
     response = client.get("/api/users/1/reviews")
 
@@ -195,6 +196,7 @@ def test_get_user_reviews_returns_reviews(monkeypatch):
 def test_get_user_reviews_returns_empty_list(monkeypatch):
     """Existing users with no reviews receive an empty review list."""
     client = _reviews_client(monkeypatch)
+    _login(client, 1)
 
     response = client.get("/api/users/1/reviews")
 
@@ -205,6 +207,7 @@ def test_get_user_reviews_returns_empty_list(monkeypatch):
 def test_get_user_reviews_returns_404_for_missing_user(monkeypatch):
     """Unknown users receive a JSON 404 response."""
     client = _reviews_client(monkeypatch, user_exists=False)
+    _login(client, 1)
 
     response = client.get("/api/users/999/reviews")
 

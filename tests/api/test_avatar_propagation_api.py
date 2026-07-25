@@ -109,6 +109,7 @@ def test_profile_review_card_renders_reviewer_image(client):
     reviewer_id = create_user(test_db, "S9400006", "Reviewer", REVIEWER_IMG)
     create_review(offer_id=None, reviewer_id=reviewer_id, reviewed_user_id=reviewed_id,
                   rating=5, comment="Nice")
+    login_as(test_client, reviewer_id)
 
     page = test_client.get(f"/profile/{reviewed_id}").get_data(as_text=True)
     assert REVIEWER_IMG in page
@@ -121,6 +122,7 @@ def test_profile_review_card_reviewer_fallback(client):
     reviewer_id = create_user(test_db, "S9400008", "Reviewer")
     create_review(offer_id=None, reviewer_id=reviewer_id, reviewed_user_id=reviewed_id,
                   rating=4, comment="Fine")
+    login_as(test_client, reviewer_id)
 
     page = test_client.get(f"/profile/{reviewed_id}").get_data(as_text=True)
     assert 'class="offer-avatar bg-soft-blue text-blue"' in page
@@ -133,6 +135,7 @@ def test_changing_reviewer_image_updates_existing_review_card(client):
     reviewer_id = create_user(test_db, "S9400010", "Reviewer")
     create_review(offer_id=None, reviewer_id=reviewer_id, reviewed_user_id=reviewed_id,
                   rating=5, comment="Great")
+    login_as(test_client, reviewer_id)
 
     before = test_client.get(f"/profile/{reviewed_id}").get_data(as_text=True)
     assert NEW_IMG not in before
@@ -150,6 +153,7 @@ def test_reviews_api_includes_reviewer_profile_image(client):
     reviewer_id = create_user(test_db, "S9400012", "Reviewer", REVIEWER_IMG)
     create_review(offer_id=None, reviewer_id=reviewer_id, reviewed_user_id=reviewed_id,
                   rating=5, comment="Nice")
+    login_as(test_client, reviewer_id)
 
     reviews = test_client.get(f"/api/users/{reviewed_id}/reviews").get_json()["reviews"]
     assert reviews[0]["reviewer_profile_image_url"] == REVIEWER_IMG

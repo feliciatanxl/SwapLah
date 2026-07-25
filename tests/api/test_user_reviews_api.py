@@ -66,12 +66,19 @@ def seed_review(test_db, reviewed_user_id, reviewer_id):
     conn.close()
 
 
+def login_as(test_client, user_id):
+    """Authenticate a test session before accessing review routes."""
+    with test_client.session_transaction() as session:
+        session["user_id"] = user_id
+
+
 def test_get_user_reviews_returns_reviews(client):
-    """GET /api/users/<id>/reviews returns public reviews for an existing user."""
+    """GET /api/users/<id>/reviews returns reviews for an existing user."""
     test_client, test_db = client
     reviewed_id = seed_user(test_db, "S10000001", "reviewed@mymail.nyp.edu.sg", "Reviewed")
     reviewer_id = seed_user(test_db, "S10000002", "reviewer@mymail.nyp.edu.sg", "Reviewer")
     seed_review(test_db, reviewed_id, reviewer_id)
+    login_as(test_client, reviewer_id)
 
     response = test_client.get(f"/api/users/{reviewed_id}/reviews")
 
@@ -88,6 +95,7 @@ def test_get_user_reviews_returns_empty_list_for_user_without_reviews(client):
     """GET /api/users/<id>/reviews returns an empty list when no reviews exist."""
     test_client, test_db = client
     user_id = seed_user(test_db, "S10000003", "noreviews@mymail.nyp.edu.sg", "NoReviews")
+    login_as(test_client, user_id)
 
     response = test_client.get(f"/api/users/{user_id}/reviews")
 
@@ -97,9 +105,22 @@ def test_get_user_reviews_returns_empty_list_for_user_without_reviews(client):
 
 def test_get_user_reviews_returns_404_for_missing_user(client):
     """GET /api/users/<id>/reviews rejects an unknown user."""
-    test_client, _ = client
+    test_client, test_db = client
+    viewer_id = seed_user(test_db, "S10000004", "viewer@mymail.nyp.edu.sg", "Viewer")
+    login_as(test_client, viewer_id)
 
     response = test_client.get("/api/users/999999/reviews")
 
     assert response.status_code == 404
     assert response.get_json() == {"error": "User not found."}
+
+
+def test_get_user_reviews_requires_login(client):
+    """A logged-out user cannot read another user's reviews."""
+    test_client, test_db = client
+    reviewed_id = seed_user(test_db, "S10000005", "reviewed2@mymail.nyp.edu.sg", "Reviewed2")
+
+    response = test_client.get(f"/api/users/{reviewed_id}/reviews")
+
+    assert response.status_code == 401
+    assert response.get_json() == {"error": "Login required"}
