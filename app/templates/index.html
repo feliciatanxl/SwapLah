@@ -402,8 +402,6 @@
         }
 
         function renderListings(data) {
-            renderCategorySummary(data.categorySummary);
-
             if (!data.listings.length) {
                 const hasFilters = params.get("search") || params.get("category") || params.get("condition");
                 results.innerHTML = `<div class="col-12"><p class="text-center text-muted mb-0">${hasFilters ? "No matching listings found." : "No active listings available."}</p></div>`;
@@ -416,6 +414,20 @@
             activateListingCards(results);
             renderPagination(data);
         }
+
+        fetch("/api/listing-categories")
+            .then(function (response) {
+                if (response.status === 401) {
+                    window.location.href = "{{ url_for('login') }}";
+                    return null;
+                }
+                if (!response.ok) throw new Error("Unable to load categories.");
+                return response.json();
+            })
+            .then(function (categorySummary) {
+                if (categorySummary) renderCategorySummary(categorySummary);
+            })
+            .catch(function () {});
 
         fetch(`/api/listings?${params.toString()}`)
             .then(function (response) {

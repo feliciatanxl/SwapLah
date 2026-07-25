@@ -213,8 +213,8 @@ def test_get_active_listings_filters_by_category_and_condition(client):
     assert data["listings"][0]["title"] == "Like New Mouse"
 
 
-def test_get_active_listings_returns_category_summary(client):
-    """GET /api/listings returns category counts for the homepage cards."""
+def test_get_listing_categories_returns_category_summary(client):
+    """GET /api/listing-categories returns counts for the homepage cards."""
     seller_id = seed_user()
     login_as(client, seller_id)
     seed_listing(
@@ -234,11 +234,11 @@ def test_get_active_listings_returns_category_summary(client):
         status="Deleted",
     )
 
-    response = client.get("/api/listings")
+    response = client.get("/api/listing-categories")
 
     assert response.status_code == 200
 
-    summary = response.get_json()["categorySummary"]
+    summary = response.get_json()
     counts = {
         category["label"]: category["count"]
         for category in summary["category_rows"]

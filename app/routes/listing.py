@@ -289,8 +289,18 @@ def _listing_page_payload(rows, page, per_page, total_listings):
         "perPage": per_page,
         "totalListings": total_listings,
         "totalPages": total_pages,
-        "categorySummary": get_listing_category_summary(),
     }
+
+
+@listings_bp.route("/api/listing-categories", methods=["GET"])
+def api_get_listing_categories():
+    """Return active listing counts by category for homepage category cards."""
+    auth_error = _require_login_json("You must be logged in to view listing categories.")
+
+    if auth_error:
+        return auth_error
+
+    return jsonify(get_listing_category_summary()), 200
 
 
 @listings_bp.route("/api/listings", methods=["GET"])
