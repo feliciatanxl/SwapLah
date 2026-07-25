@@ -121,6 +121,7 @@ def valid_listing_payload(title="Mechanical Keyboard"):
 def test_get_active_listings_returns_pagination_metadata(client):
     """GET /api/listings returns only active listings with pagination metadata."""
     seller_id = seed_user()
+    login_as(client, seller_id)
 
     for index in range(12):
         seed_listing(
@@ -155,6 +156,7 @@ def test_get_active_listings_returns_pagination_metadata(client):
 def test_get_active_listings_searches_title_and_description(client):
     """GET /api/listings?search= matches listing title and description."""
     seller_id = seed_user()
+    login_as(client, seller_id)
     seed_listing(
         seller_id=seller_id,
         title="Python Textbook",
@@ -181,6 +183,7 @@ def test_get_active_listings_searches_title_and_description(client):
 def test_get_active_listings_filters_by_category_and_condition(client):
     """GET /api/listings filters by Category and Condition together."""
     seller_id = seed_user()
+    login_as(client, seller_id)
     seed_listing(
         seller_id=seller_id,
         title="Like New Mouse",
@@ -216,6 +219,7 @@ def test_get_listing_detail_returns_seller_contact_information(client):
         email="contact@mymail.nyp.edu.sg",
         display_name="Contact Seller",
     )
+    login_as(client, seller_id)
     listing = seed_listing(seller_id=seller_id)
 
     response = client.get(f"/api/listings/{listing['id']}")
@@ -233,6 +237,9 @@ def test_get_listing_detail_returns_seller_contact_information(client):
 
 def test_get_listing_detail_returns_404_for_missing_listing(client):
     """GET /api/listings/<id> returns 404 for unavailable listing."""
+    user_id = seed_user()
+    login_as(client, user_id)
+
     response = client.get("/api/listings/999")
 
     assert response.status_code == 404
@@ -531,6 +538,7 @@ def test_delete_listing_returns_404_for_missing_listing(client):
 def test_get_active_listings_returns_empty_list_for_no_match(client):
     """GET /api/listings returns an empty page when no listing matches."""
     seller_id = seed_user()
+    login_as(client, seller_id)
     seed_listing(
         seller_id=seller_id,
         title="Python Textbook",
@@ -549,3 +557,11 @@ def test_get_active_listings_returns_empty_list_for_no_match(client):
     assert data["perPage"] == 10
     assert data["totalListings"] == 0
     assert data["totalPages"] == 1
+
+
+def test_get_active_listings_requires_login(client):
+    """Logged-out users cannot browse listing data through the API."""
+    response = client.get("/api/listings")
+
+    assert response.status_code == 401
+    assert response.get_json()["error"] == "You must be logged in to view listings."

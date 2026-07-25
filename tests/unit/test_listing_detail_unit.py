@@ -39,11 +39,22 @@ def fake_listing():
         "seller_display_name": "Felicia",
         "seller_email": "felicia@mymail.nyp.edu.sg",
         "seller_contact_number": "91234567",
+        "seller_id": 1,
     }
+
+
+def login_test_user(client):
+    """Log in a test user for protected listing pages and APIs."""
+    with client.session_transaction() as session:
+        session["user_id"] = 1
+        session["email"] = "felicia@mymail.nyp.edu.sg"
+        session["display_name"] = "Felicia"
+        session["role"] = "user"
 
 
 def test_api_get_listing_detail_success(client, monkeypatch):
     """Return listing detail JSON when the listing exists."""
+    login_test_user(client)
     monkeypatch.setattr(
         listing_routes,
         "get_listing_by_id",
@@ -69,6 +80,7 @@ def test_api_get_listing_detail_success(client, monkeypatch):
 
 def test_api_get_listing_detail_not_found(client, monkeypatch):
     """Return 404 when listing detail is unavailable."""
+    login_test_user(client)
     monkeypatch.setattr(
         listing_routes,
         "get_listing_by_id",
@@ -86,6 +98,7 @@ def test_api_get_listing_detail_not_found(client, monkeypatch):
 
 def test_listing_detail_page_success(client, monkeypatch):
     """Render listing detail page when listing exists."""
+    login_test_user(client)
     monkeypatch.setattr(
         app_module,
         "get_listing_by_id",
@@ -108,6 +121,7 @@ def test_listing_detail_page_success(client, monkeypatch):
 
 def test_listing_detail_page_shows_updated_timestamp(client, monkeypatch):
     """Render the last modified timestamp when a seller has edited the listing."""
+    login_test_user(client)
     listing = fake_listing()
     listing["last_modified_timestamp"] = "2026-06-04 11:00:00"
     monkeypatch.setattr(
@@ -125,6 +139,7 @@ def test_listing_detail_page_shows_updated_timestamp(client, monkeypatch):
 
 def test_listing_detail_page_not_found(client, monkeypatch):
     """Render 404 page when listing does not exist."""
+    login_test_user(client)
     monkeypatch.setattr(
         app_module,
         "get_listing_by_id",
@@ -135,3 +150,11 @@ def test_listing_detail_page_not_found(client, monkeypatch):
 
     assert response.status_code == 404
     assert b"This listing does not exist or is no longer available." in response.data
+
+
+def test_listing_detail_page_redirects_logged_out_user(client):
+    """Logged-out users cannot access listing details."""
+    response = client.get("/listing/1")
+
+    assert response.status_code == 302
+    assert "/login" in response.headers["Location"]
