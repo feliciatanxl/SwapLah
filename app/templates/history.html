@@ -107,6 +107,8 @@
 
 <script>
 (function () {
+    let pendingReviewOfferId = null;
+
     function escapeHtml(value) {
         const div = document.createElement("div");
         div.textContent = value == null ? "" : String(value);
@@ -128,10 +130,23 @@
         if (!isoString) return "";
         const date = new Date(isoString.replace(" ", "T"));
         if (isNaN(date.getTime())) return isoString;
-        return date.toLocaleDateString("en-SG", { day: "2-digit", month: "short", year: "numeric" });
+        return date.toLocaleDateString("en-SG", {
+            day: "2-digit", month: "short", year: "numeric", timeZone: "Asia/Singapore"
+        });
+    }
+
+    function reviewedBadge() {
+        return "<span class=\"status-badge bg-soft-green text-green\">" +
+            "<i class=\"bi bi-check-circle-fill\"></i> Reviewed</span>";
     }
 
     function renderReviewCell(t) {
+        if (t.offerId === null || t.offerId === undefined) {
+            return "<span class=\"text-muted\">&mdash;</span>";
+        }
+        if (t.hasReviewed) {
+            return reviewedBadge();
+        }
         return "<button type=\"button\" class=\"btn btn-sm btn-outline-primary review-btn\" " +
             "data-offer-id=\"" + t.offerId + "\" " +
             "data-counterparty-name=\"" + escapeHtml(t.counterpartyDisplayName) + "\">" +
@@ -257,8 +272,6 @@
         document.getElementById("statCompletedDeals").textContent = String(completedDeals);
     }
 
-    let pendingReviewOfferId = null;
-
     function openReviewModal(offerId, counterpartyName) {
         pendingReviewOfferId = offerId;
         document.getElementById("reviewBuyerName").textContent = counterpartyName;
@@ -271,8 +284,7 @@
     function markRowAsReviewed(offerId) {
         const button = document.querySelector('[data-offer-id="' + offerId + '"]');
         if (!button) return;
-        button.outerHTML = '<span class="status-badge bg-soft-green text-green">' +
-            '<i class="bi bi-check-circle-fill"></i> Reviewed</span>';
+        button.outerHTML = reviewedBadge();
     }
 
     function showModalError(message) {

@@ -2,6 +2,7 @@
 from flask import Blueprint, jsonify, request, session
 
 import app.db as db_module
+from app.timezones import to_singapore_iso
 
 offers_bp = Blueprint("offers", __name__)
 
@@ -57,7 +58,7 @@ def _format_offer(offer):
         "proposedPrice": offer["proposed_price"],
         "swapListingId": offer["swap_listing_id"],
         "status": offer["status"],
-        "createdAt": offer["created_at"],
+        "createdAt": to_singapore_iso(offer["created_at"]),
     }
 
 

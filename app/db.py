@@ -1,6 +1,5 @@
 import json
 import sqlite3
-from datetime import datetime
 from pathlib import Path
 
 from app.email_validation import (
@@ -8,9 +7,25 @@ from app.email_validation import (
     install_user_email_guards,
     normalize_student_email,
 )
+from app.sql_queries import (
+    ALL_OFFERS_SQL,
+    ALL_RESOLVED_OFFERS_SQL,
+    GET_ALL_REPORTS_SQL,
+    OFFERS_FOR_SELLER_SQL,
+    RESOLVED_OFFERS_FOR_USER_SQL,
+    TRANSACTIONS_FOR_BUYER_SQL,
+    TRANSACTIONS_FOR_SELLER_SQL,
+)
+from app.timezones import format_db_timestamp
 
 DATABASE = Path(__file__).resolve().parent.parent / "swaplah.db"
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+
+
+class DuplicateReviewError(Exception):
+    """Raised when a reviewer tries to review the same offer more than once."""
+
+
 LISTING_CATEGORIES = (
     {"label": "Textbooks", "icon": "bi-book"},
     {"label": "Electronics", "icon": "bi-laptop"},
@@ -69,18 +84,34 @@ CREATE_REPORTS_TABLE_SQL = """CREATE TABLE IF NOT EXISTS reports (
     FOREIGN KEY (listing_id) REFERENCES listings (id),
     FOREIGN KEY (reporter_id) REFERENCES users (id))"""
 
+CREATE_REVIEWS_OFFER_INDEX_SQL = (
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_reviews_offer_reviewer "
+    "ON reviews (offer_id, reviewer_id) WHERE offer_id IS NOT NULL"
+)
+
 INSERT_LISTING_SQL = (
     "INSERT INTO listings "
     "(seller_id,title,description,price,category,item_condition,image_url,"
     "listing_date,last_modified_timestamp) VALUES (?,?,?,?,?,?,?,?,?)"
 )
 
-ACTIVE_LISTINGS_SQL = (
+# Shared SELECT for listing cards. Seller identity (name, image, live rating) is
+# joined from the users/reviews tables, never copied into the listings row.
+_LISTING_CARD_SELECT = (
     "SELECT listings.id,listings.title,listings.description,listings.price,"
     "listings.category,listings.item_condition AS condition,listings.image_url,"
-    "listings.listing_date,users.display_name AS seller FROM listings "
-    "LEFT JOIN users ON listings.seller_id = users.id "
-    "WHERE listings.status='Active' ORDER BY listings.listing_date DESC"
+    "listings.listing_date,users.display_name AS seller,"
+    "users.profile_image_url AS seller_profile_image_url,"
+    "(SELECT ROUND(AVG(r.rating),1) FROM reviews r "
+    "WHERE r.reviewed_user_id=listings.seller_id) AS seller_avg_rating,"
+    "(SELECT COUNT(*) FROM reviews r "
+    "WHERE r.reviewed_user_id=listings.seller_id) AS seller_review_count "
+    "FROM listings LEFT JOIN users ON listings.seller_id=users.id "
+)
+
+ACTIVE_LISTINGS_SQL = (
+    _LISTING_CARD_SELECT
+    + "WHERE listings.status='Active' ORDER BY listings.listing_date DESC"
 )
 
 LISTING_DETAIL_SQL = (
@@ -88,7 +119,8 @@ LISTING_DETAIL_SQL = (
     "listings.price,listings.category,listings.item_condition AS condition,"
     "listings.image_url,listings.listing_date,listings.last_modified_timestamp,"
     "users.display_name AS seller_display_name,users.email AS seller_email,"
-    "users.contact_number AS seller_contact_number FROM listings "
+    "users.contact_number AS seller_contact_number,"
+    "users.profile_image_url AS seller_profile_image_url FROM listings "
     "LEFT JOIN users ON listings.seller_id = users.id "
     "WHERE listings.id=? AND listings.status='Active'"
 )
@@ -106,7 +138,13 @@ SOFT_DELETE_LISTING_SQL = (
 
 GET_USER_BY_ID_SQL = (
     "SELECT id,student_id,first_name,last_name,display_name,email,"
-    "contact_number,role,status,created_at FROM users WHERE id=:user_id"
+    "contact_number,role,status,created_at,profile_image_url,cover_image_url "
+    "FROM users WHERE id=:user_id"
+)
+
+UPDATE_USER_IMAGES_SQL = (
+    "UPDATE users SET profile_image_url=:profile_image_url, "
+    "cover_image_url=:cover_image_url WHERE id=:user_id"
 )
 
 UPDATE_USER_WITH_PASSWORD_SQL = (
@@ -135,95 +173,6 @@ ADMIN_DELETE_REPORTED_LISTING_SQL = (
 
 RESOLVE_REPORT_SQL = "UPDATE reports SET status='Resolved' WHERE id=?"
 
-OFFERS_FOR_SELLER_SQL = (
-    "SELECT offers.id,offers.listing_id,offers.buyer_id,offers.offer_type,"
-    "offers.proposed_price,offers.swap_listing_id,offers.status,"
-    "offers.created_at,listings.title AS listing_title,"
-    "listings.category AS listing_category,listings.price AS listing_price,"
-    "listings.seller_id AS seller_id,"
-    "buyer.display_name AS buyer_display_name,seller.display_name AS seller_display_name,"
-    "swap_listing.title AS swap_listing_title FROM offers "
-    "JOIN listings ON offers.listing_id=listings.id "
-    "JOIN users AS buyer ON offers.buyer_id=buyer.id "
-    "JOIN users AS seller ON listings.seller_id=seller.id "
-    "LEFT JOIN listings AS swap_listing ON offers.swap_listing_id=swap_listing.id "
-    "WHERE listings.seller_id=? AND offers.status='Pending' ORDER BY offers.created_at DESC"
-)
-
-ALL_OFFERS_SQL = (
-    "SELECT offers.id,offers.listing_id,offers.buyer_id,offers.offer_type,"
-    "offers.proposed_price,offers.swap_listing_id,offers.status,"
-    "offers.created_at,listings.title AS listing_title,"
-    "listings.category AS listing_category,listings.price AS listing_price,"
-    "listings.seller_id AS seller_id,"
-    "buyer.display_name AS buyer_display_name,seller.display_name AS seller_display_name,"
-    "swap_listing.title AS swap_listing_title FROM offers "
-    "JOIN listings ON offers.listing_id=listings.id "
-    "JOIN users AS buyer ON offers.buyer_id=buyer.id "
-    "JOIN users AS seller ON listings.seller_id=seller.id "
-    "LEFT JOIN listings AS swap_listing ON offers.swap_listing_id=swap_listing.id "
-    "WHERE offers.status='Pending' ORDER BY offers.created_at DESC"
-)
-
-RESOLVED_OFFERS_FOR_USER_SQL = (
-    "SELECT offers.id,offers.listing_id,offers.buyer_id,offers.offer_type,"
-    "offers.proposed_price,offers.swap_listing_id,offers.status,"
-    "offers.created_at,listings.title AS listing_title,"
-    "listings.category AS listing_category,listings.price AS listing_price,"
-    "buyer.display_name AS buyer_display_name,seller.display_name AS seller_display_name,"
-    "swap_listing.title AS swap_listing_title FROM offers "
-    "JOIN listings ON offers.listing_id=listings.id "
-    "JOIN users AS buyer ON offers.buyer_id=buyer.id "
-    "JOIN users AS seller ON listings.seller_id=seller.id "
-    "LEFT JOIN listings AS swap_listing ON offers.swap_listing_id=swap_listing.id "
-    "WHERE offers.status!='Pending' AND (offers.buyer_id=? OR listings.seller_id=?) "
-    "ORDER BY offers.created_at DESC"
-)
-
-ALL_RESOLVED_OFFERS_SQL  = (
-    "SELECT offers.id,offers.listing_id,offers.buyer_id,offers.offer_type,"
-    "offers.proposed_price,offers.swap_listing_id,offers.status,"
-    "offers.created_at,listings.title AS listing_title,"
-    "listings.category AS listing_category,listings.price AS listing_price,"
-    "buyer.display_name AS buyer_display_name,seller.display_name AS seller_display_name,"
-    "swap_listing.title AS swap_listing_title FROM offers "
-    "JOIN listings ON offers.listing_id=listings.id "
-    "JOIN users AS buyer ON offers.buyer_id=buyer.id "
-    "JOIN users AS seller ON listings.seller_id=seller.id "
-    "LEFT JOIN listings AS swap_listing ON offers.swap_listing_id=swap_listing.id "
-    "WHERE offers.status!='Pending' ORDER BY offers.created_at DESC"
-)
-
-TRANSACTIONS_FOR_BUYER_SQL = (
-    "SELECT transactions.id,transactions.offer_id,transactions.transaction_type,transactions.amount,"
-    "transactions.created_at,listings.title AS listing_title,"
-    "listings.category AS listing_category,"
-    "seller.display_name AS counterparty_display_name FROM transactions "
-    "JOIN listings ON transactions.listing_id=listings.id "
-    "JOIN users AS seller ON transactions.seller_id=seller.id "
-    "WHERE transactions.buyer_id=? ORDER BY transactions.created_at DESC"
-)
-
-TRANSACTIONS_FOR_SELLER_SQL = (
-    "SELECT transactions.id,transactions.offer_id,transactions.transaction_type,transactions.amount,"
-    "transactions.created_at,listings.title AS listing_title,"
-    "listings.category AS listing_category,"
-    "buyer.display_name AS counterparty_display_name FROM transactions "
-    "JOIN listings ON transactions.listing_id=listings.id "
-    "JOIN users AS buyer ON transactions.buyer_id=buyer.id "
-    "WHERE transactions.seller_id=? ORDER BY transactions.created_at DESC"
-)
-
-GET_ALL_REPORTS_SQL = (
-    "SELECT r.id,r.listing_id,r.reporter_id,r.reason,r.description,"
-    "r.status,r.created_at,COALESCE(l.title,'Deleted Listing') as listing_title,"
-    "COALESCE(l.category,'Unknown') as listing_category,"
-    "COALESCE(u.display_name,'Unknown User') as reporter_display_name "
-    "FROM reports r LEFT JOIN listings l ON r.listing_id=l.id "
-    "LEFT JOIN users u ON r.reporter_id=u.id ORDER BY r.created_at DESC"
-)
-
-
 # ---------- Core ----------
 def get_db_connection():
     """Return a SQLite database connection with WAL mode."""
@@ -235,20 +184,46 @@ def get_db_connection():
 
 
 def _now():
-    """Return current timestamp as a formatted string."""
-    return datetime.now().strftime(DATETIME_FORMAT)
+    """Return the current time as a naive UTC timestamp string for storage."""
+    return format_db_timestamp()
+
+
+def _has_column(conn, table, column):
+    """Return True if the table already has the named column."""
+    columns = conn.execute(f"PRAGMA table_info({table})").fetchall()
+    return column in [col["name"] for col in columns]
+
+
+def _ensure_column(conn, table, column, definition):
+    """Add a column with ALTER TABLE only when it does not already exist."""
+    if not _has_column(conn, table, column):
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+
+
+def ensure_user_profile_image_columns(conn):
+    """Add nullable profile and cover image URL columns to users when missing."""
+    _ensure_column(conn, "users", "profile_image_url", "TEXT")
+    _ensure_column(conn, "users", "cover_image_url", "TEXT")
+
+
+def ensure_reviews_offer_id_column(conn):
+    """Associate reviews with an offer and enforce one review per reviewer/offer."""
+    _ensure_column(conn, "reviews", "offer_id", "INTEGER REFERENCES offers(id)")
+    conn.execute(CREATE_REVIEWS_OFFER_INDEX_SQL)
 
 
 def init_db():
-    """Create all tables if they do not exist."""
+    """Create all tables if they do not exist and run additive migrations."""
     conn = get_db_connection()
     conn.execute(CREATE_USERS_TABLE_SQL)
     install_user_email_guards(conn)
+    ensure_user_profile_image_columns(conn)
     conn.execute(CREATE_LISTINGS_TABLE_SQL)
     ensure_listing_status_column(conn)
     conn.execute(CREATE_OFFERS_TABLE_SQL)
     conn.execute(CREATE_TRANSACTIONS_TABLE_SQL)
     conn.execute(CREATE_REVIEWS_TABLE_SQL)
+    ensure_reviews_offer_id_column(conn)
     conn.execute(CREATE_REPORTS_TABLE_SQL)
     conn.commit()
     conn.close()
@@ -551,13 +526,7 @@ def _active_listing_search_filters(keyword="", category="", condition=""):
 
 def _active_listing_search_sql(where_clause):
     """Return full SQL for searching active listings with the given WHERE clause."""
-    return (
-        "SELECT listings.id,listings.title,listings.description,listings.price,"
-        "listings.category,listings.item_condition AS condition,listings.image_url,"
-        "listings.listing_date,users.display_name AS seller FROM listings "
-        "LEFT JOIN users ON listings.seller_id=users.id "
-        f"WHERE {where_clause} ORDER BY listings.listing_date DESC"
-    )
+    return _LISTING_CARD_SELECT + f"WHERE {where_clause} ORDER BY listings.listing_date DESC"
 
 
 def search_active_listings(keyword="", category="", condition=""):
@@ -618,10 +587,12 @@ def get_user_profile_stats(user_id):
     row = _get_profile_stats_row(user_id)
     active_count = row["active_count"] or 0
     total_sales = row["total_sales"] or 0
+    average_rating = row["average_rating"]
+    average_rating = round(float(average_rating), 1) if average_rating is not None else None
     return {
         "active_count": active_count,
         "review_count": row["review_count"] or 0,
-        "average_rating": row["average_rating"],
+        "average_rating": average_rating,
         "total_sales": total_sales,
         "sold_count": total_sales,
         "trust_badge": _trust_badge(total_sales, active_count),
@@ -642,7 +613,8 @@ def get_reviews_for_user(user_id):
             reviews.comment,
             reviews.created_at,
             users.display_name AS reviewer_display_name,
-            users.display_name AS reviewer_name
+            users.display_name AS reviewer_name,
+            users.profile_image_url AS reviewer_profile_image_url
         FROM reviews
         LEFT JOIN users ON reviews.reviewer_id = users.id
         WHERE reviews.reviewed_user_id = ?
@@ -675,6 +647,21 @@ def update_user_account(user_id, first_name, last_name, display_name, contact_nu
         "user_id": user_id
     }
     conn.execute(query, _account_update_values(profile, password_hash))
+    conn.commit()
+    conn.close()
+
+
+def update_user_images(user_id, profile_image_url, cover_image_url):
+    """Update only the profile and cover image URLs for one user."""
+    conn = get_db_connection()
+    conn.execute(
+        UPDATE_USER_IMAGES_SQL,
+        {
+            "profile_image_url": profile_image_url,
+            "cover_image_url": cover_image_url,
+            "user_id": user_id,
+        },
+    )
     conn.commit()
     conn.close()
 
@@ -890,23 +877,42 @@ def get_user_rating_stats(user_id):
     }
 
 
-def create_review(reviewer_id, reviewed_user_id, rating, comment=""):
-    """Create a review for a user and return the saved review."""
+def has_reviewed_offer(offer_id, reviewer_id):
+    """Return True if the reviewer already reviewed this accepted offer."""
+    if offer_id is None:
+        return False
     conn = get_db_connection()
-    cursor = conn.execute(
-        """
-        INSERT INTO reviews (reviewed_user_id, reviewer_id, rating, comment)
-        VALUES (?, ?, ?, ?)
-        """,
-        (reviewed_user_id, reviewer_id, rating, comment or ""),
-    )
-    conn.commit()
-    review = conn.execute(
-        "SELECT * FROM reviews WHERE id = ?",
-        (cursor.lastrowid,),
+    row = conn.execute(
+        "SELECT 1 FROM reviews WHERE offer_id=? AND reviewer_id=? LIMIT 1",
+        (offer_id, reviewer_id),
     ).fetchone()
     conn.close()
-    return dict(review)
+    return row is not None
+
+
+def create_review(offer_id, reviewer_id, reviewed_user_id, rating, comment=""):
+    # pylint: disable=too-many-positional-arguments
+    """Create a review tied to an offer, rejecting duplicates per reviewer/offer."""
+    conn = get_db_connection()
+    try:
+        cursor = conn.execute(
+            """
+            INSERT INTO reviews (offer_id, reviewed_user_id, reviewer_id, rating, comment, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (offer_id, reviewed_user_id, reviewer_id, rating, comment or "", _now()),
+        )
+        conn.commit()
+        review = conn.execute(
+            "SELECT * FROM reviews WHERE id = ?",
+            (cursor.lastrowid,),
+        ).fetchone()
+        return dict(review)
+    except sqlite3.IntegrityError as exc:
+        conn.rollback()
+        raise DuplicateReviewError("You have already reviewed this transaction") from exc
+    finally:
+        conn.close()
 def _get_pending_report_for_deletion(conn, report_id):
     """Return pending report row or None if not found/not pending."""
     report = conn.execute(

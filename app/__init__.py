@@ -26,9 +26,13 @@ from app.db import (
     get_user_rating_stats,
     init_db,
     update_user_account,
+    update_user_images,
     get_all_reports,
 )
 from app.email_validation import is_valid_student_email, normalize_student_email
+from app.profile_media import validate_image_url
+from app.user_admin import get_user_for_password_reset, update_user_password
+from app.timezones import format_singapore_date, format_singapore_datetime
 import app.db as db_module  # noqa: F401 - exposes db functions for monkeypatching in tests
 from app.routes.listing import listings_bp
 from app.routes.offers import offers_bp
@@ -36,6 +40,22 @@ from app.routes.history import history_bp
 from app.routes.reviews import reviews_bp
 from app.routes.admin import admin_bp
 from app.routes.reports import reports_bp
+
+# Internal (email-free) password reset configuration.
+GENERIC_RESET_FAILURE_MESSAGE = "Unable to verify the account details."
+RESET_SESSION_TTL_SECONDS = 10 * 60
+MAX_RESET_VERIFY_ATTEMPTS = 5
+RESET_ATTEMPTS_MESSAGE = (
+    "Too many verification attempts. Please try again later."
+)
+RESET_EXPIRED_MESSAGE = (
+    "Your password reset session has expired. Please verify your details again."
+)
+RESET_SESSION_KEYS = (
+    "password_reset_user_id",
+    "password_reset_expires_at",
+    "password_reset_attempts",
+)
 
 
 def _format_rating(value):
@@ -58,6 +78,7 @@ PUBLIC_ENDPOINTS = {
     "login",
     "register",
     "forgot_password",
+    "reset_password",
     "logout",
     "static",
     "listings.api_get_active_listings",
@@ -311,6 +332,24 @@ def _check_session_timeout():
     return None
 
 
+def _load_current_user():
+    """Return the logged-in user's latest DB record, or None when logged out."""
+    user_id = session.get("user_id")
+
+    if not user_id:
+        return None
+
+    return get_user_by_id(user_id)
+
+
+def _register_current_user_context(flask_app):
+    """Expose the logged-in user's fresh profile data to every template."""
+
+    @flask_app.context_processor
+    def inject_current_user():
+        return {"current_user": _load_current_user()}
+
+
 def _register_session_timeout(flask_app):
     """Register session inactivity timeout check before each request."""
 
@@ -339,7 +378,24 @@ def _get_profile_form_data():
         "contact_number": request.form.get("contact_number", "").strip(),
         "password": request.form.get("password", ""),
         "confirm_password": request.form.get("confirm_password", ""),
+        "profile_image_url": request.form.get("profile_image_url", ""),
+        "cover_image_url": request.form.get("cover_image_url", ""),
     }
+
+
+def _validate_profile_images(form_data, user):
+    """Validate the image URLs and return ``(cleaned_images, error_response)``."""
+    profile_url, profile_error = validate_image_url(form_data["profile_image_url"])
+    if profile_error:
+        flash(profile_error, "danger")
+        return None, render_template("edit_profile.html", user=user)
+
+    cover_url, cover_error = validate_image_url(form_data["cover_image_url"])
+    if cover_error:
+        flash(cover_error, "danger")
+        return None, render_template("edit_profile.html", user=user)
+
+    return {"profile_image_url": profile_url, "cover_image_url": cover_url}, None
 
 
 def _validate_profile_form(form_data, user):
@@ -366,8 +422,8 @@ def _validate_profile_form(form_data, user):
     return None
 
 
-def _save_profile_update(form_data):
-    """Save profile updates for the logged-in user."""
+def _save_profile_update(form_data, images):
+    """Save profile updates for the logged-in user, preserving unrelated fields."""
     new_hash = generate_password_hash(form_data["password"]) if form_data["password"] else None
 
     update_user_account(
@@ -377,6 +433,11 @@ def _save_profile_update(form_data):
         form_data["display_name"],
         form_data["contact_number"],
         new_hash,
+    )
+    update_user_images(
+        session["user_id"],
+        images["profile_image_url"],
+        images["cover_image_url"],
     )
 
     session["display_name"] = form_data["display_name"]
@@ -408,7 +469,12 @@ def _handle_profile_edit(user):
     if error_response:
         return error_response
 
-    return _save_profile_update(form_data)
+    images, image_error = _validate_profile_images(form_data, user)
+
+    if image_error:
+        return image_error
+
+    return _save_profile_update(form_data, images)
 
 
 def _register_main_routes(flask_app):
@@ -510,6 +576,103 @@ def _register_profile_routes(flask_app):
         return _handle_profile_edit(user)
 
 
+def _clear_reset_session():
+    """Remove every password-reset key from the session."""
+    for key in RESET_SESSION_KEYS:
+        session.pop(key, None)
+
+
+def _grant_reset_permission(user_id):
+    """Store a single-use, short-lived reset permission for the verified user."""
+    session["password_reset_user_id"] = user_id
+    session["password_reset_expires_at"] = time.time() + RESET_SESSION_TTL_SECONDS
+    session.pop("password_reset_attempts", None)
+
+
+def _active_reset_user_id():
+    """Return the verified user id when the reset session is valid, else None."""
+    user_id = session.get("password_reset_user_id")
+    expires_at = session.get("password_reset_expires_at")
+
+    if not user_id or expires_at is None or time.time() > float(expires_at):
+        _clear_reset_session()
+        return None
+
+    return user_id
+
+
+def _verified_reset_user(form):
+    """Return the matching user for the submitted identity fields, or None."""
+    if not all(form.values()):
+        return None
+
+    return get_user_for_password_reset(
+        form["email"], form["student_id"], form["contact_number"]
+    )
+
+
+def _handle_forgot_password():
+    """Verify email, Student ID and contact number before granting a reset."""
+    attempts = session.get("password_reset_attempts", 0)
+
+    if attempts >= MAX_RESET_VERIFY_ATTEMPTS:
+        flash(RESET_ATTEMPTS_MESSAGE, "danger")
+        return render_template("forgot_password.html")
+
+    form = {
+        "email": request.form.get("email", "").strip(),
+        "student_id": request.form.get("student_id", "").strip(),
+        "contact_number": request.form.get("contact_number", "").strip(),
+    }
+    user = _verified_reset_user(form)
+
+    if user is None:
+        session["password_reset_attempts"] = attempts + 1
+        flash(GENERIC_RESET_FAILURE_MESSAGE, "danger")
+        return render_template("forgot_password.html")
+
+    _grant_reset_permission(user["id"])
+    return redirect(url_for("reset_password"))
+
+
+def _reset_password_error(password, confirm_password):
+    """Return a validation error for a new password, or None when acceptable."""
+    if len(password) < 8:
+        return "Password must be at least 8 characters."
+    if password != confirm_password:
+        return "Passwords do not match."
+    return None
+
+
+def _process_reset_password(user_id):
+    """Validate and store the new password, then end the single-use reset session."""
+    password = request.form.get("password", "")
+    error = _reset_password_error(password, request.form.get("confirm_password", ""))
+
+    if error:
+        flash(error, "danger")
+        return render_template("reset_password.html")
+
+    update_user_password(user_id, generate_password_hash(password))
+    _clear_reset_session()
+    flash("Your password has been reset. Please log in.", "success")
+    return redirect(url_for("login"))
+
+
+def _handle_reset_password():
+    """Render or process the reset page, gated by a valid reset session."""
+    user_id = _active_reset_user_id()
+
+    if user_id is None:
+        flash(RESET_EXPIRED_MESSAGE, "danger")
+        return redirect(url_for("forgot_password"))
+
+    if request.method == "GET":
+        return render_template("reset_password.html")
+
+    return _process_reset_password(user_id)
+
+
 def _register_auth_routes(flask_app):
     """Register authentication routes."""
 
@@ -529,10 +692,18 @@ def _register_auth_routes(flask_app):
 
         return _handle_register()
 
-    @flask_app.route("/forgot-password")
+    @flask_app.route("/forgot-password", methods=["GET", "POST"])
     def forgot_password():
-        """Render forgot password page."""
-        return render_template("forgot_password.html")
+        """Render the forgot-password page or process a reset request."""
+        if request.method == "GET":
+            return render_template("forgot_password.html")
+
+        return _handle_forgot_password()
+
+    @flask_app.route("/reset-password", methods=["GET", "POST"])
+    def reset_password():
+        """Render or process a session-verified password reset."""
+        return _handle_reset_password()
 
     @flask_app.route("/logout")
     def logout():
@@ -581,6 +752,8 @@ def create_app():
     app = Flask(__name__)
     app.config["SECRET_KEY"] = _load_secret_key()
     app.jinja_env.filters["format_rating"] = _format_rating
+    app.jinja_env.filters["sg_datetime"] = format_singapore_datetime
+    app.jinja_env.filters["sg_date"] = format_singapore_date
     init_db()
 
     _register_main_routes(app)
@@ -588,6 +761,7 @@ def create_app():
     _register_profile_routes(app)
     _register_auth_routes(app)
     _register_simple_page_routes(app)
+    _register_current_user_context(app)
     _register_session_timeout(app)
     _register_admin_path_guard(app)
 

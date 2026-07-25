@@ -24,6 +24,7 @@ def test_viewer_sees_sellers_reviews_and_rating_on_public_profile(
     offer = db_module.create_offer(listing["id"], buyer["id"], "cash", proposed_price=10.00)
     db_module.accept_offer(offer["id"])
     db_module.create_review(
+        offer_id=offer["id"],
         reviewer_id=buyer["id"],
         reviewed_user_id=seller["id"],
         rating=5,

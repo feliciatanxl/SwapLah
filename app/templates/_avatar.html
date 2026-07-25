@@ -1,0 +1,27 @@
+{#-
+  Reusable user avatar component.
+
+  Renders the saved profile image when present (falling back to a generated
+  initials avatar if the remote image fails to load), otherwise the existing
+  generated-initials circle. Image URLs are already validated server-side and
+  rendered through Jinja autoescaping; never pass them through |safe.
+
+  Params:
+    image_url          - stored profile_image_url (may be None/empty)
+    display_name       - user's display name, used for the generated fallback
+    classes            - CSS classes shared by the image and the initials span
+    generated_fallback - when true, an empty image_url renders the generated
+                         avatar image instead of the plain initials circle
+-#}
+{% macro user_avatar(image_url, display_name, classes='avatar-mini', generated_fallback=false) -%}
+{%- set name = display_name if display_name else 'User' -%}
+{%- set initial = (name[0] | upper) if name else 'U' -%}
+{%- set fallback = 'https://ui-avatars.com/api/?name=' ~ (name | urlencode) ~ '&background=030213&color=fff&size=160' -%}
+{%- if image_url -%}
+<img src="{{ image_url }}" alt="{{ name }}" class="{{ classes }} avatar-img" onerror="this.onerror=null;this.src='{{ fallback }}'">
+{%- elif generated_fallback -%}
+<img src="{{ fallback }}" alt="{{ name }}" class="{{ classes }} avatar-img">
+{%- else -%}
+<span class="{{ classes }}">{{ initial }}</span>
+{%- endif -%}
+{%- endmacro %}

@@ -50,7 +50,7 @@
             <span class="badge bg-danger">Suspended</span>
           {% endif %}
         </td>
-        <td>{{ user.created_at.strftime('%d %b %Y') }}</td>
+        <td>{{ user.created_at | sg_date }}</td>
         <td>
           {% if not user.is_admin %}
             <form method="POST"

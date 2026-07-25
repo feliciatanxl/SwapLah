@@ -3,6 +3,7 @@
 from flask import Blueprint, jsonify, request, session
 
 import app.db as db_module
+from app.timezones import to_singapore_iso
 
 history_bp = Blueprint("history", __name__)
 
@@ -11,6 +12,7 @@ VALID_ROLES = ("buyer", "seller")
 
 def _format_transaction(transaction):
     """Serialise a transaction row to the history page's JSON contract."""
+    reviewed_at = transaction.get("reviewed_at") if hasattr(transaction, "get") else None
     return {
         "id": transaction["id"],
         "offerId": transaction.get("offer_id"),
@@ -19,7 +21,9 @@ def _format_transaction(transaction):
         "counterpartyDisplayName": transaction["counterparty_display_name"],
         "transactionType": transaction["transaction_type"],
         "amount": transaction["amount"],
-        "createdAt": transaction["created_at"],
+        "createdAt": to_singapore_iso(transaction["created_at"]),
+        "hasReviewed": bool(transaction.get("has_reviewed")),
+        "reviewedAt": to_singapore_iso(reviewed_at) if reviewed_at else None,
     }
 
 
@@ -46,7 +50,7 @@ def _format_resolved_offer(offer):
         "proposedPrice": offer["proposed_price"],
         "swapListingTitle": offer["swap_listing_title"],
         "status": offer["status"],
-        "createdAt": offer["created_at"],
+        "createdAt": to_singapore_iso(offer["created_at"]),
     }
 
 

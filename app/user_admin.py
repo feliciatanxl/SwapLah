@@ -6,6 +6,7 @@ to keep the latter under 1000 lines.
 """
 
 from .db import get_db_connection, get_user_by_id
+from .email_validation import normalize_student_email
 
 # --- SQL constants ------------------------------------------------------------
 
@@ -75,3 +76,35 @@ def update_user_status(user_id, new_status):
 
     # Re-fetch the user (excludes password_hash)
     return get_user_by_id(user_id)
+
+
+def get_user_for_password_reset(email, student_id, contact_number):
+    """Return {id, status} only when email, Student ID and contact match one user.
+
+    The email must be an exact normalized NYP student address. Comparisons use
+    parameterised queries; no role or status is read for authorisation.
+    """
+    try:
+        normalized_email = normalize_student_email(email)
+    except ValueError:
+        return None
+
+    conn = get_db_connection()
+    row = conn.execute(
+        "SELECT id, status FROM users "
+        "WHERE lower(email)=? AND student_id=? AND contact_number=?",
+        (normalized_email, (student_id or "").strip(), (contact_number or "").strip()),
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def update_user_password(user_id, password_hash):
+    """Update only a user's password hash; role and status are left unchanged."""
+    conn = get_db_connection()
+    conn.execute(
+        "UPDATE users SET password_hash=? WHERE id=?",
+        (password_hash, user_id),
+    )
+    conn.commit()
+    conn.close()

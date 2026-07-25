@@ -124,10 +124,13 @@ def test_transactions_serialise_database_fields(client, monkeypatch):
                 "offerId": 11,
                 "transactionType": "cash",
                 "amount": 18.5,
-                "createdAt": "2026-07-03 14:30:00",
+                # Stored UTC 14:30 is serialised as Singapore time (+08:00).
+                "createdAt": "2026-07-03T22:30:00+08:00",
                 "listingTitle": "Route Test Item",
                 "listingCategory": "Electronics",
                 "counterpartyDisplayName": "Counterparty",
+                "hasReviewed": False,
+                "reviewedAt": None,
             }
         ]
     }

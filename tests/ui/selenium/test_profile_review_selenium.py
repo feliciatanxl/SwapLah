@@ -54,16 +54,23 @@ def test_seller_can_leave_review_for_buyer_from_history(
 ):
     """A seller should submit a rating and comment for a completed sale."""
     seller, _buyer = _seed_completed_deal(seed_user, seed_listing)
+    listing_title = "Selenium Review Test Item"
 
     LoginPage(browser, live_server).open_login().login(seller["email"])
 
     history_page = HistoryPage(browser, live_server)
     history_page.open_history()
-    history_page.switch_to_selling_tab()
-    history_page.assert_page_contains("Selenium Review Test Item")
+    history_page.switch_to_selling_tab_and_wait()
+    history_page.wait_for_transaction_title(listing_title)
+    history_page.wait_for_review_action(listing_title)
 
-    history_page.open_review_modal_for_first_sale()
+    history_page.open_review_modal_for_sale(listing_title)
     history_page.submit_review(rating=5, comment="Smooth handover, would trade again.")
 
-    history_page.assert_page_contains("Review submitted successfully")
-    history_page.assert_page_contains("Reviewed")
+    history_page.wait_for_review_success()
+    history_page.wait_for_transaction_reviewed(listing_title)
+
+    browser.refresh()
+    history_page.switch_to_selling_tab_and_wait()
+    history_page.wait_for_transaction_title(listing_title)
+    history_page.wait_for_transaction_reviewed(listing_title)

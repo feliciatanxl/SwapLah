@@ -20,6 +20,7 @@ def test_user_can_view_another_users_profile_and_rating(live_server, browser, se
     )
 
     create_review(
+        offer_id=None,
         reviewer_id=viewer["id"],
         reviewed_user_id=seller["id"],
         rating=5,
