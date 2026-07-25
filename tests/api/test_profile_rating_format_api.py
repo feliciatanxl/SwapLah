@@ -101,12 +101,11 @@ def test_profile_and_listing_seller_average_match(client):
 
     login_as(test_client, seller_id)
     profile_html = test_client.get("/profile").get_data(as_text=True)
-    listing_html = test_client.get(f"/listing/{listing['id']}").get_data(as_text=True)
+    listing_data = test_client.get(f"/api/listings/{listing['id']}").get_json()
 
     assert "2.7" in profile_html
-    assert "2.7" in listing_html
+    assert listing_data["listing"]["sellerRating"]["average_rating"] == 2.7
     assert "2.6666" not in profile_html
-    assert "2.6666" not in listing_html
 
 
 def test_zero_reviews_shows_empty_state(client):

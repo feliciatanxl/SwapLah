@@ -60,19 +60,18 @@ def login_as(test_client, user_id):
 # --- Listing seller avatar ----------------------------------------------
 
 def test_listing_page_renders_seller_image(client):
-    """The listing detail page shows the seller's saved profile image."""
+    """The listing-detail API exposes the seller's saved profile image."""
     test_client, test_db = client
     seller_id = create_user(test_db, "S9400001", "Seller", SELLER_IMG)
     login_as(test_client, seller_id)
     listing = create_listing(seller_id, "Item", "desc", "20.00", "Textbooks", "Good", "[]")
 
-    page = test_client.get(f"/listing/{listing['id']}").get_data(as_text=True)
-    assert SELLER_IMG in page
-    assert "avatar-img" in page
+    data = test_client.get(f"/api/listings/{listing['id']}").get_json()
+    assert data["listing"]["seller"]["profileImageUrl"] == SELLER_IMG
 
 
 def test_listing_page_seller_fallback_and_details(client):
-    """Without a seller image, initials show and contact/rating still render."""
+    """Without a seller image, the API omits it while contact/rating still populate."""
     test_client, test_db = client
     seller_id = create_user(test_db, "S9400002", "Seller")
     login_as(test_client, seller_id)
@@ -81,12 +80,12 @@ def test_listing_page_seller_fallback_and_details(client):
                   rating=5, comment="Great")
     listing = create_listing(seller_id, "Item", "desc", "20.00", "Textbooks", "Good", "[]")
 
-    page = test_client.get(f"/listing/{listing['id']}").get_data(as_text=True)
-    assert '<span class="avatar-mini">' in page
-    assert "avatar-img" not in page
-    assert "s9400002@mymail.nyp.edu.sg" in page
-    assert "91234567" in page
-    assert "average rating" in page
+    data = test_client.get(f"/api/listings/{listing['id']}").get_json()
+    seller = data["listing"]["seller"]
+    assert seller["profileImageUrl"] is None
+    assert seller["email"] == "s9400002@mymail.nyp.edu.sg"
+    assert seller["contactNumber"] == "91234567"
+    assert data["listing"]["sellerRating"]["review_count"] == 1
 
 
 def test_listing_json_api_includes_seller_profile_image(client):
