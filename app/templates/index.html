@@ -190,7 +190,12 @@
                         </div>
 
                         <div class="time-row">
-                            <i class="bi bi-clock"></i> {{ item.listing_date | sg_datetime }}
+                            <i class="bi bi-clock"></i>
+                            {% if item.last_modified_timestamp and item.last_modified_timestamp != item.listing_date %}
+                            Updated {{ item.last_modified_timestamp | sg_datetime }}
+                            {% else %}
+                            Listed {{ item.listing_date | sg_datetime }}
+                            {% endif %}
                         </div>
                     </div>
                 </div>

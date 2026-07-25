@@ -103,6 +103,24 @@ def test_listing_detail_page_success(client, monkeypatch):
     assert b"Felicia" in response.data
     assert b"felicia@mymail.nyp.edu.sg" in response.data
     assert b"91234567" in response.data
+    assert b"Listed 04 Jun 2026, 6:00 PM" in response.data
+
+
+def test_listing_detail_page_shows_updated_timestamp(client, monkeypatch):
+    """Render the last modified timestamp when a seller has edited the listing."""
+    listing = fake_listing()
+    listing["last_modified_timestamp"] = "2026-06-04 11:00:00"
+    monkeypatch.setattr(
+        app_module,
+        "get_listing_by_id",
+        lambda listing_id: listing,
+    )
+
+    response = client.get("/listing/1")
+
+    assert response.status_code == 200
+    assert b"Updated 04 Jun 2026, 7:00 PM" in response.data
+    assert b"Listed 04 Jun 2026, 6:00 PM" not in response.data
 
 
 def test_listing_detail_page_not_found(client, monkeypatch):

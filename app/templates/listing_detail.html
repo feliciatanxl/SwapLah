@@ -44,7 +44,12 @@
                     <h2 class="detail-price">{{ listing.price }}</h2>
                 </div>
                 <p class="text-muted">
-                    <i class="bi bi-geo-alt"></i> NYP Campus · Listed {{ listing.listing_date | sg_datetime }} ·
+                    <i class="bi bi-geo-alt"></i> NYP Campus ·
+                    {% if listing.last_modified_timestamp and listing.last_modified_timestamp != listing.listing_date %}
+                    Updated {{ listing.last_modified_timestamp | sg_datetime }} ·
+                    {% else %}
+                    Listed {{ listing.listing_date | sg_datetime }} ·
+                    {% endif %}
                     <span class="condition-tag">{{ listing.condition }}</span>
                 </p>
                 <hr>
