@@ -72,19 +72,13 @@ SESSION_TIMEOUT_SECONDS = 30 * 60
 SESSION_TIMEOUT_MESSAGE = "Session expired due to inactivity. Please log in again."
 
 PUBLIC_ENDPOINTS = {
-    "index",
-    "listing_detail",
-    "view_profile",
     "login",
     "register",
     "forgot_password",
     "reset_password",
     "logout",
     "static",
-    "listings.api_get_active_listings",
-    "listings.api_get_listing_detail",
     "api_health",
-    "reviews.get_user_reviews",
 }
 
 
@@ -488,6 +482,11 @@ def _register_main_routes(flask_app):
     @flask_app.route("/")
     def index():
         """Render homepage with paginated listings."""
+        redirect_response = _redirect_logged_out_user("Please log in to browse listings.")
+
+        if redirect_response:
+            return redirect_response
+
         page = request.args.get("page", 1, type=int)
         search = request.args.get("search", "").strip()
         category = request.args.get("category", "").strip()
@@ -497,6 +496,11 @@ def _register_main_routes(flask_app):
     @flask_app.route("/listing/<int:listing_id>")
     def listing_detail(listing_id):
         """Render listing detail page."""
+        redirect_response = _redirect_logged_out_user("Please log in to view listing details.")
+
+        if redirect_response:
+            return redirect_response
+
         return _render_listing_detail_page(listing_id)
 
 

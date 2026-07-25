@@ -54,6 +54,15 @@ def update_listing_date(listing_id, listing_date):
     conn.close()
 
 
+def login_as(client, user_id):
+    """Authenticate a test session before accessing protected listing routes."""
+    with client.session_transaction() as session:
+        session["user_id"] = user_id
+        session["email"] = f"user{user_id}@mymail.nyp.edu.sg"
+        session["display_name"] = f"User {user_id}"
+        session["role"] = "user"
+
+
 def test_api_search_matches_title_and_description_ordered_newest_first(
     tmp_path,
     monkeypatch,
@@ -66,6 +75,7 @@ def test_api_search_matches_title_and_description_ordered_newest_first(
     client = app.test_client()
 
     seller_id = create_test_user("seller@mymail.nyp.edu.sg", "S001")
+    login_as(client, seller_id)
 
     title_match = app_db.create_listing(
         seller_id=seller_id,
@@ -122,6 +132,7 @@ def test_api_search_returns_empty_when_no_match(tmp_path, monkeypatch):
     client = app.test_client()
 
     seller_id = create_test_user("seller@mymail.nyp.edu.sg", "S001")
+    login_as(client, seller_id)
 
     app_db.create_listing(
         seller_id=seller_id,
@@ -152,6 +163,7 @@ def test_api_search_excludes_deleted_listings(tmp_path, monkeypatch):
     client = app.test_client()
 
     seller_id = create_test_user("seller@mymail.nyp.edu.sg", "S001")
+    login_as(client, seller_id)
 
     listing = app_db.create_listing(
         seller_id=seller_id,
@@ -184,6 +196,7 @@ def test_homepage_search_filters_listings_by_keyword(tmp_path, monkeypatch):
     client = app.test_client()
 
     seller_id = create_test_user("seller@mymail.nyp.edu.sg", "S001")
+    login_as(client, seller_id)
 
     app_db.create_listing(
         seller_id=seller_id,
@@ -221,6 +234,7 @@ def test_homepage_search_no_results_message(tmp_path, monkeypatch):
     client = app.test_client()
 
     seller_id = create_test_user("seller@mymail.nyp.edu.sg", "S001")
+    login_as(client, seller_id)
 
     app_db.create_listing(
         seller_id=seller_id,

@@ -47,6 +47,15 @@ def create_user(test_db, student_id, display_name, profile_image_url=None):
     return user_id
 
 
+def login_as(test_client, user_id, display_name="Listing Viewer"):
+    """Authenticate a test session before accessing protected homepage listings."""
+    with test_client.session_transaction() as session:
+        session["user_id"] = user_id
+        session["email"] = f"user{user_id}@mymail.nyp.edu.sg"
+        session["display_name"] = display_name
+        session["role"] = "user"
+
+
 def insert_listing(test_db, seller_id, title, *, listing_date="2026-07-24 04:46:00",
                    last_modified_timestamp=None, category="Textbooks", condition="Good"):
     """Insert a listing with a fixed UTC listing_date and return its ID."""
@@ -84,6 +93,7 @@ def test_card_renders_saved_seller_image_via_macro(client):
     """A listing card shows the seller image using the reusable avatar macro."""
     test_client, test_db = client
     seller_id = create_user(test_db, "S9900001", "Kai", SELLER_IMG)
+    login_as(test_client, seller_id, "Kai")
     insert_listing(test_db, seller_id, "Imaged Item")
 
     page = test_client.get("/").get_data(as_text=True)
@@ -96,6 +106,7 @@ def test_card_uses_initials_fallback_without_image(client):
     """A card for a seller with no image shows the initials circle."""
     test_client, test_db = client
     seller_id = create_user(test_db, "S9900002", "Nora")
+    login_as(test_client, seller_id, "Nora")
     insert_listing(test_db, seller_id, "Plain Item")
 
     page = test_client.get("/").get_data(as_text=True)
@@ -107,6 +118,7 @@ def test_card_shows_seller_name(client):
     """The seller display name renders beside the avatar."""
     test_client, test_db = client
     seller_id = create_user(test_db, "S9900003", "Kai", SELLER_IMG)
+    login_as(test_client, seller_id, "Kai")
     insert_listing(test_db, seller_id, "Named Item")
 
     assert "Kai" in test_client.get("/").get_data(as_text=True)
@@ -116,6 +128,7 @@ def test_card_shows_formatted_rating_when_reviews_exist(client):
     """A seller with reviews shows the formatted average, not a long float."""
     test_client, test_db = client
     seller_id = create_user(test_db, "S9900004", "Kai", SELLER_IMG)
+    login_as(test_client, seller_id, "Kai")
     reviewer_one = create_user(test_db, "S9900005", "R1")
     reviewer_two = create_user(test_db, "S9900006", "R2")
     insert_listing(test_db, seller_id, "Rated Item")
@@ -131,6 +144,7 @@ def test_card_shows_new_when_no_reviews(client):
     """A seller with no reviews shows the New empty state beside the star."""
     test_client, test_db = client
     seller_id = create_user(test_db, "S9900007", "Kai", SELLER_IMG)
+    login_as(test_client, seller_id, "Kai")
     insert_listing(test_db, seller_id, "Fresh Item", condition="Good")
 
     page = test_client.get("/").get_data(as_text=True)
@@ -141,6 +155,7 @@ def test_card_renders_singapore_time(client):
     """The listing time uses the Singapore-time filter, not the raw UTC value."""
     test_client, test_db = client
     seller_id = create_user(test_db, "S9900008", "Kai", SELLER_IMG)
+    login_as(test_client, seller_id, "Kai")
     insert_listing(test_db, seller_id, "Timed Item", listing_date="2026-07-24 04:46:00")
 
     page = test_client.get("/").get_data(as_text=True)
@@ -153,6 +168,7 @@ def test_card_renders_updated_time_when_listing_was_edited(client):
     """Edited listing cards show the seller's latest update timestamp."""
     test_client, test_db = client
     seller_id = create_user(test_db, "S9900009", "Kai", SELLER_IMG)
+    login_as(test_client, seller_id, "Kai")
     insert_listing(
         test_db,
         seller_id,

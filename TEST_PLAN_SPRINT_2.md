@@ -5,7 +5,7 @@
 **Team:** Team 2 — SwapLah
 **Team members:** TAN XIU LI, FELICIA; TAN YU EN, CHARLISA; ELIJAH ONG; LEOVALAN LUCIO RICHARD; LUCAS WONG SI JIE
 **Date created:** 12 Jun 2026
-**Last updated:** 15 Jul 2026
+**Last updated:** 25 Jul 2026
 **GitLab project:** https://gitlab.com/nyp-sg/pet/it2112/26s1/it2112-03/assignment/team_2/swaplah
 
 ---
@@ -49,6 +49,8 @@ The following items are included in Sprint 2 testing:
 - Selenium UI tests for Sprint 2 item-listing flows:
   - End-to-end listing creation
   - Search, filter, and individual clear filter behaviour
+  - Listing detail viewing
+  - Edit listing behaviour
   - Soft-delete listing behaviour
 - Page Object Model support for Selenium tests under `tests/ui/selenium/pages/`.
 - Manual browser testing for listing creation, browsing, pagination, search, filter, clear filter, edit, listing detail, and soft-delete behaviour.
@@ -81,7 +83,7 @@ The following items are included in Sprint 2 testing:
 | --- | ---: | --- | --- | --- |
 | Unit tests | 10–15+ | pytest | test | Verify individual listing helper functions and database functions. |
 | API / Route tests | 10–15+ | pytest + Flask test client | test | Verify HTTP route behaviour from the outside. |
-| UI smoke / flow tests | 3 Sprint 2 Selenium flows | Selenium WebDriver + headless Chrome | test | Verify complete listing-related user flows in a browser. |
+| UI smoke / flow tests | 5 Sprint 2 Selenium flows | Selenium WebDriver + headless Chrome | test | Verify complete listing-related user flows in a browser. |
 | Static analysis | All `.py` files | pylint >= 10.0 | validate | Detect style, structure, and code quality issues. |
 | Complexity check | All application functions | radon | validate | Confirm functions are maintainable and testable. |
 | Coverage check | Application logic | pytest-cov | test | Confirm at least 75% unit coverage for the current A-band gate and at least 60% for the assignment minimum. |
@@ -220,10 +222,12 @@ Testing can begin when:
 
 Sprint 2 verification is complete when:
 
-- [x] All implemented unit tests pass with 0 failures: 77 passed.
-- [x] All implemented API / route tests pass with 0 failures: 70 passed.
+- [x] Focused listing/timezone regression passes locally with 0 failures: 60 passed.
+- [x] Saved unit/API/UI pytest reports show 0 failures: 84 unit, 43 API, and 2 UI tests passed.
 - [x] UI listing creation flow test passes.
 - [x] Search/filter Selenium UI flow test passes.
+- [x] Listing detail Selenium UI flow test passes.
+- [x] Edit listing Selenium UI flow test passes.
 - [x] Soft-delete Selenium UI flow test passes.
 - [x] Test coverage is at least 75% for the current A-band gate and at least 60% for the assignment minimum: 77%.
 - [x] pylint score is 10.00/10 against the 10.0 target.
@@ -294,7 +298,9 @@ Sprint 2 validation is complete when:
 | TC-S2-DETAIL-004 | Listing Details | #23 | Hide deleted listing detail | Negative | Listing has been soft-deleted | 1. Open detail page for deleted listing | System shows unavailable or not found message | Pass |
 | TC-S2-UI-001 | UI Listing Flow | #4 | End-to-end listing creation flow | Positive / Selenium UI | Seller account exists and user can log in | 1. Login 2. Open Sell/Create Listing page 3. Enter valid listing details 4. Submit 5. View listing in active listings | User can create listing through UI and see it in active listings | Pass |
 | TC-S2-UI-002 | UI Search / Filter Flow | #6 / #7 / #20 | Search, filter, and clear filters through browser UI | Positive / Selenium UI | Listing test data exists | 1. Search keyword 2. Apply Category filter 3. Apply Condition filter 4. Clear one filter | Results update correctly and active filter state is preserved | Pass |
-| TC-S2-UI-003 | UI Soft Delete Flow | #22 | Soft-delete listing through browser UI | Positive / Selenium UI | Seller owns listing | 1. Login as owner 2. Open listing detail 3. Soft-delete listing 4. Reopen detail page | Listing becomes unavailable / hidden after soft delete | Pass |
+| TC-S2-UI-003 | UI Listing Detail Flow | #23 | View listing detail through browser UI | Positive / Selenium UI | Buyer is logged in and active listing exists | 1. Login 2. Open listing card/detail URL 3. View details and seller contact | Listing details and seller contact information are displayed | Pass |
+| TC-S2-UI-004 | UI Edit Listing Flow | #21 | Edit own listing through browser UI | Positive / Selenium UI | Seller owns listing | 1. Login as owner 2. Open edit listing page 3. Update details 4. Save | Listing changes are saved and visible on detail page | Pass |
+| TC-S2-UI-005 | UI Soft Delete Flow | #22 | Soft-delete listing through browser UI | Positive / Selenium UI | Seller owns listing | 1. Login as owner 2. Open listing detail 3. Soft-delete listing 4. Reopen detail page | Listing becomes unavailable / hidden after soft delete | Pass |
 | TC-S2-REG-001 | Regression | Sprint 1 Account Management | Registration still works after listing changes | Regression | App is running and registration form is available | 1. Open Register page 2. Register with valid NYP email and required details | Account is created and password is stored as a hash | Pass |
 | TC-S2-REG-002 | Regression | Sprint 1 Account Management | Login still works after listing changes | Regression | Registered user exists | 1. Open Login page 2. Submit valid email and password | User logs in and can access protected pages | Pass |
 | TC-S2-REG-003 | Regression | Sprint 1 Profile Management | Profile view and update still work after listing changes | Regression | User is logged in | 1. Open profile page 2. Edit editable fields 3. Save | Profile is updated while Email and Student ID remain locked | Pass |
@@ -309,6 +315,8 @@ The Sprint 2 listing-related Selenium tests are stored under `tests/ui/selenium/
 | --- | --- | --- | --- |
 | `test_listing_creation_selenium.py` | #4 | Seller logs in, creates a listing through the UI, uploads/selects image data, submits the form, and confirms the listing appears | Pass |
 | `test_listing_search_filter_selenium.py` | #6 / #7 / #20 | Buyer searches listings, applies Category and Condition filters, and clears filters individually | Pass |
+| `test_listing_detail_selenium.py` | #23 | Logged-in buyer opens a listing detail page and confirms listing and seller contact details render | Pass |
+| `test_edit_listing_selenium.py` | #21 | Listing owner edits their listing through the UI and confirms the saved changes appear on the detail page | Pass |
 | `test_soft_delete_listing_selenium.py` | #22 | Seller soft-deletes own listing and confirms the listing is no longer available to buyers | Pass |
 
 ### Page Object Model Structure
@@ -319,6 +327,7 @@ The Sprint 2 listing-related Selenium tests are stored under `tests/ui/selenium/
 | `login_page.py` | Login form actions and login-page assertions. |
 | `home_page.py` | Homepage search, category/condition filter, and clear-filter actions. |
 | `sell_page.py` | Listing creation form actions. |
+| `edit_listing_page.py` | Listing edit form actions. |
 | `listing_detail_page.py` | Listing detail actions such as offer/soft-delete buttons and page assertions. |
 
 ---
@@ -332,7 +341,7 @@ Before merging any Sprint 2 Merge Request, the following regression checks must 
 | Full automated test suite | `python -m pytest -q` | All implemented tests pass. |
 | Unit coverage | `python -m pytest tests/unit --cov=app --cov-report=term-missing` | Coverage is at least 75% for the current A-band gate and at least 60% for the assignment minimum. |
 | UI tests | `python -m pytest tests/ui` | Flask UI smoke tests and Selenium UI tests pass. |
-| Sprint 2 Selenium listing tests | `python -m pytest tests/ui/selenium/test_listing_creation_selenium.py tests/ui/selenium/test_listing_search_filter_selenium.py tests/ui/selenium/test_soft_delete_listing_selenium.py` | Sprint 2 listing UI flows pass in headless browser. |
+| Sprint 2 Selenium listing tests | `python -m pytest tests/ui/selenium/test_listing_creation_selenium.py tests/ui/selenium/test_listing_search_filter_selenium.py tests/ui/selenium/test_listing_detail_selenium.py tests/ui/selenium/test_edit_listing_selenium.py tests/ui/selenium/test_soft_delete_listing_selenium.py` | Five Sprint 2 listing UI flows pass in headless browser. |
 | Linting | `python -m pylint app tests scripts` | Score is 10.00/10 against the 10.0 target. |
 | Complexity | `python -m radon cc app/ -s` | No implemented function exceeds complexity 10. |
 | Manual create listing flow | Browser test | Seller can create a valid listing. |
@@ -409,6 +418,8 @@ Before merging any Sprint 2 Merge Request, the following regression checks must 
 - [x] All implemented API / route tests pass.
 - [x] UI listing creation flow test passes.
 - [x] Search/filter Selenium UI flow test passes.
+- [x] Listing detail Selenium UI flow test passes.
+- [x] Edit listing Selenium UI flow test passes.
 - [x] Soft-delete Selenium UI flow test passes.
 - [x] Test coverage is at least 75% for the current A-band gate and at least 60% for the assignment minimum.
 - [ ] GitLab pipeline is green on the Merge Request (user-reported, not repository-verifiable locally).
@@ -433,7 +444,7 @@ Before merging any Sprint 2 Merge Request, the following regression checks must 
 
 The AI-generated draft was reviewed and refined against the actual Sprint 2 GitLab issues under **Item Listing Management**. The original plan had some items marked as `Pending / Not Run` because search, filter, clear filter, and soft-delete were not fully verified at that time. After the Sprint 2 work items and merge requests were completed, the plan was updated so all Sprint 2 features are marked as `Closed / Done` and all related test cases are marked as `Pass`.
 
-The test plan was also updated to include Selenium UI evidence for Sprint 2 item-listing flows. Selenium coverage now documents listing creation, search/filter/clear filters, and soft-delete listing flows. The plan also records the Page Object Model structure under `tests/ui/selenium/pages/`, which centralises Selenium locators, waits, actions, and assertions.
+The test plan was also updated to include Selenium UI evidence for Sprint 2 item-listing flows. Selenium coverage now documents listing creation, search/filter/clear filters, listing detail viewing, edit listing, and soft-delete listing flows. The plan also records the Page Object Model structure under `tests/ui/selenium/pages/`, which centralises Selenium locators, waits, actions, and assertions.
 
 ### Manual Review Evidence
 
@@ -448,16 +459,18 @@ The test plan was also updated to include Selenium UI evidence for Sprint 2 item
 
 ## 15. Final Repository Evidence Update
 
-Evidence captured on 15 Jul 2026 from the current repository:
+Evidence captured on 25 Jul 2026 from the current repository and local verification:
 
 | Evidence item | Final value |
 | --- | --- |
-| Full pytest suite | 159 passed |
-| Unit tests | 77 passed |
-| Unit coverage | 77% |
-| API tests | 70 passed |
-| Flask UI tests | 2 passed |
-| Selenium tests | 10 passed |
+| Focused listing/timezone pytest regression | 60 passed |
+| Saved unit test report | 84 passed, 0 failures |
+| Saved API test report | 43 passed, 0 failures |
+| Saved Flask UI test report | 2 passed, 0 failures |
+| Saved unit coverage report | 75.69% line coverage |
+| Newman API regression | 24 requests, 48 assertions, 0 failures |
+| Newman HTML report | `reports/newman-report.html` |
+| Sprint 2 Selenium listing scripts present | 5 scripts: creation, search/filter, detail, edit, soft delete |
 | Pylint target and result | Target 10.0; result 10.00/10 |
 | Highest cyclomatic complexity | B(7), `_common_error` in `app/routes/offers.py` |
 | Longest application function | 38 lines, `_register_simple_page_routes` in `app/__init__.py` |

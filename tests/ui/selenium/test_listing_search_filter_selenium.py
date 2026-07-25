@@ -1,6 +1,7 @@
 """Selenium UI test for listing search, filters, and individual clear buttons."""
 
 from tests.ui.selenium.pages.home_page import HomePage
+from tests.ui.selenium.pages.login_page import LoginPage
 
 
 def test_buyer_can_search_filter_and_clear_listing_filters(
@@ -14,6 +15,11 @@ def test_buyer_can_search_filter_and_clear_listing_filters(
         email="seleniumfilter@mymail.nyp.edu.sg",
         student_id="S55555555",
         display_name="Filter Seller",
+    )
+    buyer = seed_user(
+        email="seleniumfilterbuyer@mymail.nyp.edu.sg",
+        student_id="S55555556",
+        display_name="Filter Buyer",
     )
 
     seed_listing(
@@ -30,6 +36,8 @@ def test_buyer_can_search_filter_and_clear_listing_filters(
         category="Textbooks",
         condition="Good",
     )
+
+    LoginPage(browser, live_server).open_login().login(buyer["email"])
 
     home_page = HomePage(browser, live_server)
     home_page.open_with_filters("laptop", "Electronics", "Like+New")

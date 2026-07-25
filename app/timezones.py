@@ -2,9 +2,9 @@
 
 Strategy
 --------
-* New records are stored as naive UTC strings (``YYYY-MM-DD HH:MM:SS``), which
-  is the same shape SQLite's ``CURRENT_TIMESTAMP`` already produces, so legacy
-  rows and new rows are interpreted identically.
+* New records are stored as naive UTC strings with microseconds
+  (``YYYY-MM-DD HH:MM:SS.ffffff``). Legacy second-precision rows are still
+  parsed correctly.
 * Stored values are always interpreted as UTC.
 * Conversion to ``Asia/Singapore`` (UTC+08:00) happens only when serialising to
   an API response or rendering a template, never in the database.
@@ -33,11 +33,11 @@ def utc_now():
 
 
 def format_db_timestamp(moment=None):
-    """Return a naive UTC ``YYYY-MM-DD HH:MM:SS`` string for storage."""
+    """Return a naive UTC timestamp string with microseconds for storage."""
     moment = moment or utc_now()
     if moment.tzinfo is not None:
         moment = moment.astimezone(timezone.utc)
-    return moment.strftime(DB_TIMESTAMP_FORMAT)
+    return moment.strftime(DB_TIMESTAMP_FORMAT_MICRO)
 
 
 def _parse_naive(text):
