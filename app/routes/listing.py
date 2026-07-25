@@ -1,12 +1,20 @@
 """Routes for listing creation, retrieval, and update."""
 
+import json
 import math
 import re
 from decimal import Decimal, InvalidOperation
 
 from flask import Blueprint, jsonify, request, session
 
-from app.db import create_listing, get_db_connection, get_listing_by_id, update_listing, soft_delete_listing
+from app.db import (
+    create_listing,
+    get_db_connection,
+    get_listing_by_id,
+    get_user_rating_stats,
+    soft_delete_listing,
+    update_listing,
+)
 
 listings_bp = Blueprint("listings", __name__)
 
@@ -222,7 +230,12 @@ def _fetch_active_listing_rows(db, pagination, filters):
                listings.price, listings.category, listings.item_condition AS condition,
                listings.image_url, listings.listing_date,
                listings.last_modified_timestamp, listings.status,
-               users.profile_image_url AS seller_profile_image_url
+               users.display_name AS seller,
+               users.profile_image_url AS seller_profile_image_url,
+               (SELECT ROUND(AVG(r.rating),1) FROM reviews r
+                WHERE r.reviewed_user_id=listings.seller_id) AS seller_avg_rating,
+               (SELECT COUNT(*) FROM reviews r
+                WHERE r.reviewed_user_id=listings.seller_id) AS seller_review_count
         FROM listings
         LEFT JOIN users ON listings.seller_id = users.id
         WHERE {where_clause}
@@ -231,6 +244,17 @@ def _fetch_active_listing_rows(db, pagination, filters):
         """,
         params,
     ).fetchall()
+
+
+def _decode_images(raw_image):
+    """Decode a listing image JSON array, falling back to the raw URL string."""
+    try:
+        images = json.loads(raw_image)
+        if isinstance(images, list) and images:
+            return images
+    except (TypeError, json.JSONDecodeError):
+        pass
+    return [raw_image] if raw_image else []
 
 
 def _active_listing_json(row):
@@ -244,10 +268,14 @@ def _active_listing_json(row):
         "category": row["category"],
         "condition": row["condition"],
         "imageUrl": row["image_url"],
+        "images": _decode_images(row["image_url"]),
         "listingDate": row["listing_date"],
         "lastModifiedTimestamp": row["last_modified_timestamp"],
         "status": row["status"],
+        "seller": row["seller"],
         "sellerProfileImageUrl": row["seller_profile_image_url"],
+        "sellerAvgRating": row["seller_avg_rating"],
+        "sellerReviewCount": row["seller_review_count"],
     }
 
 
@@ -369,10 +397,13 @@ def api_get_listing_detail(listing_id):
     if listing is None:
         return _error("Listing not found or unavailable.", 404)
 
+    seller_rating = get_user_rating_stats(listing["seller_id"])
+
     return jsonify(
         {
             "listing": {
                 "id": listing["id"],
+                "sellerId": listing["seller_id"],
                 "title": listing["title"],
                 "description": listing["description"],
                 "price": listing["price"],
@@ -383,11 +414,13 @@ def api_get_listing_detail(listing_id):
                 "listingDate": listing["listing_date"],
                 "lastModifiedTimestamp": listing["last_modified_timestamp"],
                 "seller": {
+                    "id": listing["seller_id"],
                     "displayName": listing["seller_display_name"],
                     "email": listing["seller_email"],
                     "contactNumber": listing["seller_contact_number"],
                     "profileImageUrl": listing.get("seller_profile_image_url"),
                 },
+                "sellerRating": seller_rating,
             }
         }
     ), 200
