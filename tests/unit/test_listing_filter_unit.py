@@ -137,7 +137,12 @@ def test_api_filter_by_category_and_condition(tmp_path, monkeypatch):
 
 
 def test_homepage_filter_by_category_and_condition(tmp_path, monkeypatch):
-    """Homepage should show only listings matching selected filters."""
+    """Homepage shell should load with filter params; results come via the API.
+
+    Listing content is fetched client-side from /api/listings (verified by
+    test_api_filter_by_category_and_condition above), so this only checks the
+    server-rendered shell responds successfully with the filters applied.
+    """
     monkeypatch.setattr(app_db, "DATABASE", tmp_path / "test_swaplah.db")
 
     app = create_app()
@@ -154,6 +159,4 @@ def test_homepage_filter_by_category_and_condition(tmp_path, monkeypatch):
     response = client.get("/?category=Electronics&condition=Like+New")
 
     assert response.status_code == 200
-    assert b"Keyboard" in response.data
-    assert b"Calculator" not in response.data
-    assert b"Biology Guide" not in response.data
+    assert b'value="Electronics" selected' in response.data
