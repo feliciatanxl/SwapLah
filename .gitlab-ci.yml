@@ -279,7 +279,7 @@ secret_detection:
 gemnasium-python-dependency_scanning:
   stage: security
   variables:
-    PIP_REQUIREMENTS_FILE: "requirements.txt"
+    PIP_REQUIREMENTS_FILE: "requirements-dev.txt"
   artifacts:
     when: always
     expire_in: 7 days
