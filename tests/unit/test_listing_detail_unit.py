@@ -4,7 +4,6 @@
 
 import pytest
 
-import app as app_module
 from app import create_app
 from app.routes import listing as listing_routes
 
@@ -39,11 +38,22 @@ def fake_listing():
         "seller_display_name": "Felicia",
         "seller_email": "felicia@mymail.nyp.edu.sg",
         "seller_contact_number": "91234567",
+        "seller_id": 1,
     }
+
+
+def login_test_user(client):
+    """Log in a test user for protected listing pages and APIs."""
+    with client.session_transaction() as session:
+        session["user_id"] = 1
+        session["email"] = "felicia@mymail.nyp.edu.sg"
+        session["display_name"] = "Felicia"
+        session["role"] = "user"
 
 
 def test_api_get_listing_detail_success(client, monkeypatch):
     """Return listing detail JSON when the listing exists."""
+    login_test_user(client)
     monkeypatch.setattr(
         listing_routes,
         "get_listing_by_id",
@@ -69,6 +79,7 @@ def test_api_get_listing_detail_success(client, monkeypatch):
 
 def test_api_get_listing_detail_not_found(client, monkeypatch):
     """Return 404 when listing detail is unavailable."""
+    login_test_user(client)
     monkeypatch.setattr(
         listing_routes,
         "get_listing_by_id",
@@ -84,54 +95,25 @@ def test_api_get_listing_detail_not_found(client, monkeypatch):
     assert data["error"] == "Listing not found or unavailable."
 
 
-def test_listing_detail_page_success(client, monkeypatch):
-    """Render listing detail page when listing exists."""
-    monkeypatch.setattr(
-        app_module,
-        "get_listing_by_id",
-        lambda listing_id: fake_listing(),
-    )
+def test_listing_detail_page_renders_shell(client):
+    """The listing detail page renders a shell that loads data via the REST API.
+
+    Actual listing content is fetched client-side from /api/listings/<id> and
+    populated by JS (covered by test_api_get_listing_detail_success/not_found
+    above and by the Selenium listing-detail test), so this only checks the
+    server-rendered shell wires up the correct listing ID for that fetch.
+    """
+    login_test_user(client)
 
     response = client.get("/listing/1")
 
     assert response.status_code == 200
-    assert b"Casio Calculator" in response.data
-    assert b"Good condition calculator" in response.data
-    assert b"25.00" in response.data
-    assert b"Electronics" in response.data
-    assert b"Good" in response.data
-    assert b"Felicia" in response.data
-    assert b"felicia@mymail.nyp.edu.sg" in response.data
-    assert b"91234567" in response.data
-    assert b"Listed 04 Jun 2026, 6:00 PM" in response.data
+    assert b'LISTING_ID = Number("1")' in response.data
 
 
-def test_listing_detail_page_shows_updated_timestamp(client, monkeypatch):
-    """Render the last modified timestamp when a seller has edited the listing."""
-    listing = fake_listing()
-    listing["last_modified_timestamp"] = "2026-06-04 11:00:00"
-    monkeypatch.setattr(
-        app_module,
-        "get_listing_by_id",
-        lambda listing_id: listing,
-    )
-
+def test_listing_detail_page_redirects_logged_out_user(client):
+    """Logged-out users cannot access listing details."""
     response = client.get("/listing/1")
 
-    assert response.status_code == 200
-    assert b"Updated 04 Jun 2026, 7:00 PM" in response.data
-    assert b"Listed 04 Jun 2026, 6:00 PM" not in response.data
-
-
-def test_listing_detail_page_not_found(client, monkeypatch):
-    """Render 404 page when listing does not exist."""
-    monkeypatch.setattr(
-        app_module,
-        "get_listing_by_id",
-        lambda listing_id: None,
-    )
-
-    response = client.get("/listing/999999")
-
-    assert response.status_code == 404
-    assert b"This listing does not exist or is no longer available." in response.data
+    assert response.status_code == 302
+    assert "/login" in response.headers["Location"]

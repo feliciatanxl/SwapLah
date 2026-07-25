@@ -101,10 +101,10 @@ def test_navbar_reflects_image_saved_on_next_response(client):
 
 
 def test_logged_out_navbar_does_not_fail(client):
-    """A logged-out page renders without an account avatar and without error."""
+    """A logged-out auth page renders without an account avatar and without error."""
     test_client, _test_db = client
 
-    response = test_client.get("/")
+    response = test_client.get("/login")
     page = response.get_data(as_text=True)
 
     assert response.status_code == 200

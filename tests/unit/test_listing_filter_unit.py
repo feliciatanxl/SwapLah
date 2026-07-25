@@ -51,6 +51,15 @@ def create_listing(seller_id, title, category, condition):
     )
 
 
+def login_as(client, user_id):
+    """Authenticate a test session before accessing protected listing routes."""
+    with client.session_transaction() as session:
+        session["user_id"] = user_id
+        session["email"] = f"user{user_id}@mymail.nyp.edu.sg"
+        session["display_name"] = f"User {user_id}"
+        session["role"] = "user"
+
+
 def test_api_filter_by_category(tmp_path, monkeypatch):
     """API should return only listings in the selected category."""
     monkeypatch.setattr(app_db, "DATABASE", tmp_path / "test_swaplah.db")
@@ -60,6 +69,7 @@ def test_api_filter_by_category(tmp_path, monkeypatch):
     client = app.test_client()
 
     seller_id = create_test_user("seller@mymail.nyp.edu.sg", "S001")
+    login_as(client, seller_id)
 
     create_listing(seller_id, "Calculator", "Electronics", "Good")
     create_listing(seller_id, "Textbook", "Textbooks", "Good")
@@ -84,6 +94,7 @@ def test_api_filter_by_condition(tmp_path, monkeypatch):
     client = app.test_client()
 
     seller_id = create_test_user("seller@mymail.nyp.edu.sg", "S001")
+    login_as(client, seller_id)
 
     create_listing(seller_id, "Calculator", "Electronics", "Good")
     create_listing(seller_id, "Keyboard", "Electronics", "Like New")
@@ -108,6 +119,7 @@ def test_api_filter_by_category_and_condition(tmp_path, monkeypatch):
     client = app.test_client()
 
     seller_id = create_test_user("seller@mymail.nyp.edu.sg", "S001")
+    login_as(client, seller_id)
 
     create_listing(seller_id, "Calculator", "Electronics", "Good")
     create_listing(seller_id, "Keyboard", "Electronics", "Like New")
@@ -125,7 +137,12 @@ def test_api_filter_by_category_and_condition(tmp_path, monkeypatch):
 
 
 def test_homepage_filter_by_category_and_condition(tmp_path, monkeypatch):
-    """Homepage should show only listings matching selected filters."""
+    """Homepage shell should load with filter params; results come via the API.
+
+    Listing content is fetched client-side from /api/listings (verified by
+    test_api_filter_by_category_and_condition above), so this only checks the
+    server-rendered shell responds successfully with the filters applied.
+    """
     monkeypatch.setattr(app_db, "DATABASE", tmp_path / "test_swaplah.db")
 
     app = create_app()
@@ -133,6 +150,7 @@ def test_homepage_filter_by_category_and_condition(tmp_path, monkeypatch):
     client = app.test_client()
 
     seller_id = create_test_user("seller@mymail.nyp.edu.sg", "S001")
+    login_as(client, seller_id)
 
     create_listing(seller_id, "Calculator", "Electronics", "Good")
     create_listing(seller_id, "Keyboard", "Electronics", "Like New")
@@ -141,6 +159,4 @@ def test_homepage_filter_by_category_and_condition(tmp_path, monkeypatch):
     response = client.get("/?category=Electronics&condition=Like+New")
 
     assert response.status_code == 200
-    assert b"Keyboard" in response.data
-    assert b"Calculator" not in response.data
-    assert b"Biology Guide" not in response.data
+    assert b'value="Electronics" selected' in response.data

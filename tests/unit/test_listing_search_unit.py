@@ -54,6 +54,15 @@ def update_listing_date(listing_id, listing_date):
     conn.close()
 
 
+def login_as(client, user_id):
+    """Authenticate a test session before accessing protected listing routes."""
+    with client.session_transaction() as session:
+        session["user_id"] = user_id
+        session["email"] = f"user{user_id}@mymail.nyp.edu.sg"
+        session["display_name"] = f"User {user_id}"
+        session["role"] = "user"
+
+
 def test_api_search_matches_title_and_description_ordered_newest_first(
     tmp_path,
     monkeypatch,
@@ -66,6 +75,7 @@ def test_api_search_matches_title_and_description_ordered_newest_first(
     client = app.test_client()
 
     seller_id = create_test_user("seller@mymail.nyp.edu.sg", "S001")
+    login_as(client, seller_id)
 
     title_match = app_db.create_listing(
         seller_id=seller_id,
@@ -122,6 +132,7 @@ def test_api_search_returns_empty_when_no_match(tmp_path, monkeypatch):
     client = app.test_client()
 
     seller_id = create_test_user("seller@mymail.nyp.edu.sg", "S001")
+    login_as(client, seller_id)
 
     app_db.create_listing(
         seller_id=seller_id,
@@ -152,6 +163,7 @@ def test_api_search_excludes_deleted_listings(tmp_path, monkeypatch):
     client = app.test_client()
 
     seller_id = create_test_user("seller@mymail.nyp.edu.sg", "S001")
+    login_as(client, seller_id)
 
     listing = app_db.create_listing(
         seller_id=seller_id,
@@ -176,7 +188,13 @@ def test_api_search_excludes_deleted_listings(tmp_path, monkeypatch):
 
 
 def test_homepage_search_filters_listings_by_keyword(tmp_path, monkeypatch):
-    """Homepage search should show matching listings only."""
+    """Homepage shell should load with a search param; results come via the API.
+
+    Listing content is fetched client-side from /api/listings (verified by
+    test_api_search_matches_title_and_description_ordered_newest_first above),
+    so this only checks the server-rendered shell responds and reflects the
+    search term back into the search box.
+    """
     monkeypatch.setattr(app_db, "DATABASE", tmp_path / "test_swaplah.db")
 
     app = create_app()
@@ -184,6 +202,7 @@ def test_homepage_search_filters_listings_by_keyword(tmp_path, monkeypatch):
     client = app.test_client()
 
     seller_id = create_test_user("seller@mymail.nyp.edu.sg", "S001")
+    login_as(client, seller_id)
 
     app_db.create_listing(
         seller_id=seller_id,
@@ -195,25 +214,19 @@ def test_homepage_search_filters_listings_by_keyword(tmp_path, monkeypatch):
         image_url="https://example.com/calculator.jpg",
     )
 
-    app_db.create_listing(
-        seller_id=seller_id,
-        title="Laptop Stand",
-        description="Adjustable stand",
-        price="8.00",
-        category="Electronics",
-        condition="Good",
-        image_url="https://example.com/stand.jpg",
-    )
-
     response = client.get("/?search=calculator")
 
     assert response.status_code == 200
-    assert b"Casio Calculator" in response.data
-    assert b"Laptop Stand" not in response.data
+    assert b'value="calculator"' in response.data
 
 
-def test_homepage_search_no_results_message(tmp_path, monkeypatch):
-    """Homepage search should show no matching message when nothing matches."""
+def test_homepage_search_no_results_message_is_client_rendered(tmp_path, monkeypatch):
+    """No-match messaging for search is rendered client-side, not by Flask.
+
+    The homepage shell no longer knows the result count server-side (see
+    test_api_search_returns_empty_when_no_match above for the API behavior),
+    so this only checks the shell still loads for a search with no matches.
+    """
     monkeypatch.setattr(app_db, "DATABASE", tmp_path / "test_swaplah.db")
 
     app = create_app()
@@ -221,6 +234,7 @@ def test_homepage_search_no_results_message(tmp_path, monkeypatch):
     client = app.test_client()
 
     seller_id = create_test_user("seller@mymail.nyp.edu.sg", "S001")
+    login_as(client, seller_id)
 
     app_db.create_listing(
         seller_id=seller_id,
@@ -235,4 +249,3 @@ def test_homepage_search_no_results_message(tmp_path, monkeypatch):
     response = client.get("/?search=calculator")
 
     assert response.status_code == 200
-    assert b"No matching listings found." in response.data

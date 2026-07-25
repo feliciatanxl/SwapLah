@@ -1,8 +1,15 @@
-"""Fast UI tests for seller avatar, rating, and time on homepage listing cards."""
+"""Fast API tests for seller avatar, rating, and time on homepage listing cards.
+
+The homepage now renders listing cards client-side from the /api/listings
+JSON payload (see app/templates/index.html), so these tests check that
+payload directly rather than scraping server-rendered HTML. The client-side
+formatting itself (avatar markup, rounded rating, Singapore time strings) is
+exercised in a real browser by tests/ui/selenium/test_listing_detail_selenium.py
+and the other Selenium specs.
+"""
 
 # pylint: disable=redefined-outer-name
 
-import re
 import sqlite3
 
 import pytest
@@ -12,7 +19,6 @@ import app.db as db_module
 from app import create_app
 
 SELLER_IMG = "https://cdn.example.com/seller.png"
-STAR = r'bi-star-fill text-warning"></i>\s*'
 
 
 @pytest.fixture
@@ -45,6 +51,15 @@ def create_user(test_db, student_id, display_name, profile_image_url=None):
     user_id = cursor.lastrowid
     conn.close()
     return user_id
+
+
+def login_as(test_client, user_id, display_name="Listing Viewer"):
+    """Authenticate a test session before accessing protected homepage listings."""
+    with test_client.session_transaction() as session:
+        session["user_id"] = user_id
+        session["email"] = f"user{user_id}@mymail.nyp.edu.sg"
+        session["display_name"] = display_name
+        session["role"] = "user"
 
 
 def insert_listing(test_db, seller_id, title, *, listing_date="2026-07-24 04:46:00",
@@ -81,78 +96,86 @@ def add_review(test_db, reviewer_id, reviewed_id, rating):
 
 
 def test_card_renders_saved_seller_image_via_macro(client):
-    """A listing card shows the seller image using the reusable avatar macro."""
+    """A listing card's API payload includes the seller's saved image URL."""
     test_client, test_db = client
     seller_id = create_user(test_db, "S9900001", "Kai", SELLER_IMG)
+    login_as(test_client, seller_id, "Kai")
     insert_listing(test_db, seller_id, "Imaged Item")
 
-    page = test_client.get("/").get_data(as_text=True)
-    assert SELLER_IMG in page
-    assert 'class="avatar-mini me-1 avatar-img"' in page
-    assert 'onerror="this.onerror=null;this.src=' in page
+    data = test_client.get("/api/listings").get_json()
+    assert data["listings"][0]["sellerProfileImageUrl"] == SELLER_IMG
 
 
 def test_card_uses_initials_fallback_without_image(client):
-    """A card for a seller with no image shows the initials circle."""
+    """A card for a seller with no image has a null seller image URL."""
     test_client, test_db = client
     seller_id = create_user(test_db, "S9900002", "Nora")
+    login_as(test_client, seller_id, "Nora")
     insert_listing(test_db, seller_id, "Plain Item")
 
-    page = test_client.get("/").get_data(as_text=True)
-    assert '<span class="avatar-mini me-1">N</span>' in page
-    assert SELLER_IMG not in page
+    data = test_client.get("/api/listings").get_json()
+    assert data["listings"][0]["sellerProfileImageUrl"] is None
 
 
 def test_card_shows_seller_name(client):
-    """The seller display name renders beside the avatar."""
+    """The API payload includes the seller's display name."""
     test_client, test_db = client
     seller_id = create_user(test_db, "S9900003", "Kai", SELLER_IMG)
+    login_as(test_client, seller_id, "Kai")
     insert_listing(test_db, seller_id, "Named Item")
 
-    assert "Kai" in test_client.get("/").get_data(as_text=True)
+    data = test_client.get("/api/listings").get_json()
+    assert data["listings"][0]["seller"] == "Kai"
 
 
 def test_card_shows_formatted_rating_when_reviews_exist(client):
-    """A seller with reviews shows the formatted average, not a long float."""
+    """A seller with reviews has a pre-rounded average, not a long float."""
     test_client, test_db = client
     seller_id = create_user(test_db, "S9900004", "Kai", SELLER_IMG)
+    login_as(test_client, seller_id, "Kai")
     reviewer_one = create_user(test_db, "S9900005", "R1")
     reviewer_two = create_user(test_db, "S9900006", "R2")
     insert_listing(test_db, seller_id, "Rated Item")
     add_review(test_db, reviewer_one, seller_id, 3)
     add_review(test_db, reviewer_two, seller_id, 2)
 
-    page = test_client.get("/").get_data(as_text=True)
-    assert re.search(STAR + r"2\.5", page)
-    assert "2.50" not in page
+    data = test_client.get("/api/listings").get_json()
+    listing = data["listings"][0]
+    assert listing["sellerAvgRating"] == 2.5
+    assert listing["sellerReviewCount"] == 2
 
 
 def test_card_shows_new_when_no_reviews(client):
-    """A seller with no reviews shows the New empty state beside the star."""
+    """A seller with no reviews has a zero review count for the New fallback."""
     test_client, test_db = client
     seller_id = create_user(test_db, "S9900007", "Kai", SELLER_IMG)
+    login_as(test_client, seller_id, "Kai")
     insert_listing(test_db, seller_id, "Fresh Item", condition="Good")
 
-    page = test_client.get("/").get_data(as_text=True)
-    assert re.search(STAR + r"New", page)
+    data = test_client.get("/api/listings").get_json()
+    listing = data["listings"][0]
+    assert not listing["sellerReviewCount"]
+    assert listing["sellerAvgRating"] is None
 
 
 def test_card_renders_singapore_time(client):
-    """The listing time uses the Singapore-time filter, not the raw UTC value."""
+    """The API payload exposes the raw UTC listing date for client-side formatting."""
     test_client, test_db = client
     seller_id = create_user(test_db, "S9900008", "Kai", SELLER_IMG)
+    login_as(test_client, seller_id, "Kai")
     insert_listing(test_db, seller_id, "Timed Item", listing_date="2026-07-24 04:46:00")
 
-    page = test_client.get("/").get_data(as_text=True)
-    assert "24 Jul 2026, 12:46 PM" in page
-    assert "Listed" in page
-    assert "2026-07-24 04:46:00" not in page
+    data = test_client.get("/api/listings").get_json()
+    listing = data["listings"][0]
+    assert listing["listingDate"] == "2026-07-24 04:46:00"
+    assert listing["lastModifiedTimestamp"] == listing["listingDate"]
 
 
 def test_card_renders_updated_time_when_listing_was_edited(client):
-    """Edited listing cards show the seller's latest update timestamp."""
+    """Edited listing cards expose a lastModifiedTimestamp distinct from listingDate."""
     test_client, test_db = client
     seller_id = create_user(test_db, "S9900009", "Kai", SELLER_IMG)
+    login_as(test_client, seller_id, "Kai")
     insert_listing(
         test_db,
         seller_id,
@@ -161,6 +184,7 @@ def test_card_renders_updated_time_when_listing_was_edited(client):
         last_modified_timestamp="2026-07-24 05:46:00",
     )
 
-    page = test_client.get("/").get_data(as_text=True)
-    assert "Updated 24 Jul 2026, 1:46 PM" in page
-    assert "Listed 24 Jul 2026, 12:46 PM" not in page
+    data = test_client.get("/api/listings").get_json()
+    listing = data["listings"][0]
+    assert listing["listingDate"] == "2026-07-24 04:46:00"
+    assert listing["lastModifiedTimestamp"] == "2026-07-24 05:46:00"

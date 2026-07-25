@@ -62,6 +62,15 @@ def seed_filter_listings():
     return seller_id
 
 
+def login_as(client, user_id):
+    """Authenticate a test session before accessing protected listing routes."""
+    with client.session_transaction() as session:
+        session["user_id"] = user_id
+        session["email"] = f"user{user_id}@mymail.nyp.edu.sg"
+        session["display_name"] = f"User {user_id}"
+        session["role"] = "user"
+
+
 def test_homepage_shows_individual_clear_filter_links(tmp_path, monkeypatch):
     """Homepage should show clear links for active category and condition filters."""
     monkeypatch.setattr(app_db, "DATABASE", tmp_path / "test_swaplah.db")
@@ -70,7 +79,8 @@ def test_homepage_shows_individual_clear_filter_links(tmp_path, monkeypatch):
     app.config["TESTING"] = True
     client = app.test_client()
 
-    seed_filter_listings()
+    seller_id = seed_filter_listings()
+    login_as(client, seller_id)
 
     response = client.get("/?category=Electronics&condition=Like+New")
 
@@ -80,39 +90,51 @@ def test_homepage_shows_individual_clear_filter_links(tmp_path, monkeypatch):
 
 
 def test_clear_category_keeps_condition_filter_homepage(tmp_path, monkeypatch):
-    """Clearing category should keep condition filter active on homepage."""
+    """Homepage shell should still load for a condition-only filter.
+
+    Listing content itself now comes from /api/listings via client-side JS
+    (verified by test_clear_category_keeps_condition_filter_api below), so
+    this only checks the server-rendered shell responds and honors the filter
+    in its links/state, not that listing titles are in the raw HTML.
+    """
     monkeypatch.setattr(app_db, "DATABASE", tmp_path / "test_swaplah.db")
 
     app = create_app()
     app.config["TESTING"] = True
     client = app.test_client()
 
-    seed_filter_listings()
+    seller_id = seed_filter_listings()
+    login_as(client, seller_id)
 
     response = client.get("/?condition=Like+New")
 
     assert response.status_code == 200
-    assert b"Keyboard" in response.data
-    assert b"Biology Guide" in response.data
-    assert b"Calculator" not in response.data
+    assert b'aria-label="Clear condition filter"' in response.data
+    assert b'aria-label="Clear category filter"' not in response.data
 
 
 def test_clear_condition_keeps_category_filter_homepage(tmp_path, monkeypatch):
-    """Clearing condition should keep category filter active on homepage."""
+    """Homepage shell should still load for a category-only filter.
+
+    Listing content itself now comes from /api/listings via client-side JS
+    (verified by test_clear_condition_keeps_category_filter_api below), so
+    this only checks the server-rendered shell responds and honors the filter
+    in its links/state, not that listing titles are in the raw HTML.
+    """
     monkeypatch.setattr(app_db, "DATABASE", tmp_path / "test_swaplah.db")
 
     app = create_app()
     app.config["TESTING"] = True
     client = app.test_client()
 
-    seed_filter_listings()
+    seller_id = seed_filter_listings()
+    login_as(client, seller_id)
 
     response = client.get("/?category=Electronics")
 
     assert response.status_code == 200
-    assert b"Calculator" in response.data
-    assert b"Keyboard" in response.data
-    assert b"Biology Guide" not in response.data
+    assert b'aria-label="Clear category filter"' in response.data
+    assert b'aria-label="Clear condition filter"' not in response.data
 
 
 def test_clear_category_keeps_condition_filter_api(tmp_path, monkeypatch):
@@ -123,7 +145,8 @@ def test_clear_category_keeps_condition_filter_api(tmp_path, monkeypatch):
     app.config["TESTING"] = True
     client = app.test_client()
 
-    seed_filter_listings()
+    seller_id = seed_filter_listings()
+    login_as(client, seller_id)
 
     response = client.get("/api/listings?condition=Like+New")
 
@@ -146,7 +169,8 @@ def test_clear_condition_keeps_category_filter_api(tmp_path, monkeypatch):
     app.config["TESTING"] = True
     client = app.test_client()
 
-    seed_filter_listings()
+    seller_id = seed_filter_listings()
+    login_as(client, seller_id)
 
     response = client.get("/api/listings?category=Electronics")
 

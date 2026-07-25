@@ -46,6 +46,15 @@ def create_user(test_db, student_id, display_name, profile_image_url=None):
     return user_id
 
 
+def login_as(test_client, user_id):
+    """Authenticate a test session before accessing protected listing APIs."""
+    with test_client.session_transaction() as session:
+        session["user_id"] = user_id
+        session["email"] = f"user{user_id}@mymail.nyp.edu.sg"
+        session["display_name"] = f"User {user_id}"
+        session["role"] = "user"
+
+
 def find_item(payload, title):
     """Return the listing item with the given title from an API payload."""
     return next(item for item in payload["listings"] if item["title"] == title)
@@ -55,6 +64,7 @@ def test_api_listings_includes_seller_profile_image(client):
     """GET /api/listings exposes the seller's saved profile image URL."""
     test_client, test_db = client
     seller_id = create_user(test_db, "S9800001", "Kai", SELLER_IMG)
+    login_as(test_client, seller_id)
     create_listing(seller_id, "Imaged Item", "desc", "20.00", "Textbooks", "Good", "[]")
 
     payload = test_client.get("/api/listings").get_json()
@@ -65,6 +75,7 @@ def test_api_listings_seller_image_null_when_absent(client):
     """A seller without an image serialises the field as null."""
     test_client, test_db = client
     seller_id = create_user(test_db, "S9800002", "NoPic")
+    login_as(test_client, seller_id)
     create_listing(seller_id, "Plain Item", "desc", "10.00", "Electronics", "New", "[]")
 
     payload = test_client.get("/api/listings").get_json()
@@ -75,6 +86,7 @@ def test_api_listings_preserves_existing_fields(client):
     """The added field does not disturb the existing listing serialisation."""
     test_client, test_db = client
     seller_id = create_user(test_db, "S9800003", "Kai", SELLER_IMG)
+    login_as(test_client, seller_id)
     create_listing(seller_id, "Full Item", "desc", "15.00", "Textbooks", "Good", "[]")
 
     item = find_item(test_client.get("/api/listings").get_json(), "Full Item")
@@ -91,6 +103,7 @@ def test_api_listings_search_and_filter_keep_seller_image(client):
     """Search and category/condition filters still return the seller image."""
     test_client, test_db = client
     seller_id = create_user(test_db, "S9800004", "Kai", SELLER_IMG)
+    login_as(test_client, seller_id)
     create_listing(seller_id, "Rare Book", "desc", "20.00", "Textbooks", "Good", "[]")
     create_listing(seller_id, "Mouse", "desc", "5.00", "Electronics", "New", "[]")
 
@@ -108,6 +121,7 @@ def test_api_listings_pagination_metadata_intact(client):
     """Pagination metadata still renders alongside the seller image field."""
     test_client, test_db = client
     seller_id = create_user(test_db, "S9800005", "Kai", SELLER_IMG)
+    login_as(test_client, seller_id)
     create_listing(seller_id, "Only Item", "desc", "20.00", "Textbooks", "Good", "[]")
 
     payload = test_client.get("/api/listings?page=1").get_json()
