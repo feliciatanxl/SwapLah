@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-
-
+{% import "_avatar.html" as ui %}
 
 <section class="hero-section">
     <div class="hero-inner">
@@ -177,15 +176,26 @@
                         </div>
 
                         <div class="seller-row">
-                            <span>
-                                <span class="avatar-mini me-1">{{ item.seller[0] if item.seller else "S" }}</span>
+                            <span class="seller-identity">
+                                {{ ui.user_avatar(item.seller_profile_image_url, item.seller, "avatar-mini me-1") }}
                                 {{ item.seller or "Student Seller" }}
                             </span>
-                            <span><i class="bi bi-star-fill text-warning"></i> New</span>
+                            <span>
+                                {% if item.seller_review_count %}
+                                <i class="bi bi-star-fill text-warning"></i> {{ item.seller_avg_rating | format_rating }}
+                                {% else %}
+                                <i class="bi bi-star-fill text-warning"></i> New
+                                {% endif %}
+                            </span>
                         </div>
 
                         <div class="time-row">
-                            <i class="bi bi-clock"></i> {{ item.listing_date }}
+                            <i class="bi bi-clock"></i>
+                            {% if item.last_modified_timestamp and item.last_modified_timestamp != item.listing_date %}
+                            Updated {{ item.last_modified_timestamp | sg_datetime }}
+                            {% else %}
+                            Listed {{ item.listing_date | sg_datetime }}
+                            {% endif %}
                         </div>
                     </div>
                 </div>

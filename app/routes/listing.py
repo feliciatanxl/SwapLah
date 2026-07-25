@@ -6,12 +6,13 @@ from decimal import Decimal, InvalidOperation
 
 from flask import Blueprint, jsonify, request, session
 
-from app.db import ( create_listing, get_db_connection, get_listing_by_id, update_listing, soft_delete_listing)
+from app.db import create_listing, get_db_connection, get_listing_by_id, update_listing, soft_delete_listing
 
 listings_bp = Blueprint("listings", __name__)
 
 _PRICE_RE = re.compile(r"^\d+(\.\d{1,2})?$")
 _REQUIRED_FIELDS = ("title", "description", "price", "category", "condition")
+_ALLOWED_CONDITIONS = {"New", "Like New", "Good", "Fair"}
 
 
 def _error(message, status_code):
@@ -77,6 +78,9 @@ def _validate_listing_fields(fields):
     if not is_valid_price(fields["price"]):
         return _error("Price must be a number, Free, or Swap Only.", 400)
 
+    if fields["condition"] not in _ALLOWED_CONDITIONS:
+        return _error("Invalid item condition.", 400)
+
     return None
 
 
@@ -130,6 +134,7 @@ def _handle_update_error(error):
 
     return None
 
+
 def _handle_delete_error(error):
     """Return the correct response for listing delete errors."""
     if error == "not_found":
@@ -149,9 +154,14 @@ def _get_page_args():
     offset = (page - 1) * per_page
     return page, per_page, offset
 
+
 def _build_listing_filters(search="", category="", condition=""):
-    """Return SQL WHERE clause and params for listing filters."""
-    clauses = ["status = 'Active'"]
+    """Return SQL WHERE clause and params for listing filters.
+
+    Columns are qualified with ``listings.`` so the clause is safe to reuse in
+    the seller-joined query where a bare ``status`` would otherwise be ambiguous.
+    """
+    clauses = ["listings.status = 'Active'"]
     params = []
 
     if search:
@@ -159,19 +169,19 @@ def _build_listing_filters(search="", category="", condition=""):
         clauses.append(
             """
             (
-                LOWER(title) LIKE LOWER(?)
-                OR LOWER(description) LIKE LOWER(?)
+                LOWER(listings.title) LIKE LOWER(?)
+                OR LOWER(listings.description) LIKE LOWER(?)
             )
             """
         )
         params.extend([keyword, keyword])
 
     if category:
-        clauses.append("category = ?")
+        clauses.append("listings.category = ?")
         params.append(category)
 
     if condition:
-        clauses.append("item_condition = ?")
+        clauses.append("listings.item_condition = ?")
         params.append(condition)
 
     return " AND ".join(clauses), params
@@ -191,23 +201,29 @@ def _count_active_listings(db, search="", category="", condition=""):
     return row["count"]
 
 
-def _fetch_active_listing_rows(db, per_page, offset, search="", category="", condition=""):
+def _fetch_active_listing_rows(db, pagination, filters):
     """Return one page of active listings matching filters."""
+    per_page, offset = pagination
+    search, category, condition = filters
     where_clause, params = _build_listing_filters(search, category, condition)
     params.extend([per_page, offset])
 
     return db.execute(
         f"""
-        SELECT id, seller_id, title, description, price, category,
-               item_condition AS condition, image_url, listing_date,
-               last_modified_timestamp, status
+        SELECT listings.id, listings.seller_id, listings.title, listings.description,
+               listings.price, listings.category, listings.item_condition AS condition,
+               listings.image_url, listings.listing_date,
+               listings.last_modified_timestamp, listings.status,
+               users.profile_image_url AS seller_profile_image_url
         FROM listings
+        LEFT JOIN users ON listings.seller_id = users.id
         WHERE {where_clause}
-        ORDER BY listing_date DESC
+        ORDER BY listings.listing_date DESC
         LIMIT ? OFFSET ?
         """,
         params,
     ).fetchall()
+
 
 def _active_listing_json(row):
     """Convert one active listing row into API JSON format."""
@@ -223,6 +239,7 @@ def _active_listing_json(row):
         "listingDate": row["listing_date"],
         "lastModifiedTimestamp": row["last_modified_timestamp"],
         "status": row["status"],
+        "sellerProfileImageUrl": row["seller_profile_image_url"],
     }
 
 
@@ -250,11 +267,8 @@ def api_get_active_listings():
     total_listings = _count_active_listings(db, search, category, condition)
     rows = _fetch_active_listing_rows(
         db,
-        per_page,
-        offset,
-        search,
-        category,
-        condition,
+        (per_page, offset),
+        (search, category, condition),
     )
     db.close()
 
@@ -354,6 +368,7 @@ def api_get_listing_detail(listing_id):
                     "displayName": listing["seller_display_name"],
                     "email": listing["seller_email"],
                     "contactNumber": listing["seller_contact_number"],
+                    "profileImageUrl": listing.get("seller_profile_image_url"),
                 },
             }
         }

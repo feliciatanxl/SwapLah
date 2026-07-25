@@ -25,7 +25,7 @@ def client(tmp_path, monkeypatch):
         yield test_client, test_db
 
 
-def _create_user(conn, student_id, display_name):
+def _create_user(conn, student_id, display_name, role="user"):
     conn.execute(
         """
         INSERT INTO users (student_id, first_name, last_name, display_name,
@@ -34,7 +34,7 @@ def _create_user(conn, student_id, display_name):
         """,
         (student_id, display_name, "Test", display_name,
          f"{student_id.lower()}@mymail.nyp.edu.sg", "91234567",
-         generate_password_hash("Password1"), "user", "Active"),
+         generate_password_hash("Password1"), role, "Active"),
     )
     return conn.execute(
         "SELECT id FROM users WHERE student_id = ?", (student_id,)
@@ -74,6 +74,22 @@ def _create_offer_and_accept(test_db, seller_id, buyer_id, listing_id, price):
     db_module.accept_offer(offer_id)
 
 
+def _create_rejected_offer(test_db, seller_id, buyer_id, listing_id, price):
+    """Seed a rejected cash offer for resolved-offer history."""
+    conn = sqlite3.connect(test_db)
+    conn.row_factory = sqlite3.Row
+    conn.execute(
+        """
+        INSERT INTO offers (listing_id, buyer_id, offer_type, proposed_price,
+                            swap_listing_id, status, created_at)
+        VALUES (?, ?, 'cash', ?, NULL, 'Rejected', '2026-06-11 10:00:00')
+        """,
+        (listing_id, buyer_id, price),
+    )
+    conn.commit()
+    conn.close()
+
+
 def seed_completed_deal(test_db, seller_name="Seller1", buyer_name="Buyer1", price=25.0):
     conn = sqlite3.connect(test_db)
     conn.row_factory = sqlite3.Row
@@ -90,6 +106,12 @@ def seed_completed_deal(test_db, seller_name="Seller1", buyer_name="Buyer1", pri
 def login_as(test_client, user_id):
     with test_client.session_transaction() as sess:
         sess["user_id"] = user_id
+
+
+def login_as_admin(test_client, user_id):
+    with test_client.session_transaction() as sess:
+        sess["user_id"] = user_id
+        sess["role"] = "admin"
 
 
 # ===========================================================================
@@ -167,3 +189,40 @@ def test_history_does_not_leak_other_users_transactions(client):
 
     resp = test_client.get("/api/transactions?role=seller")
     assert resp.get_json()["transactions"] == []
+
+
+def test_normal_user_cannot_view_resolved_offer_outcomes(client):
+    """Offer outcomes are admin-only."""
+    test_client, test_db = client
+    seller_id, _buyer_id = seed_completed_deal(test_db)
+    login_as(test_client, seller_id)
+
+    resp = test_client.get("/api/transactions/offers")
+
+    assert resp.status_code == 403
+
+
+def test_admin_offer_outcomes_include_accepted_and_rejected(client):
+    """Accepted and rejected offers appear in the admin offer outcomes view."""
+    test_client, test_db = client
+    seller_id, buyer_id = seed_completed_deal(test_db)
+
+    conn = sqlite3.connect(test_db)
+    conn.row_factory = sqlite3.Row
+    rejected_listing_id = _create_listing(conn, seller_id, "Rejected Listing")
+    conn.commit()
+    conn.close()
+    _create_rejected_offer(test_db, seller_id, buyer_id, rejected_listing_id, 12.0)
+
+    conn = sqlite3.connect(test_db)
+    conn.row_factory = sqlite3.Row
+    admin_id = _create_user(conn, "S1777777", "AdminUser", role="admin")
+    conn.commit()
+    conn.close()
+    login_as_admin(test_client, admin_id)
+
+    resp = test_client.get("/api/transactions/offers")
+
+    assert resp.status_code == 200
+    statuses = {offer["status"] for offer in resp.get_json()["offers"]}
+    assert statuses == {"Accepted", "Rejected"}

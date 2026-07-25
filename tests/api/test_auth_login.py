@@ -1,3 +1,4 @@
+# pylint: disable=missing-module-docstring,missing-function-docstring,redefined-outer-name,duplicate-code
 import sqlite3
 
 import pytest
@@ -19,7 +20,9 @@ def client(tmp_path, monkeypatch):
         yield test_client, test_db
 
 
-def create_test_user(test_db, email="s12345678@mymail.nyp.edu.sg", password="Password123", status="Active"):
+def create_test_user(
+    test_db, email="s12345678@mymail.nyp.edu.sg", password="Password123", status="Active"
+):
     conn = sqlite3.connect(test_db)
     conn.execute(
         """

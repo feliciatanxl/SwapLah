@@ -39,7 +39,7 @@ FAKE_OFFERS = [
         "proposed_price": 40.0, "swap_listing_id": None, "status": "Pending",
         "created_at": "2026-06-09 10:00:00",
         "listing_title": "Test Item", "listing_category": "Electronics",
-        "listing_price": "50.00", "buyer_display_name": "BobBuyer",
+        "listing_price": "50.00", "seller_id": 1, "buyer_display_name": "BobBuyer",
         "swap_listing_title": None,
     },
     {
@@ -47,7 +47,7 @@ FAKE_OFFERS = [
         "proposed_price": None, "swap_listing_id": 5, "status": "Pending",
         "created_at": "2026-06-09 10:01:00",
         "listing_title": "Test Item", "listing_category": "Electronics",
-        "listing_price": "50.00", "buyer_display_name": "CarolBuyer",
+        "listing_price": "50.00", "seller_id": 1, "buyer_display_name": "CarolBuyer",
         "swap_listing_title": "Swap Widget",
     },
 ]
@@ -95,6 +95,30 @@ def test_unit_get_received_offers_empty(client, monkeypatch):
 
     assert resp.status_code == 200
     assert resp.get_json()["offers"] == []
+
+
+def test_unit_get_received_offers_admin_sees_all(client, monkeypatch):
+    """Active admins receive every offer, not only offers on their listings."""
+    login_as(client, 1)
+    with client.session_transaction() as sess:
+        sess["role"] = "admin"
+
+    monkeypatch.setattr(
+        db_module,
+        "get_user_by_id",
+        lambda uid: {"id": uid, "role": "admin", "status": "Active"},
+    )
+    monkeypatch.setattr(db_module, "get_all_offers", lambda: FAKE_OFFERS)
+    monkeypatch.setattr(
+        db_module,
+        "get_offers_for_seller",
+        lambda sid: pytest.fail("admin should not use seller-scoped offers"),
+    )
+
+    resp = client.get("/api/offers/received")
+
+    assert resp.status_code == 200
+    assert len(resp.get_json()["offers"]) == 2
 
 
 # ===========================================================================

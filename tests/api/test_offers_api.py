@@ -1,3 +1,4 @@
+# pylint: disable=missing-module-docstring,missing-function-docstring,redefined-outer-name,duplicate-code
 """
 API integration tests for POST /api/offers.
 Uses a real temporary SQLite database with seeded users and listings.
@@ -78,13 +79,13 @@ def seed_db(test_db):
     conn.close()
 
 
-def login_as_buyer(test_client, test_db):
+def login_as_buyer(test_client):
     """Authenticate the test client as user id=2 (buyer)."""
     with test_client.session_transaction() as sess:
         sess["user_id"] = 2
 
 
-def login_as_seller(test_client, test_db):
+def login_as_seller(test_client):
     """Authenticate the test client as user id=1 (seller)."""
     with test_client.session_transaction() as sess:
         sess["user_id"] = 1
@@ -98,7 +99,7 @@ def test_api_cash_offer_success(client):
     """AC1 / AC4 (cash): buyer submits a valid cash offer — 201 returned."""
     test_client, test_db = client
     seed_db(test_db)
-    login_as_buyer(test_client, test_db)
+    login_as_buyer(test_client)
 
     response = test_client.post("/api/offers", json={
         "listingId": 1,
@@ -120,7 +121,7 @@ def test_api_cash_offer_status_is_pending(client):
     """AC3 (cash): offer status is set to Pending upon creation."""
     test_client, test_db = client
     seed_db(test_db)
-    login_as_buyer(test_client, test_db)
+    login_as_buyer(test_client)
 
     response = test_client.post("/api/offers", json={
         "listingId": 1,
@@ -140,7 +141,7 @@ def test_api_cash_offer_on_own_listing(client):
     """AC2 (cash): seller cannot submit a cash offer on their own listing."""
     test_client, test_db = client
     seed_db(test_db)
-    login_as_seller(test_client, test_db)
+    login_as_seller(test_client)
 
     response = test_client.post("/api/offers", json={
         "listingId": 1,
@@ -156,7 +157,7 @@ def test_api_cash_offer_missing_price(client):
     """AC5 (cash): offer without proposedPrice is rejected."""
     test_client, test_db = client
     seed_db(test_db)
-    login_as_buyer(test_client, test_db)
+    login_as_buyer(test_client)
 
     response = test_client.post("/api/offers", json={
         "listingId": 1,
@@ -190,7 +191,7 @@ def test_api_swap_offer_success(client):
     """AC1 / AC5 (swap): buyer submits a swap offer using their own active listing."""
     test_client, test_db = client
     seed_db(test_db)
-    login_as_buyer(test_client, test_db)
+    login_as_buyer(test_client)
 
     response = test_client.post("/api/offers", json={
         "listingId": 1,
@@ -214,7 +215,7 @@ def test_api_swap_offer_item_not_owned_by_buyer(client):
     """AC2 / AC3 (swap): swap item must be in buyer's active listings."""
     test_client, test_db = client
     seed_db(test_db)
-    login_as_buyer(test_client, test_db)
+    login_as_buyer(test_client)
 
     # listing 1 belongs to seller, not the buyer
     response = test_client.post("/api/offers", json={
@@ -231,7 +232,7 @@ def test_api_swap_offer_on_own_listing(client):
     """AC4 (swap): buyer must not swap-offer on their own listing."""
     test_client, test_db = client
     seed_db(test_db)
-    login_as_buyer(test_client, test_db)
+    login_as_buyer(test_client)
 
     # buyer tries to offer on listing 2 which they own
     response = test_client.post("/api/offers", json={
@@ -248,7 +249,7 @@ def test_api_swap_offer_missing_swap_listing_id(client):
     """AC2 (swap): swapListingId is required."""
     test_client, test_db = client
     seed_db(test_db)
-    login_as_buyer(test_client, test_db)
+    login_as_buyer(test_client)
 
     response = test_client.post("/api/offers", json={
         "listingId": 1,

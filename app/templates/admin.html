@@ -11,10 +11,12 @@
     </div>
 
     <div class="row g-3 my-4">
-        <div class="col-md-3"><div class="stats-card"><small class="stats-label">Total Users</small><h2 class="stats-value">2,412</h2></div></div>
-        <div class="col-md-3"><div class="stats-card"><small class="stats-label">Active Listings</small><h2 class="stats-value">811</h2></div></div>
-        <div class="col-md-3"><div class="stats-card bg-soft-yellow"><small class="stats-label text-yellow">Reports Pending</small><h2 class="stats-value">3</h2></div></div>
-        <div class="col-md-3"><div class="stats-card bg-soft-pink"><small class="stats-label text-pink">Suspended Users</small><h2 class="stats-value">1</h2></div></div>
+        <div class="row g-3 my-4">
+            <div class="col-md-3"><div class="stats-card"><small class="stats-label">Total Users</small><h2 class="stats-value">{{ users|length }}</h2></div></div>
+            <div class="col-md-3"><div class="stats-card"><small class="stats-label">Active Listings</small><h2 class="stats-value">{{ active_listings_count }}</h2></div></div>
+            <div class="col-md-3"><div class="stats-card bg-soft-yellow"><small class="stats-label text-yellow">Reports Pending</small><h2 class="stats-value">{{ reports|selectattr('status', 'equalto', 'Pending')|list|length }}</h2></div></div>
+            <div class="col-md-3"><div class="stats-card bg-soft-pink"><small class="stats-label text-pink">Suspended Users</small><h2 class="stats-value">{{ users|selectattr('status', 'equalto', 'Suspended')|list|length }}</h2></div></div>
+        </div>
     </div>
 
     <ul class="nav nav-pills app-tabs mb-3" id="adminTabs" role="tablist">
@@ -35,33 +37,59 @@
                 <table class="table align-middle mb-0">
                     <thead><tr><th>Listing</th><th>Reporter</th><th>Reason</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
                     <tbody>
-                        <tr>
-                            <td><strong>Fake Apple AirPods Pro</strong><br><small class="text-muted">Electronics</small></td>
-                            <td>user_2103</td>
-                            <td>Suspected counterfeit</td>
-                            <td><span class="status-badge bg-soft-yellow text-yellow">Pending</span></td>
-                            <td class="text-end">
-                                <button class="btn btn-sm btn-outline-dark" data-bs-toggle="modal" data-bs-target="#dismissReportModal">Dismiss</button>
-                                <button class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteListingModal">Soft-delete</button>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td><strong>Calculus Solutions Manual</strong><br><small class="text-muted">Textbooks</small></td>
-                            <td>user_1188</td>
-                            <td>Copyright violation</td>
-                            <td><span class="status-badge bg-soft-yellow text-yellow">Pending</span></td>
-                            <td class="text-end">
-                                <button class="btn btn-sm btn-outline-dark" data-bs-toggle="modal" data-bs-target="#dismissReportModal">Dismiss</button>
-                                <button class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteListingModal">Soft-delete</button>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td><strong>Random spam post</strong><br><small class="text-muted">Other</small></td>
-                            <td>user_4421</td>
-                            <td>Spam</td>
-                            <td><span class="status-badge bg-soft-green text-green">Dismissed</span></td>
-                            <td class="text-end"><button class="btn btn-sm btn-outline-dark">Reopen</button></td>
-                        </tr>
+                        {% if reports %}
+                            {% for report in reports %}
+                            <tr data-report-id="{{ report.id }}">
+                                <td>
+                                    <strong>{{ report.listing_title }}</strong>
+                                    <br><small class="text-muted">{{ report.listing_category }}</small>
+                                </td>
+                                <td>{{ report.reporter_display_name }}</td>
+                                <td>
+                                    <strong>{{ report.reason }}</strong>
+                                    {% if report.description %}
+                                        <br><small class="text-muted">{{ report.description }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if report.status == 'Pending' %}
+                                        <span class="status-badge bg-soft-yellow text-yellow status-badge-{{ report.id }}">Pending</span>
+                                    {% elif report.status == 'Dismissed' %}
+                                        <span class="status-badge bg-soft-green text-green status-badge-{{ report.id }}">Dismissed</span>
+                                    {% elif report.status == 'Resolved' %}
+                                        <span class="status-badge bg-soft-green text-green status-badge-{{ report.id }}">Resolved</span>
+                                    {% else %}
+                                        <span class="status-badge bg-soft-gray text-gray status-badge-{{ report.id }}">{{ report.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end action-cell-{{ report.id }}">
+                                    {% if report.status == 'Pending' %}
+                                        <button class="btn btn-sm btn-outline-dark dismiss-report-btn"
+                                                data-report-id="{{ report.id }}"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#dismissReportModal">
+                                            <i class="bi bi-check2-circle"></i> Dismiss
+                                        </button>
+                                        <button class="btn btn-sm btn-danger delete-listing-btn"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#deleteListingModal"
+                                                data-report-id="{{ report.id }}"
+                                                data-listing-title="{{ report.listing_title }}">
+                                            <i class="bi bi-trash3"></i> Soft-delete
+                                        </button>
+                                    {% else %}
+                                        <span class="text-muted">Resolved</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center py-4">
+                                    <p class="text-muted mb-0">No reports found.</p>
+                                </td>
+                            </tr>
+                        {% endif %}
                     </tbody>
                 </table>
             </div>
@@ -79,20 +107,44 @@
                 <table class="table align-middle mb-0">
                     <thead><tr><th>User</th><th>Email</th><th>Student ID</th><th>Status</th><th class="text-end">Action</th></tr></thead>
                     <tbody>
-                        <tr>
-                            <td><strong>Jordan Mok</strong><br><small class="text-muted">Display: Jordan</small></td>
-                            <td>jordan.mok@mymail.nyp.edu.sg</td>
-                            <td>S10234567</td>
-                            <td><span class="status-badge bg-soft-green text-green">Active</span></td>
-                            <td class="text-end"><button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#toggleUserModal">Suspend</button></td>
-                        </tr>
-                        <tr>
-                            <td><strong>Tan Rui</strong><br><small class="text-muted">Display: Rui</small></td>
-                            <td>tan.rui@mymail.nyp.edu.sg</td>
-                            <td>S10987654</td>
-                            <td><span class="status-badge bg-soft-pink text-pink">Suspended</span></td>
-                            <td class="text-end"><button class="btn btn-sm btn-outline-dark" data-bs-toggle="modal" data-bs-target="#toggleUserModal">Activate</button></td>
-                        </tr>
+                        {% if users %}
+                            {% for user in users %}
+                                <tr data-user-id="{{ user.id }}">
+                                    <td>
+                                        <strong>{{ user.display_name }}</strong><br>
+                                        <small class="text-muted">{{ user.first_name }} {{ user.last_name }}</small>
+                                    </td>
+                                    <td>{{ user.email }}</td>
+                                    <td>{{ user.student_id }}</td>
+                                    <td>
+                                        {% if user.status == 'Active' %}
+                                            <span class="status-badge bg-soft-green text-green status-badge-user-{{ user.id }}">Active</span>
+                                        {% else %}
+                                            <span class="status-badge bg-soft-pink text-pink status-badge-user-{{ user.id }}">Suspended</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end action-cell-user-{{ user.id }}">
+                                        {% if user.status == 'Active' %}
+                                            <button class="btn btn-sm btn-outline-danger toggle-user-btn"
+                                                    data-bs-toggle="modal" data-bs-target="#toggleUserModal"
+                                                    data-user-id="{{ user.id }}" data-user-name="{{ user.display_name }}"
+                                                    data-current-status="Active">Suspend</button>
+                                        {% else %}
+                                            <button class="btn btn-sm btn-outline-dark toggle-user-btn"
+                                                    data-bs-toggle="modal" data-bs-target="#toggleUserModal"
+                                                    data-user-id="{{ user.id }}" data-user-name="{{ user.display_name }}"
+                                                    data-current-status="Suspended">Activate</button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center py-4">
+                                    <p class="text-muted mb-0">No users found.</p>
+                                </td>
+                            </tr>
+                        {% endif %}
                     </tbody>
                 </table>
             </div>
@@ -100,22 +152,28 @@
     </div>
 </section>
 
+<!-- Dismiss Report Modal -->
 <div class="modal fade" id="dismissReportModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content confirm-modal">
             <div class="modal-header">
-                <h5 class="modal-title">Dismiss report?</h5>
+                <h5 class="modal-title">Dismiss Report</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">This keeps the listing active and marks the report as dismissed once backend logic is connected.</div>
+            <div class="modal-body">
+                <p>Are you sure you want to dismiss this report?</p>
+                <p class="text-muted">The listing will remain active and visible to all users.</p>
+                <input type="hidden" id="dismissReportId" value="">
+            </div>
             <div class="modal-footer">
                 <button class="btn btn-outline-dark" data-bs-dismiss="modal">Cancel</button>
-                <button class="btn btn-accent">Dismiss Report</button>
+                <button class="btn btn-accent" id="confirmDismissReport">Dismiss Report</button>
             </div>
         </div>
     </div>
 </div>
 
+<!-- Delete Listing Modal -->
 <div class="modal fade" id="deleteListingModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content confirm-modal">
@@ -123,15 +181,21 @@
                 <h5 class="modal-title">Soft-delete listing?</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">This should hide the reported listing from browse results without deleting the database record later.</div>
+            <div class="modal-body">
+                <p>Are you sure you want to soft-delete the listing:</p>
+                <p><strong id="deleteListingTitle"></strong></p>
+                <p class="text-danger">This will hide the listing from all users.</p>
+                <input type="hidden" id="deleteReportId">
+            </div>
             <div class="modal-footer">
                 <button class="btn btn-outline-dark" data-bs-dismiss="modal">Cancel</button>
-                <button class="btn btn-danger">Soft-delete Listing</button>
+                <button class="btn btn-danger" id="confirmDeleteListing">Soft-delete Listing</button>
             </div>
         </div>
     </div>
 </div>
 
+<!-- Toggle User Modal -->
 <div class="modal fade" id="toggleUserModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content confirm-modal">
@@ -139,13 +203,413 @@
                 <h5 class="modal-title">Change account status?</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">Use this UI later to toggle a user between Active and Suspended.</div>
+            <div class="modal-body">
+                Change <strong id="toggleUserName"></strong>'s status to
+                <strong id="toggleUserTargetStatus"></strong>?
+                <input type="hidden" id="toggleUserId">
+            </div>
             <div class="modal-footer">
                 <button class="btn btn-outline-dark" data-bs-dismiss="modal">Cancel</button>
-                <button class="btn btn-accent">Confirm Change</button>
+                <button class="btn btn-accent" id="confirmToggleUser">Confirm Change</button>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // --- DISMISS REPORT FUNCTIONALITY ---
+    const dismissModal = document.getElementById('dismissReportModal');
+    const dismissReportIdInput = document.getElementById('dismissReportId');
+    const confirmDismissBtn = document.getElementById('confirmDismissReport');
+    let dismissModalInstance = null;
+
+    // Initialize modal instance
+    if (dismissModal) {
+        dismissModalInstance = new bootstrap.Modal(dismissModal);
+
+        // When dismiss modal is shown, set the report ID
+        dismissModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            if (button && button.dataset.reportId) {
+                dismissReportIdInput.value = button.dataset.reportId;
+            }
+        });
+    }
+
+    // Handle dismiss confirmation
+    if (confirmDismissBtn) {
+        confirmDismissBtn.addEventListener('click', function() {
+            const reportId = dismissReportIdInput.value;
+            const button = this;
+
+            // Disable button and show loading state
+            button.disabled = true;
+            button.textContent = 'Processing...';
+
+            fetch(`/admin/reports/${reportId}/dismiss`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.message || 'Failed to dismiss report');
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // Find the row for this report
+                    const row = document.querySelector(`tr[data-report-id="${reportId}"]`);
+                    if (row) {
+                        // Update status badge - target the span with specific class
+                        const statusBadge = row.querySelector(`.status-badge-${reportId}`);
+                        if (statusBadge) {
+                            // Remove old classes and add new ones
+                            statusBadge.className = `status-badge bg-soft-green text-green status-badge-${reportId}`;
+                            statusBadge.textContent = 'Dismissed';
+                        }
+
+                        // Replace action buttons with "Resolved" text
+                        const actionCell = row.querySelector(`.action-cell-${reportId}`);
+                        if (actionCell) {
+                            actionCell.innerHTML = '<span class="text-muted">Resolved</span>';
+                        }
+                    }
+
+                    // Update the pending count in stats
+                    const pendingCountElement = document.querySelector('.stats-card.bg-soft-yellow .stats-value');
+                    if (pendingCountElement) {
+                        const currentCount = parseInt(pendingCountElement.textContent);
+                        if (currentCount > 0) {
+                            pendingCountElement.textContent = currentCount - 1;
+                        }
+                    }
+
+                    // Close modal
+                    if (dismissModalInstance) {
+                        dismissModalInstance.hide();
+                    }
+
+                    // Show success message
+                    console.log('Report dismissed successfully:', data);
+                } else {
+                    throw new Error(data.message || 'Failed to dismiss report');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to dismiss report: ' + error.message);
+                // Keep modal open on error
+            })
+            .finally(() => {
+                // Reset button state
+                button.disabled = false;
+                button.textContent = 'Dismiss Report';
+            });
+        });
+    }
+
+    // --- DELETE LISTING FUNCTIONALITY (keeping your existing code) ---
+    const deleteModal = document.getElementById('deleteListingModal');
+    if (deleteModal) {
+        deleteModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            const reportId = button.getAttribute('data-report-id');
+            const listingTitle = button.getAttribute('data-listing-title');
+
+            document.getElementById('deleteReportId').value = reportId;
+            document.getElementById('deleteListingTitle').textContent = listingTitle || 'Unknown Listing';
+        });
+    }
+
+    document.getElementById('confirmDeleteListing').addEventListener('click', function() {
+        const reportId = document.getElementById('deleteReportId').value;
+        const button = this;
+
+        button.disabled = true;
+        button.textContent = 'Processing...';
+
+        fetch(`/admin/reports/${reportId}/delete-listing`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('deleteListingModal'));
+                if (modal) modal.hide();
+
+                // Reload the page to refresh the reports table
+                window.location.reload();
+            } else {
+                alert('Error: ' + (data.error || 'Failed to delete listing'));
+            }
+        })
+        .catch(error => {
+            alert('Error: ' + error.message);
+        })
+        .finally(() => {
+            button.disabled = false;
+            button.textContent = 'Soft-delete Listing';
+        });
+    });
+
+    // --- SEARCH FUNCTIONALITY ---
+    const searchInput = document.getElementById('admin_report_search');
+    if (searchInput) {
+        searchInput.addEventListener('keyup', function() {
+            const search = this.value.toLowerCase();
+            const rows = document.querySelectorAll('#reports-panel tbody tr');
+
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(search) ? '' : 'none';
+            });
+        });
+    }
+});
+
+// -- Also handle the case where dismiss modal is triggered from a button that might not have data-report-id
+// This ensures the modal shows correctly even if triggered programmatically
+document.addEventListener('click', function(e) {
+    if (e.target.closest('.dismiss-report-btn')) {
+        const btn = e.target.closest('.dismiss-report-btn');
+        const reportId = btn.dataset.reportId;
+        if (reportId) {
+            document.getElementById('dismissReportId').value = reportId;
+        }
+    }
+});
+const toggleUserModal = document.getElementById('toggleUserModal');
+const toggleUserIdInput = document.getElementById('toggleUserId');
+const toggleUserNameSpan = document.getElementById('toggleUserName');
+const toggleUserTargetStatusSpan = document.getElementById('toggleUserTargetStatus');
+const confirmToggleUserBtn = document.getElementById('confirmToggleUser');
+let toggleUserModalInstance = null;
+
+if (toggleUserModal) {
+    toggleUserModalInstance = new bootstrap.Modal(toggleUserModal);
+
+    toggleUserModal.addEventListener('show.bs.modal', function(event) {
+        const button = event.relatedTarget;
+        if (button && button.dataset.userId) {
+            const userId = button.dataset.userId;
+            const userName = button.dataset.userName || 'User';
+            const currentStatus = button.dataset.currentStatus;
+            const targetStatus = currentStatus === 'Active' ? 'Suspended' : 'Active';
+
+            toggleUserIdInput.value = userId;
+            toggleUserNameSpan.textContent = userName;
+            toggleUserTargetStatusSpan.textContent = targetStatus;
+
+            // Store target status on the confirm button for later use
+            confirmToggleUserBtn.dataset.targetStatus = targetStatus;
+        }
+    });
+}
+
+if (confirmToggleUserBtn) {
+    confirmToggleUserBtn.addEventListener('click', function() {
+        const userId = toggleUserIdInput.value;
+        const targetStatus = this.dataset.targetStatus;
+        const button = this;
+
+        if (!userId || !targetStatus) {
+            alert('Missing user information.');
+            return;
+        }
+
+        button.disabled = true;
+        button.textContent = 'Processing...';
+
+        fetch(`/admin/users/${userId}/status`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ status: targetStatus }),
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.message || 'Failed to update status');
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // Find the row for this user
+                const row = document.querySelector(`tr[data-user-id="${userId}"]`);
+                if (row) {
+                    // Update status badge
+                    const badge = row.querySelector(`.status-badge-user-${userId}`);
+                    if (badge) {
+                        if (targetStatus === 'Active') {
+                            badge.className = `status-badge bg-soft-green text-green status-badge-user-${userId}`;
+                            badge.textContent = 'Active';
+                        } else {
+                            badge.className = `status-badge bg-soft-pink text-pink status-badge-user-${userId}`;
+                            badge.textContent = 'Suspended';
+                        }
+                    }
+
+                    // Replace action button
+                    const actionCell = row.querySelector(`.action-cell-user-${userId}`);
+                    if (actionCell) {
+                        const newStatus = targetStatus;
+                        const oppositeStatus = newStatus === 'Active' ? 'Suspended' : 'Active';
+                        const btnLabel = newStatus === 'Active' ? 'Suspend' : 'Activate';
+                        const btnClass = newStatus === 'Active' ? 'btn-outline-danger' : 'btn-outline-dark';
+                        actionCell.innerHTML = `
+                            <button class="btn btn-sm ${btnClass} toggle-user-btn"
+                                    data-bs-toggle="modal" data-bs-target="#toggleUserModal"
+                                    data-user-id="${userId}" data-user-name="${data.user_name || 'User'}"
+                                    data-current-status="${newStatus}">${btnLabel}</button>
+                        `;
+                    }
+                }
+
+                // Close modal
+                if (toggleUserModalInstance) {
+                    toggleUserModalInstance.hide();
+                }
+
+                console.log('User status updated successfully:', data);
+            } else {
+                throw new Error(data.message || 'Failed to update status');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to update user status: ' + error.message);
+            // Keep modal open on error
+        })
+        .finally(() => {
+            button.disabled = false;
+            button.textContent = 'Confirm Change';
+        });
+    });
+}
+
+// --- USER SEARCH FUNCTIONALITY ---
+const userSearchInput = document.getElementById('admin_user_search');
+if (userSearchInput) {
+    userSearchInput.addEventListener('keyup', function() {
+        const search = this.value.toLowerCase();
+        const rows = document.querySelectorAll('#users-panel tbody tr');
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.includes(search) ? '' : 'none';
+        });
+    });
+}
+</script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // --- User toggle modal ---
+        const modalEl = document.getElementById('toggleUserModal');
+        if (!modalEl) return;
+
+        const modal = new bootstrap.Modal(modalEl);
+        const userIdInput = document.getElementById('toggleUserId');
+        const userNameSpan = document.getElementById('toggleUserName');
+        const targetStatusSpan = document.getElementById('toggleUserTargetStatus');
+        const confirmBtn = document.getElementById('confirmToggleUser');
+
+        // Populate modal on show
+        modalEl.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            if (!button) {
+                console.warn('No relatedTarget for toggleUserModal');
+                return;
+            }
+            const userId = button.dataset.userId;
+            const userName = button.dataset.userName || 'User';
+            const currentStatus = button.dataset.currentStatus;
+            const targetStatus = currentStatus === 'Active' ? 'Suspended' : 'Active';
+
+            userIdInput.value = userId;
+            userNameSpan.textContent = userName;
+            targetStatusSpan.textContent = targetStatus;
+            confirmBtn.dataset.targetStatus = targetStatus;
+            confirmBtn.dataset.userId = userId;
+        });
+
+        // Handle confirm click
+        confirmBtn.addEventListener('click', function() {
+            const userId = this.dataset.userId;
+            const targetStatus = this.dataset.targetStatus;
+            const button = this;
+
+            if (!userId || !targetStatus) {
+                alert('Missing user information.');
+                return;
+            }
+
+            button.disabled = true;
+            button.textContent = 'Processing...';
+
+            fetch(`/admin/users/${userId}/status`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: targetStatus }),
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.message || data.error || 'Failed to update status');
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // Update row in place
+                    const row = document.querySelector(`tr[data-user-id="${userId}"]`);
+                    if (row) {
+                        const badge = row.querySelector(`.status-badge-user-${userId}`);
+                        if (badge) {
+                            badge.className = `status-badge ${targetStatus === 'Active' ? 'bg-soft-green text-green' : 'bg-soft-pink text-pink'} status-badge-user-${userId}`;
+                            badge.textContent = targetStatus;
+                        }
+                        const actionCell = row.querySelector(`.action-cell-user-${userId}`);
+                        if (actionCell) {
+                            const newStatus = targetStatus;
+                            const opposite = newStatus === 'Active' ? 'Suspended' : 'Active';
+                            const label = newStatus === 'Active' ? 'Suspend' : 'Activate';
+                            const btnClass = newStatus === 'Active' ? 'btn-outline-danger' : 'btn-outline-dark';
+                            actionCell.innerHTML = `
+                                <button class="btn btn-sm ${btnClass} toggle-user-btn"
+                                    data-bs-toggle="modal" data-bs-target="#toggleUserModal"
+                                    data-user-id="${userId}" data-user-name="${data.user?.display_name || 'User'}"
+                                    data-current-status="${newStatus}">${label}</button>
+                            `;
+                        }
+                    }
+                    modal.hide();
+                } else {
+                    throw new Error(data.message || 'Failed to update status');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error: ' + error.message);
+            })
+            .finally(() => {
+                button.disabled = false;
+                button.textContent = 'Confirm Change';
+            });
+        });
+    });
+</script>
 
 {% endblock %}

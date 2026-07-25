@@ -3,32 +3,69 @@
 import math
 import os
 import re
+import sqlite3
 import time
-from functools import wraps
 
 from flask import Flask, flash, jsonify, redirect, render_template, request, session, url_for
 from dotenv import load_dotenv
 from werkzeug.security import check_password_hash, generate_password_hash
+from app.auth import admin_required, _require_admin_response
 
 from app.db import (
+    create_user,
     get_active_listings_by_seller,
     search_active_listings,
-    get_reviews_for_user,
-    get_db_connection,
     get_listing_by_id,
     get_listing_category_summary,
     get_listings_by_seller,
+    get_reviews_for_user,
     get_sold_listings_by_seller,
     get_user_by_email,
     get_user_by_id,
     get_user_profile_stats,
+    get_user_rating_stats,
     init_db,
     update_user_account,
+    update_user_images,
+    get_all_reports,
 )
-import app.db as db_module  # noqa: F401 — exposes db functions for monkeypatching in tests
+from app.email_validation import is_valid_student_email, normalize_student_email
+from app.profile_media import validate_image_url
+from app.user_admin import get_user_for_password_reset, update_user_password
+from app.timezones import format_singapore_date, format_singapore_datetime
+import app.db as db_module  # noqa: F401 - exposes db functions for monkeypatching in tests
 from app.routes.listing import listings_bp
 from app.routes.offers import offers_bp
 from app.routes.history import history_bp
+from app.routes.reviews import reviews_bp
+from app.routes.admin import admin_bp
+from app.routes.reports import reports_bp
+
+# Internal (email-free) password reset configuration.
+GENERIC_RESET_FAILURE_MESSAGE = "Unable to verify the account details."
+RESET_SESSION_TTL_SECONDS = 10 * 60
+MAX_RESET_VERIFY_ATTEMPTS = 5
+RESET_ATTEMPTS_MESSAGE = (
+    "Too many verification attempts. Please try again later."
+)
+RESET_EXPIRED_MESSAGE = (
+    "Your password reset session has expired. Please verify your details again."
+)
+RESET_SESSION_KEYS = (
+    "password_reset_user_id",
+    "password_reset_expires_at",
+    "password_reset_attempts",
+)
+
+
+def _format_rating(value):
+    """Format a rating number, dropping a trailing '.0' (e.g. 4.0 -> '4')."""
+    if value is None:
+        return ""
+    if float(value) == int(value):
+        return str(int(value))
+    return str(value)
+
 
 SESSION_TIMEOUT_SECONDS = 30 * 60
 # SESSION_TIMEOUT_SECONDS = 10
@@ -37,16 +74,19 @@ SESSION_TIMEOUT_MESSAGE = "Session expired due to inactivity. Please log in agai
 PUBLIC_ENDPOINTS = {
     "index",
     "listing_detail",
+    "view_profile",
     "login",
     "register",
     "forgot_password",
+    "reset_password",
     "logout",
     "static",
     "listings.api_get_active_listings",
     "listings.api_get_listing_detail",
     "api_health",
-    "api_user_reviews",
+    "reviews.get_user_reviews",
 }
+
 
 def _is_suspended_user(user):
     """Return True if the user account is suspended."""
@@ -63,61 +103,37 @@ def _load_secret_key():
     return secret_key
 
 
-def _is_admin_user(user):
-    """Return True when a user has the admin role and is active."""
-    return user is not None and user["role"] == "admin" and user["status"] == "Active"
-
-
 def _admin_denied_response():
     """Return the standard response for a logged-in non-admin user."""
     return "Forbidden", 403
-
-
-def admin_required(view_func):
-    """Require an active admin account for an admin route."""
-
-    @wraps(view_func)
-    def wrapper(*args, **kwargs):
-        authorization_response = _require_admin_response()
-
-        if authorization_response:
-            return authorization_response
-
-        return view_func(*args, **kwargs)
-
-    return wrapper
-
-
-def _require_admin_response():
-    """Return an authorization response when the current user is not an admin."""
-    user_id = session.get("user_id")
-
-    if not user_id:
-        flash("Please log in as an administrator.", "danger")
-        return redirect(url_for("login"))
-
-    if not _is_admin_user(get_user_by_id(user_id)):
-        return _admin_denied_response()
-
-    return None
-
 
 def _is_admin_path(path):
     """Return True for the admin page and all admin subpaths."""
     return path == "/admin" or path.startswith("/admin/")
 
+
 def _handle_login():
     """Process POST login form and return a redirect or re-rendered login page."""
-    email = request.form.get("email", "").strip().lower()
+    email = request.form.get("email", "")
     password = request.form.get("password", "")
 
-    if not email or not password:
+    if not email.strip() or not password:
         flash("Please enter your email and password.", "danger")
+        return render_template("login.html")
+
+    try:
+        email = normalize_student_email(email)
+    except ValueError:
+        flash("Invalid email or password.", "danger")
         return render_template("login.html")
 
     user = get_user_by_email(email)
 
-    if user is None or not check_password_hash(user["password_hash"], password):
+    if (
+        user is None
+        or not is_valid_student_email(user["email"])
+        or not check_password_hash(user["password_hash"], password)
+    ):
         flash("Invalid email or password.", "danger")
         return render_template("login.html")
 
@@ -143,7 +159,7 @@ def _handle_register():
         flash("Please fill in all required fields.", "danger")
         return render_template("register.html")
 
-    if not form_data["email"].endswith("@mymail.nyp.edu.sg"):
+    if not is_valid_student_email(form_data["email"]):
         flash("Please use a valid NYP email ending with @mymail.nyp.edu.sg.", "danger")
         return render_template("register.html")
 
@@ -161,7 +177,7 @@ def _get_registration_form_data():
         "first_name": request.form.get("first_name", "").strip(),
         "last_name": request.form.get("last_name", "").strip(),
         "display_name": request.form.get("display_name", "").strip(),
-        "email": request.form.get("email", "").strip().lower(),
+        "email": request.form.get("email", "").strip(),
         "contact_number": request.form.get("contact_number", "").strip(),
         "password": request.form.get("password", ""),
         "confirm_password": request.form.get("confirm_password", ""),
@@ -171,35 +187,23 @@ def _get_registration_form_data():
 def _create_user_account(form_data):
     """Create a user account from validated registration form data."""
     password_hash = generate_password_hash(form_data["password"])
-    conn = None
 
     try:
-        conn = get_db_connection()
-        conn.execute(
-            """
-            INSERT INTO users (
-                student_id, first_name, last_name, display_name,
-                email, contact_number, password_hash
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                form_data["student_id"],
-                form_data["first_name"],
-                form_data["last_name"],
-                form_data["display_name"],
-                form_data["email"],
-                form_data["contact_number"],
-                password_hash,
-            ),
+        create_user(
+            form_data["student_id"],
+            form_data["first_name"],
+            form_data["last_name"],
+            form_data["display_name"],
+            form_data["email"],
+            form_data["contact_number"],
+            password_hash,
         )
-        conn.commit()
-    except Exception:  # noqa: BLE001
+    except ValueError:
+        flash("Please use a valid NYP email ending with @mymail.nyp.edu.sg.", "danger")
+        return render_template("register.html")
+    except sqlite3.IntegrityError:
         flash("Email or Student ID already exists.", "danger")
         return render_template("register.html")
-    finally:
-        if conn is not None:
-            conn.close()
 
     flash("Account created successfully. Please log in.", "success")
     return redirect(url_for("login"))
@@ -227,12 +231,20 @@ def _paginate_listings(page, search="", category="", condition="", per_page=10):
 def _render_index_page(page, search, category, condition):
     """Render homepage with paginated listing data."""
     pagination = _paginate_listings(page, search, category, condition)
+    showing_start = (
+        (pagination["page"] - 1) * 10 + 1
+        if pagination["total_listings"] > 0
+        else 0
+    )
+    showing_end = min(pagination["page"] * 10, pagination["total_listings"])
     return render_template(
         "index.html",
         listings=pagination["listings"],
         page=pagination["page"],
         total_pages=pagination["total_pages"],
         total_listings=pagination["total_listings"],
+        showing_start=showing_start,
+        showing_end=showing_end,
         category_summary=get_listing_category_summary(),
         search=search,
         category=category,
@@ -255,6 +267,7 @@ def _render_listing_detail_page(listing_id):
         "listing_detail.html",
         listing=listing,
         listing_id=listing_id,
+        seller_rating=get_user_rating_stats(listing["seller_id"]) if "seller_id" in listing else None,
         error_message=None,
     )
 
@@ -274,6 +287,7 @@ def _get_logged_in_user_or_redirect(message):
 
     return user, None
 
+
 def _redirect_logged_out_user(message):
     """Redirect logged-out users to the login page."""
     if "user_id" not in session:
@@ -281,6 +295,7 @@ def _redirect_logged_out_user(message):
         return redirect(url_for("login"))
 
     return None
+
 
 def _is_public_endpoint(endpoint):
     """Return True if the endpoint can be accessed without login."""
@@ -317,18 +332,36 @@ def _check_session_timeout():
     return None
 
 
-def _register_session_timeout(app):
+def _load_current_user():
+    """Return the logged-in user's latest DB record, or None when logged out."""
+    user_id = session.get("user_id")
+
+    if not user_id:
+        return None
+
+    return get_user_by_id(user_id)
+
+
+def _register_current_user_context(flask_app):
+    """Expose the logged-in user's fresh profile data to every template."""
+
+    @flask_app.context_processor
+    def inject_current_user():
+        return {"current_user": _load_current_user()}
+
+
+def _register_session_timeout(flask_app):
     """Register session inactivity timeout check before each request."""
 
-    @app.before_request
+    @flask_app.before_request
     def enforce_session_timeout():
         return _check_session_timeout()
 
 
-def _register_admin_path_guard(app):
+def _register_admin_path_guard(flask_app):
     """Protect /admin and all /admin/* paths before routing."""
 
-    @app.before_request
+    @flask_app.before_request
     def enforce_admin_path_guard():
         if not _is_admin_path(request.path) or request.endpoint == "admin":
             return None
@@ -345,7 +378,24 @@ def _get_profile_form_data():
         "contact_number": request.form.get("contact_number", "").strip(),
         "password": request.form.get("password", ""),
         "confirm_password": request.form.get("confirm_password", ""),
+        "profile_image_url": request.form.get("profile_image_url", ""),
+        "cover_image_url": request.form.get("cover_image_url", ""),
     }
+
+
+def _validate_profile_images(form_data, user):
+    """Validate the image URLs and return ``(cleaned_images, error_response)``."""
+    profile_url, profile_error = validate_image_url(form_data["profile_image_url"])
+    if profile_error:
+        flash(profile_error, "danger")
+        return None, render_template("edit_profile.html", user=user)
+
+    cover_url, cover_error = validate_image_url(form_data["cover_image_url"])
+    if cover_error:
+        flash(cover_error, "danger")
+        return None, render_template("edit_profile.html", user=user)
+
+    return {"profile_image_url": profile_url, "cover_image_url": cover_url}, None
 
 
 def _validate_profile_form(form_data, user):
@@ -372,8 +422,8 @@ def _validate_profile_form(form_data, user):
     return None
 
 
-def _save_profile_update(form_data):
-    """Save profile updates for the logged-in user."""
+def _save_profile_update(form_data, images):
+    """Save profile updates for the logged-in user, preserving unrelated fields."""
     new_hash = generate_password_hash(form_data["password"]) if form_data["password"] else None
 
     update_user_account(
@@ -384,13 +434,18 @@ def _save_profile_update(form_data):
         form_data["contact_number"],
         new_hash,
     )
+    update_user_images(
+        session["user_id"],
+        images["profile_image_url"],
+        images["cover_image_url"],
+    )
 
     session["display_name"] = form_data["display_name"]
     flash("Profile updated successfully.", "success")
     return redirect(url_for("profile"))
 
 
-def _render_profile_page(user):
+def _render_profile_page(user, is_own_profile):
     """Render the profile page with marketplace stats and lists."""
     return render_template(
         "profile.html",
@@ -399,6 +454,7 @@ def _render_profile_page(user):
         sold_listings=get_sold_listings_by_seller(user["id"]),
         profile_stats=get_user_profile_stats(user["id"]),
         reviews=get_reviews_for_user(user["id"]),
+        is_own_profile=is_own_profile,
     )
 
 
@@ -413,26 +469,23 @@ def _handle_profile_edit(user):
     if error_response:
         return error_response
 
-    return _save_profile_update(form_data)
+    images, image_error = _validate_profile_images(form_data, user)
+
+    if image_error:
+        return image_error
+
+    return _save_profile_update(form_data, images)
 
 
-def _register_main_routes(app):
+def _register_main_routes(flask_app):
     """Register homepage and simple listing page routes."""
 
-    @app.route("/api/health")
+    @flask_app.route("/api/health")
     def api_health():
         """Return application health status."""
         return jsonify({"status": "ok"}), 200
 
-    @app.route("/api/users/<int:user_id>/reviews")
-    def api_user_reviews(user_id):
-        """Return public reviews for one user."""
-        if get_user_by_id(user_id) is None:
-            return jsonify({"error": "User not found."}), 404
-
-        return jsonify({"reviews": get_reviews_for_user(user_id)}), 200
-
-    @app.route("/")
+    @flask_app.route("/")
     def index():
         """Render homepage with paginated listings."""
         page = request.args.get("page", 1, type=int)
@@ -441,16 +494,16 @@ def _register_main_routes(app):
         condition = request.args.get("condition", "").strip()
         return _render_index_page(page, search, category, condition)
 
-    @app.route("/listing/<int:listing_id>")
+    @flask_app.route("/listing/<int:listing_id>")
     def listing_detail(listing_id):
         """Render listing detail page."""
         return _render_listing_detail_page(listing_id)
 
 
-def _register_listing_owner_routes(app):
+def _register_listing_owner_routes(flask_app):
     """Register listing owner page routes."""
 
-    @app.route("/api/my-listings")
+    @flask_app.route("/api/my-listings")
     def api_my_listings():
         """Return the current user's listings as JSON for the swap dropdown."""
         user_id = session.get("user_id")
@@ -461,7 +514,7 @@ def _register_listing_owner_routes(app):
         listings = get_listings_by_seller(user_id)
         return jsonify(listings)
 
-    @app.route("/listing/<int:listing_id>/edit")
+    @flask_app.route("/listing/<int:listing_id>/edit")
     def edit_listing(listing_id):
         """Render edit listing page if the logged-in user owns the listing."""
         if "user_id" not in session:
@@ -481,10 +534,10 @@ def _register_listing_owner_routes(app):
         return render_template("edit_listing.html", listing=listing)
 
 
-def _register_profile_routes(app):
+def _register_profile_routes(flask_app):
     """Register profile view and edit routes."""
 
-    @app.route("/profile")
+    @flask_app.route("/profile")
     def profile():
         """Render profile page for logged-in user."""
         user, redirect_response = _get_logged_in_user_or_redirect(
@@ -494,9 +547,23 @@ def _register_profile_routes(app):
         if redirect_response:
             return redirect_response
 
-        return _render_profile_page(user)
+        return _render_profile_page(user, is_own_profile=True)
 
-    @app.route("/profile/edit", methods=["GET", "POST"])
+    @flask_app.route("/profile/<int:user_id>")
+    def view_profile(user_id):
+        """Render another user's public profile page."""
+        if session.get("user_id") == user_id:
+            return redirect(url_for("profile"))
+
+        user = get_user_by_id(user_id)
+
+        if user is None:
+            flash("This user does not exist.", "danger")
+            return redirect(url_for("index"))
+
+        return _render_profile_page(user, is_own_profile=False)
+
+    @flask_app.route("/profile/edit", methods=["GET", "POST"])
     def edit_profile():
         """Render and handle edit profile page."""
         user, redirect_response = _get_logged_in_user_or_redirect(
@@ -509,10 +576,107 @@ def _register_profile_routes(app):
         return _handle_profile_edit(user)
 
 
-def _register_auth_routes(app):
+def _clear_reset_session():
+    """Remove every password-reset key from the session."""
+    for key in RESET_SESSION_KEYS:
+        session.pop(key, None)
+
+
+def _grant_reset_permission(user_id):
+    """Store a single-use, short-lived reset permission for the verified user."""
+    session["password_reset_user_id"] = user_id
+    session["password_reset_expires_at"] = time.time() + RESET_SESSION_TTL_SECONDS
+    session.pop("password_reset_attempts", None)
+
+
+def _active_reset_user_id():
+    """Return the verified user id when the reset session is valid, else None."""
+    user_id = session.get("password_reset_user_id")
+    expires_at = session.get("password_reset_expires_at")
+
+    if not user_id or expires_at is None or time.time() > float(expires_at):
+        _clear_reset_session()
+        return None
+
+    return user_id
+
+
+def _verified_reset_user(form):
+    """Return the matching user for the submitted identity fields, or None."""
+    if not all(form.values()):
+        return None
+
+    return get_user_for_password_reset(
+        form["email"], form["student_id"], form["contact_number"]
+    )
+
+
+def _handle_forgot_password():
+    """Verify email, Student ID and contact number before granting a reset."""
+    attempts = session.get("password_reset_attempts", 0)
+
+    if attempts >= MAX_RESET_VERIFY_ATTEMPTS:
+        flash(RESET_ATTEMPTS_MESSAGE, "danger")
+        return render_template("forgot_password.html")
+
+    form = {
+        "email": request.form.get("email", "").strip(),
+        "student_id": request.form.get("student_id", "").strip(),
+        "contact_number": request.form.get("contact_number", "").strip(),
+    }
+    user = _verified_reset_user(form)
+
+    if user is None:
+        session["password_reset_attempts"] = attempts + 1
+        flash(GENERIC_RESET_FAILURE_MESSAGE, "danger")
+        return render_template("forgot_password.html")
+
+    _grant_reset_permission(user["id"])
+    return redirect(url_for("reset_password"))
+
+
+def _reset_password_error(password, confirm_password):
+    """Return a validation error for a new password, or None when acceptable."""
+    if len(password) < 8:
+        return "Password must be at least 8 characters."
+    if password != confirm_password:
+        return "Passwords do not match."
+    return None
+
+
+def _process_reset_password(user_id):
+    """Validate and store the new password, then end the single-use reset session."""
+    password = request.form.get("password", "")
+    error = _reset_password_error(password, request.form.get("confirm_password", ""))
+
+    if error:
+        flash(error, "danger")
+        return render_template("reset_password.html")
+
+    update_user_password(user_id, generate_password_hash(password))
+    _clear_reset_session()
+    flash("Your password has been reset. Please log in.", "success")
+    return redirect(url_for("login"))
+
+
+def _handle_reset_password():
+    """Render or process the reset page, gated by a valid reset session."""
+    user_id = _active_reset_user_id()
+
+    if user_id is None:
+        flash(RESET_EXPIRED_MESSAGE, "danger")
+        return redirect(url_for("forgot_password"))
+
+    if request.method == "GET":
+        return render_template("reset_password.html")
+
+    return _process_reset_password(user_id)
+
+
+def _register_auth_routes(flask_app):
     """Register authentication routes."""
 
-    @app.route("/login", methods=["GET", "POST"])
+    @flask_app.route("/login", methods=["GET", "POST"])
     def login():
         """Render login page or process login form."""
         if request.method == "GET":
@@ -520,7 +684,7 @@ def _register_auth_routes(app):
 
         return _handle_login()
 
-    @app.route("/register", methods=["GET", "POST"])
+    @flask_app.route("/register", methods=["GET", "POST"])
     def register():
         """Render register page or process registration form."""
         if request.method == "GET":
@@ -528,12 +692,20 @@ def _register_auth_routes(app):
 
         return _handle_register()
 
-    @app.route("/forgot-password")
+    @flask_app.route("/forgot-password", methods=["GET", "POST"])
     def forgot_password():
-        """Render forgot password page."""
-        return render_template("forgot_password.html")
+        """Render the forgot-password page or process a reset request."""
+        if request.method == "GET":
+            return render_template("forgot_password.html")
 
-    @app.route("/logout")
+        return _handle_forgot_password()
+
+    @flask_app.route("/reset-password", methods=["GET", "POST"])
+    def reset_password():
+        """Render or process a session-verified password reset."""
+        return _handle_reset_password()
+
+    @flask_app.route("/logout")
     def logout():
         """Clear session and redirect to login."""
         session.clear()
@@ -541,10 +713,10 @@ def _register_auth_routes(app):
         return redirect(url_for("login"))
 
 
-def _register_simple_page_routes(app):
+def _register_simple_page_routes(flask_app):
     """Register static page routes."""
 
-    @app.route("/offers")
+    @flask_app.route("/offers")
     def offers():
         """Render offers page for logged-in users."""
         redirect_response = _redirect_logged_out_user("Please log in to view your offers.")
@@ -554,7 +726,7 @@ def _register_simple_page_routes(app):
 
         return render_template("offers.html")
 
-    @app.route("/history")
+    @flask_app.route("/history")
     def history():
         """Render history page for logged-in users."""
         redirect_response = _redirect_logged_out_user("Please log in to view your history.")
@@ -564,7 +736,7 @@ def _register_simple_page_routes(app):
 
         return render_template("history.html")
 
-    @app.route("/sell")
+    @flask_app.route("/sell")
     def sell():
         """Render sell page for logged-in users."""
         redirect_response = _redirect_logged_out_user("Please log in to create a listing.")
@@ -574,18 +746,14 @@ def _register_simple_page_routes(app):
 
         return render_template("sell.html")
 
-    @app.route("/admin")
-    @admin_required
-    def admin():
-        """Render admin page."""
-        return render_template("admin.html")
-
-
 def create_app():
     """Create and configure the Flask application."""
     load_dotenv()
     app = Flask(__name__)
     app.config["SECRET_KEY"] = _load_secret_key()
+    app.jinja_env.filters["format_rating"] = _format_rating
+    app.jinja_env.filters["sg_datetime"] = format_singapore_datetime
+    app.jinja_env.filters["sg_date"] = format_singapore_date
     init_db()
 
     _register_main_routes(app)
@@ -593,11 +761,16 @@ def create_app():
     _register_profile_routes(app)
     _register_auth_routes(app)
     _register_simple_page_routes(app)
+    _register_current_user_context(app)
     _register_session_timeout(app)
     _register_admin_path_guard(app)
 
+    # Register blueprints
     app.register_blueprint(listings_bp)
     app.register_blueprint(offers_bp)
     app.register_blueprint(history_bp)
+    app.register_blueprint(reviews_bp)
+    app.register_blueprint(admin_bp)
+    app.register_blueprint(reports_bp)
 
     return app
