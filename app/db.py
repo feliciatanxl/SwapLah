@@ -100,7 +100,8 @@ INSERT_LISTING_SQL = (
 _LISTING_CARD_SELECT = (
     "SELECT listings.id,listings.title,listings.description,listings.price,"
     "listings.category,listings.item_condition AS condition,listings.image_url,"
-    "listings.listing_date,users.display_name AS seller,"
+    "listings.listing_date,listings.last_modified_timestamp,"
+    "users.display_name AS seller,"
     "users.profile_image_url AS seller_profile_image_url,"
     "(SELECT ROUND(AVG(r.rating),1) FROM reviews r "
     "WHERE r.reviewed_user_id=listings.seller_id) AS seller_avg_rating,"

@@ -48,7 +48,7 @@ def create_user(test_db, student_id, display_name, profile_image_url=None):
 
 
 def insert_listing(test_db, seller_id, title, *, listing_date="2026-07-24 04:46:00",
-                   category="Textbooks", condition="Good"):
+                   last_modified_timestamp=None, category="Textbooks", condition="Good"):
     """Insert a listing with a fixed UTC listing_date and return its ID."""
     conn = sqlite3.connect(test_db)
     cursor = conn.execute(
@@ -57,7 +57,10 @@ def insert_listing(test_db, seller_id, title, *, listing_date="2026-07-24 04:46:
                               item_condition, image_url, listing_date, last_modified_timestamp)
         VALUES (?, ?, 'desc', '20.00', ?, ?, '["https://e.com/a.jpg"]', ?, ?)
         """,
-        (seller_id, title, category, condition, listing_date, listing_date),
+        (
+            seller_id, title, category, condition, listing_date,
+            last_modified_timestamp or listing_date,
+        ),
     )
     conn.commit()
     listing_id = cursor.lastrowid
@@ -142,4 +145,22 @@ def test_card_renders_singapore_time(client):
 
     page = test_client.get("/").get_data(as_text=True)
     assert "24 Jul 2026, 12:46 PM" in page
+    assert "Listed" in page
     assert "2026-07-24 04:46:00" not in page
+
+
+def test_card_renders_updated_time_when_listing_was_edited(client):
+    """Edited listing cards show the seller's latest update timestamp."""
+    test_client, test_db = client
+    seller_id = create_user(test_db, "S9900009", "Kai", SELLER_IMG)
+    insert_listing(
+        test_db,
+        seller_id,
+        "Edited Item",
+        listing_date="2026-07-24 04:46:00",
+        last_modified_timestamp="2026-07-24 05:46:00",
+    )
+
+    page = test_client.get("/").get_data(as_text=True)
+    assert "Updated 24 Jul 2026, 1:46 PM" in page
+    assert "Listed 24 Jul 2026, 12:46 PM" not in page
