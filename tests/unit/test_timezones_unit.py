@@ -65,11 +65,11 @@ def test_blank_and_none_values_are_handled():
 def test_format_db_timestamp_round_trips_utc_now():
     """format_db_timestamp stores an aware UTC value as a naive UTC string."""
     stored = format_db_timestamp(utc_now())
-    assert len(stored) == 19
+    assert len(stored) == 26
     assert parse_db_timestamp(stored).tzinfo == timezone.utc
 
 
 def test_format_db_timestamp_converts_singapore_input_to_utc():
     """An aware Singapore datetime is stored as its UTC equivalent."""
     moment = to_singapore_time("2026-07-24 04:46:00")
-    assert format_db_timestamp(moment) == "2026-07-24 04:46:00"
+    assert format_db_timestamp(moment) == "2026-07-24 04:46:00.000000"

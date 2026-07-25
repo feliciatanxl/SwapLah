@@ -1,12 +1,21 @@
 """Routes for listing creation, retrieval, and update."""
 
+import json
 import math
 import re
 from decimal import Decimal, InvalidOperation
 
 from flask import Blueprint, jsonify, request, session
 
-from app.db import create_listing, get_db_connection, get_listing_by_id, update_listing, soft_delete_listing
+from app.db import (
+    create_listing,
+    get_db_connection,
+    get_listing_by_id,
+    get_listing_category_summary,
+    get_user_rating_stats,
+    soft_delete_listing,
+    update_listing,
+)
 
 listings_bp = Blueprint("listings", __name__)
 
@@ -146,6 +155,14 @@ def _handle_delete_error(error):
     return None
 
 
+def _require_login_json(message):
+    """Return a JSON 401 response when the current request has no user session."""
+    if not session.get("user_id"):
+        return _error(message, 401)
+
+    return None
+
+
 def _get_page_args():
     """Return sanitized pagination values from the request."""
     page = request.args.get("page", 1, type=int)
@@ -214,7 +231,12 @@ def _fetch_active_listing_rows(db, pagination, filters):
                listings.price, listings.category, listings.item_condition AS condition,
                listings.image_url, listings.listing_date,
                listings.last_modified_timestamp, listings.status,
-               users.profile_image_url AS seller_profile_image_url
+               users.display_name AS seller,
+               users.profile_image_url AS seller_profile_image_url,
+               (SELECT ROUND(AVG(r.rating),1) FROM reviews r
+                WHERE r.reviewed_user_id=listings.seller_id) AS seller_avg_rating,
+               (SELECT COUNT(*) FROM reviews r
+                WHERE r.reviewed_user_id=listings.seller_id) AS seller_review_count
         FROM listings
         LEFT JOIN users ON listings.seller_id = users.id
         WHERE {where_clause}
@@ -223,6 +245,17 @@ def _fetch_active_listing_rows(db, pagination, filters):
         """,
         params,
     ).fetchall()
+
+
+def _decode_images(raw_image):
+    """Decode a listing image JSON array, falling back to the raw URL string."""
+    try:
+        images = json.loads(raw_image)
+        if isinstance(images, list) and images:
+            return images
+    except (TypeError, json.JSONDecodeError):
+        pass
+    return [raw_image] if raw_image else []
 
 
 def _active_listing_json(row):
@@ -236,10 +269,14 @@ def _active_listing_json(row):
         "category": row["category"],
         "condition": row["condition"],
         "imageUrl": row["image_url"],
+        "images": _decode_images(row["image_url"]),
         "listingDate": row["listing_date"],
         "lastModifiedTimestamp": row["last_modified_timestamp"],
         "status": row["status"],
+        "seller": row["seller"],
         "sellerProfileImageUrl": row["seller_profile_image_url"],
+        "sellerAvgRating": row["seller_avg_rating"],
+        "sellerReviewCount": row["seller_review_count"],
     }
 
 
@@ -255,9 +292,25 @@ def _listing_page_payload(rows, page, per_page, total_listings):
     }
 
 
+@listings_bp.route("/api/listing-categories", methods=["GET"])
+def api_get_listing_categories():
+    """Return active listing counts by category for homepage category cards."""
+    auth_error = _require_login_json("You must be logged in to view listing categories.")
+
+    if auth_error:
+        return auth_error
+
+    return jsonify(get_listing_category_summary()), 200
+
+
 @listings_bp.route("/api/listings", methods=["GET"])
 def api_get_active_listings():
     """Return active listings with pagination, search, and filters."""
+    auth_error = _require_login_json("You must be logged in to view listings.")
+
+    if auth_error:
+        return auth_error
+
     page, per_page, offset = _get_page_args()
     search = request.args.get("search", "", type=str).strip()
     category = request.args.get("category", "", type=str).strip()
@@ -346,15 +399,23 @@ def api_update_listing(listing_id):
 @listings_bp.route("/api/listings/<int:listing_id>", methods=["GET"])
 def api_get_listing_detail(listing_id):
     """Return full detail for a single listing by ID."""
+    auth_error = _require_login_json("You must be logged in to view listing details.")
+
+    if auth_error:
+        return auth_error
+
     listing = get_listing_by_id(listing_id)
 
     if listing is None:
         return _error("Listing not found or unavailable.", 404)
 
+    seller_rating = get_user_rating_stats(listing["seller_id"])
+
     return jsonify(
         {
             "listing": {
                 "id": listing["id"],
+                "sellerId": listing["seller_id"],
                 "title": listing["title"],
                 "description": listing["description"],
                 "price": listing["price"],
@@ -365,11 +426,13 @@ def api_get_listing_detail(listing_id):
                 "listingDate": listing["listing_date"],
                 "lastModifiedTimestamp": listing["last_modified_timestamp"],
                 "seller": {
+                    "id": listing["seller_id"],
                     "displayName": listing["seller_display_name"],
                     "email": listing["seller_email"],
                     "contactNumber": listing["seller_contact_number"],
                     "profileImageUrl": listing.get("seller_profile_image_url"),
                 },
+                "sellerRating": seller_rating,
             }
         }
     ), 200

@@ -2,8 +2,6 @@
 
 # pylint: disable=missing-function-docstring
 
-import time
-
 from app import create_app
 from app import db
 
@@ -68,8 +66,6 @@ def test_owner_can_update_listing_and_timestamp_changes(tmp_path, monkeypatch):
     )
 
     old_timestamp = listing["last_modified_timestamp"]
-
-    time.sleep(1)
 
     login_as(client, seller_id)
 

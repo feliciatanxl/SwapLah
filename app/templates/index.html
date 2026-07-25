@@ -1,7 +1,5 @@
 {% extends "base.html" %}
 {% block content %}
-{% import "_avatar.html" as ui %}
-
 <section class="hero-section">
     <div class="hero-inner">
         <div class="hero-content">
@@ -50,7 +48,7 @@
                     <div class="category-icon"><i class="bi bi-grid"></i></div>
                     <div>
                         <h6>All</h6>
-                        <p>{{ category_summary.total }} item{% if category_summary.total != 1 %}s{% endif %}</p>
+                        <p data-category-total-count>{{ category_summary.total }} item{% if category_summary.total != 1 %}s{% endif %}</p>
                     </div>
                 </a>
             </div>
@@ -60,7 +58,7 @@
                     <div class="category-icon"><i class="bi {{ category_row.icon }}"></i></div>
                     <div>
                         <h6>{{ category_row.label }}</h6>
-                        <p>{{ category_row.count }} item{% if category_row.count != 1 %}s{% endif %}</p>
+                        <p data-category-count="{{ category_row.label }}">{{ category_row.count }} item{% if category_row.count != 1 %}s{% endif %}</p>
                     </div>
                 </a>
             </div>
@@ -126,158 +124,13 @@
 
         </form>
 
-        <div class="row g-4">
-            {% for item in listings %}
-            <div class="col-12 col-sm-6 col-lg-4">
-                <div class="listing-card listing-clickable"
-                    data-detail-url="{{ url_for('listing_detail', listing_id=item.id) }}">
-
-                    <div class="listing-image-wrap listing-card-slider" data-slider="true">
-                        {% for image in item.images %}
-                        <img src="{{ image }}" alt="{{ item.title }}"
-                            class="listing-slider-image {% if loop.first %}active{% endif %}">
-
-                        {% endfor %}
-
-                        {% if item.images|length > 1 %}
-                        <button type="button" class="listing-slider-arrow listing-slider-left">
-                            <i class="bi bi-chevron-left"></i>
-                        </button>
-
-                        <button type="button" class="listing-slider-arrow listing-slider-right">
-                            <i class="bi bi-chevron-right"></i>
-                        </button>
-
-                        <span class="listing-image-counter">
-                            <span class="current-image-number">1</span> / {{ item.images|length }}
-                        </span>
-                        {% endif %}
-
-                        {% if item.badge %}
-                        <span class="listing-badge {{ item.badge_class }}">{{ item.badge }}</span>
-                        {% endif %}
-
-                        <span class="wishlist-btn"><i class="bi bi-heart"></i></span>
-                        <span class="location-badge"><i class="bi bi-geo-alt"></i> NYP Campus</span>
-                    </div>
-
-                    <div class="listing-body">
-                        <h5>
-                            <a href="{{ url_for('listing_detail', listing_id=item.id) }}">{{ item.title }}</a>
-                        </h5>
-
-                        <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
-                            <span class="condition-tag">{{ item.category }}</span>
-                            <span class="condition-tag">{{ item.condition }}</span>
-                        </div>
-
-                        <div class="price-row mb-2">
-                            <span class="price">{{ item.price }}</span>
-                        </div>
-
-                        <div class="seller-row">
-                            <span class="seller-identity">
-                                {{ ui.user_avatar(item.seller_profile_image_url, item.seller, "avatar-mini me-1") }}
-                                {{ item.seller or "Student Seller" }}
-                            </span>
-                            <span>
-                                {% if item.seller_review_count %}
-                                <i class="bi bi-star-fill text-warning"></i> {{ item.seller_avg_rating | format_rating }}
-                                {% else %}
-                                <i class="bi bi-star-fill text-warning"></i> New
-                                {% endif %}
-                            </span>
-                        </div>
-
-                        <div class="time-row">
-                            <i class="bi bi-clock"></i>
-                            {% if item.last_modified_timestamp and item.last_modified_timestamp != item.listing_date %}
-                            Updated {{ item.last_modified_timestamp | sg_datetime }}
-                            {% else %}
-                            Listed {{ item.listing_date | sg_datetime }}
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {% else %}
+        <div class="row g-4" id="listing-results" aria-live="polite">
             <div class="col-12">
-                <p class="text-center text-muted mb-0">
-                    {% if request.args.get('search') or request.args.get('category') or request.args.get('condition') %}
-                    No matching listings found.
-                    {% else %}
-                    No active listings available.
-                    {% endif %}
-                </p>
+                <p class="text-center text-muted mb-0">Loading listings...</p>
             </div>
-            {% endfor %}
-
-
         </div>
 
-
-        {% if total_pages > 1 %}
-        <nav class="pagination-wrap" aria-label="Listings pagination">
-            <ul class="pagination justify-content-center mb-2">
-
-                {% if page > 1 %}
-                <li class="page-item">
-                    <a class="page-link" href="{{ url_for('index',page=page-1,
-       search=request.args.get('search', ''),
-       category=request.args.get('category', ''),
-       condition=request.args.get('condition', '')
-   ) }}#latest-listings">
-                        Previous
-                    </a>
-                </li>
-                {% else %}
-                <li class="page-item disabled">
-                    <span class="page-link">Previous</span>
-                </li>
-                {% endif %}
-
-                {% for p in range(1, total_pages + 1) %}
-                <li class="page-item {% if p == page %}active{% endif %}">
-                    <a class="page-link" href="{{ url_for(
-       'index',
-       page=p,
-       search=request.args.get('search', ''),
-       category=request.args.get('category', ''),
-       condition=request.args.get('condition', '')
-   ) }}#latest-listings">
-                        {{ p }}
-                    </a>
-                </li>
-                {% endfor %}
-
-                {% if page < total_pages %} <li class="page-item">
-                    <a class="page-link" href="{{ url_for(
-       'index',
-       page=page+1,
-       search=request.args.get('search', ''),
-       category=request.args.get('category', ''),
-       condition=request.args.get('condition', '')
-   ) }}#latest-listings">
-                        Next
-                    </a>
-                    </li>
-                    {% else %}
-                    <li class="page-item disabled">
-                        <span class="page-link">Next</span>
-                    </li>
-                    {% endif %}
-
-            </ul>
-            <p class="pagination-text">
-                Showing {{ showing_start }}-{{ showing_end }} of {{ total_listings }} active listings
-            </p>
-        </nav>
-        {% else %}
-        <p class="pagination-text text-center">
-            Showing {{ total_listings }} active listings
-        </p>
-        {% endif %}
+        <div id="listing-pagination"></div>
     </div>
 </section>
 
@@ -328,9 +181,64 @@
 </section>
 <script>
     document.addEventListener("DOMContentLoaded", function () {
-        const sliders = document.querySelectorAll(".listing-card-slider");
+        const results = document.getElementById("listing-results");
+        const pagination = document.getElementById("listing-pagination");
+        const params = new URLSearchParams(window.location.search);
 
-        sliders.forEach(function (slider) {
+        function escapeHtml(value) {
+            const div = document.createElement("div");
+            div.textContent = value == null ? "" : String(value);
+            return div.innerHTML;
+        }
+
+        function imageList(item) {
+            if (Array.isArray(item.images) && item.images.length) {
+                return item.images;
+            }
+            return item.imageUrl ? [item.imageUrl] : [];
+        }
+
+        function formatRating(value) {
+            if (value == null) return "";
+            const number = Number(value);
+            return Number.isInteger(number) ? String(number) : String(value);
+        }
+
+        function parseTimestamp(value) {
+            if (!value) return null;
+            const parts = String(value).split(".");
+            const millis = parts[1] ? "." + parts[1].slice(0, 3).padEnd(3, "0") : "";
+            return new Date(parts[0].replace(" ", "T") + millis + "Z");
+        }
+
+        function formatSingaporeTimestamp(value) {
+            const date = parseTimestamp(value);
+            if (!date || Number.isNaN(date.getTime())) return "";
+            return date.toLocaleString("en-SG", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+                hour12: true,
+                timeZone: "Asia/Singapore",
+            }).replace(/\b(am|pm)\b/i, function (match) {
+                return match.toUpperCase();
+            });
+        }
+
+        function avatarMarkup(imageUrl, name, classes) {
+            const safeName = escapeHtml(name || "User");
+            const initial = safeName.trim().charAt(0).toUpperCase() || "U";
+            if (imageUrl) {
+                return `<img src="${escapeHtml(imageUrl)}" alt="${safeName}" class="${classes} avatar-img" onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(name || "User")}&background=E8F3FF&color=0B66C3';">`;
+            }
+            return `<span class="${classes}">${initial}</span>`;
+        }
+
+        function activateSliders(root) {
+            const sliders = root.querySelectorAll(".listing-card-slider");
+            sliders.forEach(function (slider) {
             const images = slider.querySelectorAll(".listing-slider-image");
             const prevBtn = slider.querySelector(".listing-slider-left");
             const nextBtn = slider.querySelector(".listing-slider-right");
@@ -376,9 +284,11 @@
                 });
             }
         });
-        const listingCards = document.querySelectorAll(".listing-clickable");
+        }
 
-        listingCards.forEach(function (card) {
+        function activateListingCards(root) {
+            const listingCards = root.querySelectorAll(".listing-clickable");
+            listingCards.forEach(function (card) {
             card.addEventListener("click", function (event) {
                 if (event.target.closest("button, a, .wishlist-btn")) {
                     return;
@@ -387,6 +297,154 @@
                 window.location.href = card.dataset.detailUrl;
             });
         });
+        }
+
+        function cardMarkup(item) {
+            const images = imageList(item);
+            const detailUrl = `/listing/${item.id}`;
+            const seller = item.seller || "Student Seller";
+            const timeLabel = item.lastModifiedTimestamp && item.lastModifiedTimestamp !== item.listingDate
+                ? `Updated ${formatSingaporeTimestamp(item.lastModifiedTimestamp)}`
+                : `Listed ${formatSingaporeTimestamp(item.listingDate)}`;
+            const imageMarkup = images.map(function (image, index) {
+                return `<img src="${escapeHtml(image)}" alt="${escapeHtml(item.title)}" class="listing-slider-image ${index === 0 ? "active" : ""}">`;
+            }).join("");
+            const sliderControls = images.length > 1 ? `
+                <button type="button" class="listing-slider-arrow listing-slider-left"><i class="bi bi-chevron-left"></i></button>
+                <button type="button" class="listing-slider-arrow listing-slider-right"><i class="bi bi-chevron-right"></i></button>
+                <span class="listing-image-counter"><span class="current-image-number">1</span> / ${images.length}</span>
+            ` : "";
+            const rating = item.sellerReviewCount
+                ? `<i class="bi bi-star-fill text-warning"></i> ${escapeHtml(formatRating(item.sellerAvgRating))}`
+                : `<i class="bi bi-star-fill text-warning"></i> New`;
+
+            return `
+                <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="listing-card listing-clickable" data-detail-url="${detailUrl}">
+                        <div class="listing-image-wrap listing-card-slider" data-slider="true">
+                            ${imageMarkup}
+                            ${sliderControls}
+                            <span class="wishlist-btn"><i class="bi bi-heart"></i></span>
+                            <span class="location-badge"><i class="bi bi-geo-alt"></i> NYP Campus</span>
+                        </div>
+                        <div class="listing-body">
+                            <h5><a href="${detailUrl}">${escapeHtml(item.title)}</a></h5>
+                            <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+                                <span class="condition-tag">${escapeHtml(item.category)}</span>
+                                <span class="condition-tag">${escapeHtml(item.condition)}</span>
+                            </div>
+                            <div class="price-row mb-2"><span class="price">${escapeHtml(item.price)}</span></div>
+                            <div class="seller-row">
+                                <span class="seller-identity">
+                                    ${avatarMarkup(item.sellerProfileImageUrl, seller, "avatar-mini me-1")}
+                                    ${escapeHtml(seller)}
+                                </span>
+                                <span>${rating}</span>
+                            </div>
+                            <div class="time-row"><i class="bi bi-clock"></i> ${escapeHtml(timeLabel)}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function pageLink(page, label, disabled, active) {
+            const nextParams = new URLSearchParams(window.location.search);
+            nextParams.set("page", page);
+            const href = `${window.location.pathname}?${nextParams.toString()}#latest-listings`;
+            const cls = `page-item ${disabled ? "disabled" : ""} ${active ? "active" : ""}`;
+            if (disabled) {
+                return `<li class="${cls}"><span class="page-link">${label}</span></li>`;
+            }
+            return `<li class="${cls}"><a class="page-link" href="${href}">${label}</a></li>`;
+        }
+
+        function renderPagination(data) {
+            const start = data.totalListings > 0 ? ((data.page - 1) * data.perPage) + 1 : 0;
+            const end = Math.min(data.page * data.perPage, data.totalListings);
+            if (data.totalPages <= 1) {
+                pagination.innerHTML = `<p class="pagination-text text-center">Showing ${data.totalListings} active listings</p>`;
+                return;
+            }
+            let pages = pageLink(data.page - 1, "Previous", data.page <= 1, false);
+            for (let page = 1; page <= data.totalPages; page += 1) {
+                pages += pageLink(page, page, false, page === data.page);
+            }
+            pages += pageLink(data.page + 1, "Next", data.page >= data.totalPages, false);
+            pagination.innerHTML = `
+                <nav class="pagination-wrap" aria-label="Listings pagination">
+                    <ul class="pagination justify-content-center mb-2">${pages}</ul>
+                    <p class="pagination-text">Showing ${start}-${end} of ${data.totalListings} active listings</p>
+                </nav>
+            `;
+        }
+
+        function itemCountLabel(count) {
+            return `${count} item${count === 1 ? "" : "s"}`;
+        }
+
+        function renderCategorySummary(categorySummary) {
+            if (!categorySummary) return;
+
+            const totalCount = document.querySelector("[data-category-total-count]");
+            if (totalCount) {
+                totalCount.textContent = itemCountLabel(Number(categorySummary.total || 0));
+            }
+
+            (categorySummary.category_rows || []).forEach(function (categoryRow) {
+                const countNodes = document.querySelectorAll("[data-category-count]");
+                countNodes.forEach(function (countNode) {
+                    if (countNode.dataset.categoryCount === categoryRow.label) {
+                        countNode.textContent = itemCountLabel(Number(categoryRow.count || 0));
+                    }
+                });
+            });
+        }
+
+        function renderListings(data) {
+            if (!data.listings.length) {
+                const hasFilters = params.get("search") || params.get("category") || params.get("condition");
+                results.innerHTML = `<div class="col-12"><p class="text-center text-muted mb-0">${hasFilters ? "No matching listings found." : "No active listings available."}</p></div>`;
+                renderPagination(data);
+                return;
+            }
+
+            results.innerHTML = data.listings.map(cardMarkup).join("");
+            activateSliders(results);
+            activateListingCards(results);
+            renderPagination(data);
+        }
+
+        fetch("/api/listing-categories")
+            .then(function (response) {
+                if (response.status === 401) {
+                    window.location.href = "{{ url_for('login') }}";
+                    return null;
+                }
+                if (!response.ok) throw new Error("Unable to load categories.");
+                return response.json();
+            })
+            .then(function (categorySummary) {
+                if (categorySummary) renderCategorySummary(categorySummary);
+            })
+            .catch(function () {});
+
+        fetch(`/api/listings?${params.toString()}`)
+            .then(function (response) {
+                if (response.status === 401) {
+                    window.location.href = "{{ url_for('login') }}";
+                    return null;
+                }
+                if (!response.ok) throw new Error("Unable to load listings.");
+                return response.json();
+            })
+            .then(function (data) {
+                if (data) renderListings(data);
+            })
+            .catch(function () {
+                results.innerHTML = '<div class="col-12"><p class="text-center text-muted mb-0">Unable to load listings.</p></div>';
+                pagination.innerHTML = "";
+            });
 
     });
 </script>

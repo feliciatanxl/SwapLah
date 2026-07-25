@@ -1,6 +1,5 @@
 """Flask application factory."""
 
-import math
 import os
 import re
 import sqlite3
@@ -12,11 +11,10 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from app.auth import admin_required, _require_admin_response
 
 from app.db import (
+    LISTING_CATEGORIES,
     create_user,
     get_active_listings_by_seller,
-    search_active_listings,
     get_listing_by_id,
-    get_listing_category_summary,
     get_listings_by_seller,
     get_reviews_for_user,
     get_sold_listings_by_seller,
@@ -72,19 +70,13 @@ SESSION_TIMEOUT_SECONDS = 30 * 60
 SESSION_TIMEOUT_MESSAGE = "Session expired due to inactivity. Please log in again."
 
 PUBLIC_ENDPOINTS = {
-    "index",
-    "listing_detail",
-    "view_profile",
     "login",
     "register",
     "forgot_password",
     "reset_password",
     "logout",
     "static",
-    "listings.api_get_active_listings",
-    "listings.api_get_listing_detail",
     "api_health",
-    "reviews.get_user_reviews",
 }
 
 
@@ -209,43 +201,22 @@ def _create_user_account(form_data):
     return redirect(url_for("login"))
 
 
-def _paginate_listings(page, search="", category="", condition="", per_page=10):
-    """Return paginated listings and page metadata."""
-    page = max(page, 1)
-    all_listings = search_active_listings(search, category, condition)
-    total_listings = len(all_listings)
-    total_pages = math.ceil(total_listings / per_page) if total_listings > 0 else 1
-    page = min(page, total_pages)
-
-    start = (page - 1) * per_page
-    end = start + per_page
-
+def _listing_category_shell():
+    """Return static category metadata; listing counts load through REST."""
     return {
-        "listings": all_listings[start:end],
-        "page": page,
-        "total_pages": total_pages,
-        "total_listings": total_listings,
+        "total": 0,
+        "category_rows": [
+            {"label": category["label"], "icon": category["icon"], "count": 0}
+            for category in LISTING_CATEGORIES
+        ],
     }
 
 
-def _render_index_page(page, search, category, condition):
-    """Render homepage with paginated listing data."""
-    pagination = _paginate_listings(page, search, category, condition)
-    showing_start = (
-        (pagination["page"] - 1) * 10 + 1
-        if pagination["total_listings"] > 0
-        else 0
-    )
-    showing_end = min(pagination["page"] * 10, pagination["total_listings"])
+def _render_index_page(search, category, condition):
+    """Render homepage shell; listing data is loaded through the REST API."""
     return render_template(
         "index.html",
-        listings=pagination["listings"],
-        page=pagination["page"],
-        total_pages=pagination["total_pages"],
-        total_listings=pagination["total_listings"],
-        showing_start=showing_start,
-        showing_end=showing_end,
-        category_summary=get_listing_category_summary(),
+        category_summary=_listing_category_shell(),
         search=search,
         category=category,
         condition=condition,
@@ -253,23 +224,8 @@ def _render_index_page(page, search, category, condition):
 
 
 def _render_listing_detail_page(listing_id):
-    """Render the listing detail page or a not-found response."""
-    listing = get_listing_by_id(listing_id)
-
-    if listing is None:
-        return render_template(
-            "listing_detail.html",
-            listing=None,
-            error_message="This listing does not exist or is no longer available.",
-        ), 404
-
-    return render_template(
-        "listing_detail.html",
-        listing=listing,
-        listing_id=listing_id,
-        seller_rating=get_user_rating_stats(listing["seller_id"]) if "seller_id" in listing else None,
-        error_message=None,
-    )
+    """Render listing detail shell; details are loaded through the REST API."""
+    return render_template("listing_detail.html", listing_id=listing_id)
 
 
 def _get_logged_in_user_or_redirect(message):
@@ -488,15 +444,24 @@ def _register_main_routes(flask_app):
     @flask_app.route("/")
     def index():
         """Render homepage with paginated listings."""
-        page = request.args.get("page", 1, type=int)
+        redirect_response = _redirect_logged_out_user("Please log in to browse listings.")
+
+        if redirect_response:
+            return redirect_response
+
         search = request.args.get("search", "").strip()
         category = request.args.get("category", "").strip()
         condition = request.args.get("condition", "").strip()
-        return _render_index_page(page, search, category, condition)
+        return _render_index_page(search, category, condition)
 
     @flask_app.route("/listing/<int:listing_id>")
     def listing_detail(listing_id):
         """Render listing detail page."""
+        redirect_response = _redirect_logged_out_user("Please log in to view listing details.")
+
+        if redirect_response:
+            return redirect_response
+
         return _render_listing_detail_page(listing_id)
 
 
