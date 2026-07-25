@@ -48,7 +48,7 @@
                     <div class="category-icon"><i class="bi bi-grid"></i></div>
                     <div>
                         <h6>All</h6>
-                        <p>{{ category_summary.total }} item{% if category_summary.total != 1 %}s{% endif %}</p>
+                        <p data-category-total-count>{{ category_summary.total }} item{% if category_summary.total != 1 %}s{% endif %}</p>
                     </div>
                 </a>
             </div>
@@ -58,7 +58,7 @@
                     <div class="category-icon"><i class="bi {{ category_row.icon }}"></i></div>
                     <div>
                         <h6>{{ category_row.label }}</h6>
-                        <p>{{ category_row.count }} item{% if category_row.count != 1 %}s{% endif %}</p>
+                        <p data-category-count="{{ category_row.label }}">{{ category_row.count }} item{% if category_row.count != 1 %}s{% endif %}</p>
                     </div>
                 </a>
             </div>
@@ -379,7 +379,31 @@
             `;
         }
 
+        function itemCountLabel(count) {
+            return `${count} item${count === 1 ? "" : "s"}`;
+        }
+
+        function renderCategorySummary(categorySummary) {
+            if (!categorySummary) return;
+
+            const totalCount = document.querySelector("[data-category-total-count]");
+            if (totalCount) {
+                totalCount.textContent = itemCountLabel(Number(categorySummary.total || 0));
+            }
+
+            (categorySummary.category_rows || []).forEach(function (categoryRow) {
+                const countNodes = document.querySelectorAll("[data-category-count]");
+                countNodes.forEach(function (countNode) {
+                    if (countNode.dataset.categoryCount === categoryRow.label) {
+                        countNode.textContent = itemCountLabel(Number(categoryRow.count || 0));
+                    }
+                });
+            });
+        }
+
         function renderListings(data) {
+            renderCategorySummary(data.categorySummary);
+
             if (!data.listings.length) {
                 const hasFilters = params.get("search") || params.get("category") || params.get("condition");
                 results.innerHTML = `<div class="col-12"><p class="text-center text-muted mb-0">${hasFilters ? "No matching listings found." : "No active listings available."}</p></div>`;

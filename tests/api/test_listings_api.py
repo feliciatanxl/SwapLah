@@ -213,6 +213,43 @@ def test_get_active_listings_filters_by_category_and_condition(client):
     assert data["listings"][0]["title"] == "Like New Mouse"
 
 
+def test_get_active_listings_returns_category_summary(client):
+    """GET /api/listings returns category counts for the homepage cards."""
+    seller_id = seed_user()
+    login_as(client, seller_id)
+    seed_listing(
+        seller_id=seller_id,
+        title="Python Notes",
+        category="Textbooks",
+    )
+    seed_listing(
+        seller_id=seller_id,
+        title="Wireless Mouse",
+        category="Electronics",
+    )
+    seed_listing(
+        seller_id=seller_id,
+        title="Deleted Shirt",
+        category="Clothing",
+        status="Deleted",
+    )
+
+    response = client.get("/api/listings")
+
+    assert response.status_code == 200
+
+    summary = response.get_json()["categorySummary"]
+    counts = {
+        category["label"]: category["count"]
+        for category in summary["category_rows"]
+    }
+
+    assert summary["total"] == 2
+    assert counts["Textbooks"] == 1
+    assert counts["Electronics"] == 1
+    assert counts["Clothing"] == 0
+
+
 def test_get_listing_detail_returns_seller_contact_information(client):
     """GET /api/listings/<id> returns listing details and seller contact info."""
     seller_id = seed_user(

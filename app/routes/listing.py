@@ -11,6 +11,7 @@ from app.db import (
     create_listing,
     get_db_connection,
     get_listing_by_id,
+    get_listing_category_summary,
     get_user_rating_stats,
     soft_delete_listing,
     update_listing,
@@ -288,6 +289,7 @@ def _listing_page_payload(rows, page, per_page, total_listings):
         "perPage": per_page,
         "totalListings": total_listings,
         "totalPages": total_pages,
+        "categorySummary": get_listing_category_summary(),
     }
 
 
