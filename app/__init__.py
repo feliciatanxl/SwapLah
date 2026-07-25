@@ -471,6 +471,27 @@ def _handle_profile_edit(user):
     return _save_profile_update(form_data, images)
 
 
+def _view_other_profile(user_id):
+    """Render another user's profile for a logged-in viewer, else redirect."""
+    redirect_response = _redirect_logged_out_user(
+        "Please log in to view user profiles."
+    )
+
+    if redirect_response:
+        return redirect_response
+
+    if session.get("user_id") == user_id:
+        return redirect(url_for("profile"))
+
+    user = get_user_by_id(user_id)
+
+    if user is None:
+        flash("This user does not exist.", "danger")
+        return redirect(url_for("index"))
+
+    return _render_profile_page(user, is_own_profile=False)
+
+
 def _register_main_routes(flask_app):
     """Register homepage and simple listing page routes."""
 
@@ -556,23 +577,7 @@ def _register_profile_routes(flask_app):
     @flask_app.route("/profile/<int:user_id>")
     def view_profile(user_id):
         """Render another user's profile page for logged-in users."""
-        redirect_response = _redirect_logged_out_user(
-            "Please log in to view user profiles."
-        )
-
-        if redirect_response:
-            return redirect_response
-
-        if session.get("user_id") == user_id:
-            return redirect(url_for("profile"))
-
-        user = get_user_by_id(user_id)
-
-        if user is None:
-            flash("This user does not exist.", "danger")
-            return redirect(url_for("index"))
-
-        return _render_profile_page(user, is_own_profile=False)
+        return _view_other_profile(user_id)
 
     @flask_app.route("/profile/edit", methods=["GET", "POST"])
     def edit_profile():
